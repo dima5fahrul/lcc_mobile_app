@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AC-25 / ADR-0002 — Release signing secrets (never commit)
+# The user generates and holds the keystore; only the .example template is tracked.
+/android/key.properties
+*.jks
+*.keystore

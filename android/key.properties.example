@@ -1,0 +1,25 @@
+# AC-25 / ADR-0002 — Release signing template
+#
+# This is a TEMPLATE. Copy it to android/key.properties and fill in your keystore values:
+#   cp android/key.properties.example android/key.properties
+#
+# The real android/key.properties file is gitignored and MUST NEVER be committed.
+# The .jks / .keystore files themselves are also gitignored.
+#
+# YOU (the developer/user) generate and hold the signing key — no agent does this for you.
+# Generate a keystore with:
+#   keytool -genkey -v -keystore <path-to-your.keystore> -alias <alias> \
+#     -keyalg RSA -keysize 2048 -validity 10000
+#
+# Store and back up the keystore outside the repository. Losing it means already-installed
+# devices cannot receive an in-place update and must uninstall/reinstall, losing local data.
+#
+# Fields:
+#   storeFile      Absolute path to your .jks or .keystore
+#   storePassword  Keystore password
+#   keyAlias       Key alias (matches -alias above)
+#   keyPassword    Key password
+storeFile=<absolute path to your .jks or .keystore>
+storePassword=<keystore password>
+keyAlias=<key alias>
+keyPassword=<key password>
