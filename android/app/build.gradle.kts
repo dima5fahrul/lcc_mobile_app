@@ -1,3 +1,8 @@
+// AC-25: must precede plugins {}. Inside the android { } block the identifier `java`
+// binds to Gradle's JavaPluginExtension accessor, not the java.* package, so the
+// fully-qualified `java.util.Properties()` does not resolve there. Import it instead.
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -30,9 +35,13 @@ android {
     // up the signing key. This block reads android/key.properties IF it exists; if it does
     // not, the release signingConfig is left unconfigured and assembleRelease fails loudly
     // (see the guard below). NEVER fall back to the debug signing key for release.
-    val keyPropertiesFile = rootProject.file("android/key.properties")
+    // NOTE: for a Flutter app, settings.gradle.kts lives in android/, so Gradle's
+    // rootProject dir IS android/ — the path here is "key.properties", NOT
+    // "android/key.properties" (that would resolve to android/android/key.properties
+    // and make the guard below throw even when a valid keystore is configured).
+    val keyPropertiesFile = rootProject.file("key.properties")
     if (keyPropertiesFile.exists()) {
-        val keyProperties = java.util.Properties()
+        val keyProperties = Properties()
         keyPropertiesFile.inputStream().use { keyProperties.load(it) }
         signingConfigs.create("release") {
             keyAlias = keyProperties.getProperty("keyAlias")
@@ -44,8 +53,10 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Resolves to the config created above from android/key.properties, or null
+            // when no keystore is configured — in which case the guard below aborts the
+            // build. The Flutter template's "sign with debug keys for now" default is
+            // deliberately NOT used here (AC-25 / V-1).
             signingConfig = signingConfigs.findByName("release")
             // Fail loudly if assembleRelease runs without a user-provided keystore.
             // AC-25 / V-1: NEVER silently fall back to the debug signing key — the debug
