@@ -58,6 +58,7 @@ class AppBrand {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      fontFamily: 'NotoSansLao',
       scaffoldBackgroundColor: surface,
       appBarTheme: const AppBarTheme(
         backgroundColor: primary,
