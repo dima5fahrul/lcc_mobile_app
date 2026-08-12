@@ -38,6 +38,30 @@ void main() {
     expect(dio.options.receiveTimeout, const Duration(seconds: 10));
   });
 
+  // AC-20, structural half — architecture-review.md § 1.3 names this as the
+  // trap the D-1 fix must not walk into. The tempting fix was a permissive
+  // `validateStatus` here, which would make `_unwrap`'s non-2xx branch live by
+  // stopping non-2xx from raising a `DioException` at all. `onError` is the
+  // only door a 401 can reach `RefreshInterceptor` through, so that would kill
+  // refresh outright — and the refresh tests would go green *because no refresh
+  // happens*, which reads exactly like success. The behavioural half (a 401
+  // really does still refresh and replay) is in `refresh_interceptor_test.dart`;
+  // this pins the invariant at its source, in the composition root, where the
+  // regression would actually be introduced.
+  test('leaves validateStatus rejecting non-2xx, so a 401 still raises and '
+      'still reaches RefreshInterceptor.onError', () {
+    final Dio dio = buildDio(storage: storage);
+    final bool Function(int?) accepts = dio.options.validateStatus;
+
+    expect(accepts(200), isTrue);
+    expect(accepts(299), isTrue);
+    expect(accepts(401), isFalse,
+        reason: 'a 401 that does not raise never reaches onError, and the '
+            'whole 401 → refresh → replay path dies silently');
+    expect(accepts(422), isFalse);
+    expect(accepts(500), isFalse);
+  });
+
   test('installs AuthInterceptor before RefreshInterceptor', () {
     final Dio dio = buildDio(storage: storage);
 

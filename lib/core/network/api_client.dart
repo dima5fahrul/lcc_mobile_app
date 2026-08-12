@@ -109,7 +109,25 @@ class ApiClient {
     } on ApiException {
       rethrow;
     } on DioException catch (e) {
-      // A DioException that slipped past the interceptors (e.g. a cancel).
+      final response = e.response;
+      if (response != null) {
+        // The server DID answer; Dio's 2xx-only `validateStatus` raised before
+        // `_unwrap` could run. Hand the response back to `_unwrap` so the
+        // envelope's `code`, `message` and per-field `errors[]` reach the
+        // caller instead of being flattened into a generic NETWORK_ERROR —
+        // that flattening was defect D-1, and it is why a 422 could never
+        // highlight the field it was complaining about.
+        //
+        // `_unwrap<dynamic>`, not `_unwrap<T>`: dio builds this response as a
+        // `Response<dynamic>` regardless of the call's `T`, so asking for
+        // `Response<T>` here would be a cast that fails at runtime. Nothing is
+        // lost — the non-2xx path always leaves `_unwrap` by throwing, so its
+        // return type never materialises.
+        _unwrap<dynamic>(response, opts);
+      }
+      // No response at all: the request never got an answer. Connection
+      // refused, DNS failure, TLS failure, timeout, cancellation — these, and
+      // only these, are genuine NETWORK_ERRORs.
       if (e.type == DioExceptionType.cancel) {
         throw ApiException(
           status: 0,
@@ -184,6 +202,13 @@ class ApiClient {
     } on ApiException {
       rethrow;
     } on DioException catch (e) {
+      final response = e.response;
+      if (response != null) {
+        // Same D-1 fix as `request`: a non-2xx page of rows still carries an
+        // envelope, and its `code`/`message` must survive. `_unwrap` throws for
+        // every non-2xx, so control never returns from here.
+        _unwrap<dynamic>(response, const ApiRequestOptions());
+      }
       throw ApiException(
         status: e.response?.statusCode ?? 0,
         code: ApiCode.networkError,

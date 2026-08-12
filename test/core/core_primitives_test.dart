@@ -81,10 +81,10 @@ void main() {
       expect(ApiEndpoint.baseUrl.endsWith('/'), isFalse);
     });
 
-    test('defaults to the local dev server when LCC_API_URL is not defined', () {
-      // The suite is run without --dart-define, so this pins the fallback that
-      // AC-10 hotspot 3 flags as a cleartext default.
-      expect(ApiEndpoint.baseUrl, 'http://localhost:8080/api/v1');
+    test('defaults to the staging HTTPS backend when LCC_API_URL is not defined', () {
+      // The suite is run without --dart-define, so this pins the HTTPS fallback
+      // (V-6: no cleartext default ships to release builds).
+      expect(ApiEndpoint.baseUrl, 'https://api.staging.linkit360.la/api/v1');
     });
 
     test('every auth path is relative and matches the web client', () {

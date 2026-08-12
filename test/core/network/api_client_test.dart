@@ -29,21 +29,24 @@ void main() {
   });
 
   /// A client whose transport answers from [responder].
+  ///
+  /// The `Dio` is configured exactly as `buildDio` configures the shipped one,
+  /// `validateStatus` included — so every case in this file, the non-2xx ones
+  /// especially, runs the code path the app runs. That was not true before
+  /// GOR-246: the non-2xx cases needed a test-only permissive `validateStatus`
+  /// to reach `_unwrap`'s failure branch at all, which is precisely what defect
+  /// D-1 was. The knob is gone rather than left unused, because a test-only
+  /// configuration that mirrors nothing in production is a place for a wrong
+  /// answer to hide.
   ({ApiClient client, RecordingHttpAdapter adapter}) clientWith(
-    ScriptedResponder responder, {
-    bool permissiveStatus = false,
-  }) {
+    ScriptedResponder responder,
+  ) {
     final RecordingHttpAdapter adapter = RecordingHttpAdapter(responder);
     final Dio dio = buildTestDio(
       storage: storage,
       adapter: adapter,
       withInterceptors: false,
     );
-    if (permissiveStatus) {
-      // Deliberately NOT how `buildDio` configures the real client — see the
-      // "unreachable in production" group at the bottom of this file.
-      dio.options.validateStatus = (int? _) => true;
-    }
     return (client: ApiClient(dio: dio, storage: storage), adapter: adapter);
   }
 
@@ -191,6 +194,13 @@ void main() {
     });
   });
 
+  // AC-19 non-regression. The D-1 fix hands any `DioException` that carries a
+  // response back to `_unwrap`, so the envelope survives; a request that never
+  // got an answer has no envelope to survive, and those — and only those — must
+  // still flatten to `NETWORK_ERROR`. The architecture review is explicit that
+  // one wrong answer must not be traded for another, so each response-less
+  // failure the fix enumerates is checked rather than assumed to follow from
+  // the first one.
   group('request — transport failures', () {
     test('maps a connection error to NETWORK_ERROR with status 0', () async {
       final ApiClient client = clientWith(
@@ -211,6 +221,41 @@ void main() {
         ),
       );
     });
+
+    // The remaining response-less shapes. `connectionError` above covers
+    // "connection refused"; these are the DNS, TLS and three timeout cases the
+    // fix's own comment names. Driven from a table because the assertion is
+    // identical for all of them and the point is the coverage of the set.
+    for (final (DioExceptionType type, String label) shape
+        in <(DioExceptionType, String)>[
+      (DioExceptionType.unknown, 'a DNS failure'),
+      (DioExceptionType.badCertificate, 'a TLS failure'),
+      (DioExceptionType.connectionTimeout, 'a connect timeout'),
+      (DioExceptionType.sendTimeout, 'a send timeout'),
+      (DioExceptionType.receiveTimeout, 'a receive timeout'),
+    ]) {
+      test('${shape.$2} still maps to NETWORK_ERROR with status 0', () async {
+        final ApiClient client = clientWith(
+          (RequestOptions options, int __) => throw DioException(
+            requestOptions: options,
+            type: shape.$1,
+          ),
+        ).client;
+
+        await expectLater(
+          client.get<dynamic>('/thing'),
+          throwsA(
+            isA<ApiException>()
+                .having((ApiException e) => e.status, 'status', 0)
+                .having(
+                    (ApiException e) => e.code, 'code', ApiCode.networkError)
+                .having((ApiException e) => e.message, 'message',
+                    'Cannot reach the server. Check your connection and try again.')
+                .having((ApiException e) => e.fields, 'fields', isEmpty),
+          ),
+        );
+      });
+    }
 
     test('maps a cancellation to its own NETWORK_ERROR message', () async {
       final ApiClient client = clientWith(
@@ -440,6 +485,40 @@ void main() {
       );
     });
 
+    test('a non-2xx page still surfaces the envelope code, message and fields',
+        () async {
+      // `requestPaged` carries its own copy of the D-1 fix, in a second
+      // `on DioException` arm. A list endpoint rejecting a bad filter is the
+      // ordinary case for it, and it was flattened to NETWORK_ERROR too.
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => jsonResponse(
+          failEnvelope(
+            code: ApiCode.unprocessable,
+            message: 'Unknown filter value.',
+            errors: <Map<String, dynamic>>[
+              <String, dynamic>{'field': 'status', 'message': 'unknown value'},
+            ],
+            requestId: 'req-paged',
+          ),
+          statusCode: 422,
+        ),
+      ).client;
+
+      await expectLater(
+        client.requestPaged<dynamic>('/rows'),
+        throwsA(
+          isA<ApiException>()
+              .having((ApiException e) => e.status, 'status', 422)
+              .having((ApiException e) => e.code, 'code', ApiCode.unprocessable)
+              .having((ApiException e) => e.message, 'message',
+                  'Unknown filter value.')
+              .having((ApiException e) => e.requestId, 'requestId', 'req-paged')
+              .having((ApiException e) => e.fieldMap(), 'fieldMap',
+                  <String, String>{'status': 'unknown value'}),
+        ),
+      );
+    });
+
     test('rejects a plain-text body as a malformed paged response', () async {
       final RecordingHttpAdapter adapter = RecordingHttpAdapter(
         (RequestOptions _, int __) => textResponse('id,name\n1,a'),
@@ -465,22 +544,24 @@ void main() {
     });
   });
 
-  // ── Defect D-1 ─────────────────────────────────────────────────────────────
+  // ── AC-19 — the server's own error survives the trip to the caller ─────────
   //
-  // `_unwrap`'s non-2xx branch is CORRECT but UNREACHABLE through `buildDio`.
-  // Dio's default `validateStatus` (2xx only) raises a `DioException` before
-  // `_unwrap` ever runs, and `request()`'s `on DioException` arm rewrites every
-  // one of them as `ApiCode.networkError` with the generic "Cannot reach the
-  // server" text — discarding the envelope's `code`, `message` and per-field
-  // `errors`.
+  // This was defect D-1. `_unwrap`'s non-2xx branch was correct but
+  // unreachable: dio's 2xx-only `validateStatus` raised a `DioException` before
+  // `_unwrap` could run, and `request()`'s `on DioException` arm rewrote every
+  // one of them as `ApiCode.networkError` with a generic "cannot reach the
+  // server" message — discarding the envelope's `code`, `message` and per-field
+  // `errors[]`. A 422 could never tell a form which field it was complaining
+  // about, because the answer was thrown away one layer below the form.
   //
-  // These two groups pin both halves so the defect cannot be argued about:
-  // the first shows what the code *does* when reached, the second shows what
-  // the app actually observes today. Reported, not patched — `core/network` is
-  // frozen by GOR-245 § 4.1, which requires escalation rather than a silent
-  // fix or a weakened test.
-  group('non-2xx handling — reached only with a permissive validateStatus', () {
-    test('maps the envelope code, message and fields off a 422', () async {
+  // GOR-246 left `validateStatus` alone (deliberately — see AC-20) and instead
+  // hands a present `e.response` back to `_unwrap`. So these cases now run
+  // through the shipped configuration, with no test-only knob in the way. The
+  // group that used to need one is folded in here; the two that documented the
+  // flattened answer are inverted.
+  group('non-2xx handling — the envelope survives, on the shipped Dio', () {
+    test('a 422 surfaces the real code, message, fields and request id',
+        () async {
       final ApiClient client = clientWith(
         (RequestOptions _, int __) => jsonResponse(
           failEnvelope(
@@ -488,11 +569,12 @@ void main() {
             message: 'The given data was invalid.',
             errors: <Map<String, dynamic>>[
               <String, dynamic>{'field': 'phone', 'message': 'already taken'},
+              <String, dynamic>{'field': 'email', 'message': 'is invalid'},
             ],
+            requestId: 'req-422',
           ),
           statusCode: 422,
         ),
-        permissiveStatus: true,
       ).client;
 
       await expectLater(
@@ -504,16 +586,87 @@ void main() {
               .having((ApiException e) => e.message, 'message',
                   'The given data was invalid.')
               .having((ApiException e) => e.isValidation, 'isValidation', isTrue)
+              .having((ApiException e) => e.requestId, 'requestId', 'req-422')
+              // The whole point of the fix: every offending field arrives, so a
+              // form can highlight all of them at once rather than one per
+              // round trip.
               .having((ApiException e) => e.fieldMap(), 'fieldMap',
-                  <String, String>{'phone': 'already taken'}),
+                  <String, String>{
+                    'phone': 'already taken',
+                    'email': 'is invalid',
+                  }),
         ),
+      );
+    });
+
+    test('a 422 on a typed request<Map<String, dynamic>> unwraps without a '
+        'cast failure', () async {
+      // `request`'s DioException arm calls `_unwrap<dynamic>`, not `_unwrap<T>`,
+      // because dio hands back a `Response<dynamic>` whatever `T` the call
+      // asked for. Every datasource in the app calls
+      // `apiClient.get/post<Map<String, dynamic>>`, so a regression to
+      // `_unwrap<T>` would still compile and would break all of them at
+      // runtime, on the error path only. Pinned with the real call shape.
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => jsonResponse(
+          failEnvelope(code: ApiCode.validationError, message: 'nope'),
+          statusCode: 422,
+        ),
+      ).client;
+
+      await expectLater(
+        client.post<Map<String, dynamic>>('/auth/citizen/register'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.code, 'code', ApiCode.validationError)
+            .having((ApiException e) => e.message, 'message', 'nope')),
+      );
+    });
+
+    test('a 401 surfaces its code and message, not just its status', () async {
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => jsonResponse(
+          failEnvelope(code: ApiCode.unauthorized, message: 'Token expired'),
+          statusCode: 401,
+        ),
+      ).client;
+
+      await expectLater(
+        client.get<dynamic>('/me/profile'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.status, 'status', 401)
+            .having((ApiException e) => e.code, 'code', ApiCode.unauthorized)
+            .having((ApiException e) => e.message, 'message', 'Token expired')
+            .having(
+                (ApiException e) => e.isUnauthorized, 'isUnauthorized', isTrue)),
+      );
+    });
+
+    test('a 500 surfaces the server code rather than a network error',
+        () async {
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => jsonResponse(
+          failEnvelope(
+            code: ApiCode.serviceUnavailable,
+            message: 'Registry is down for maintenance.',
+          ),
+          statusCode: 503,
+        ),
+      ).client;
+
+      await expectLater(
+        client.get<dynamic>('/thing'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.status, 'status', 503)
+            .having(
+                (ApiException e) => e.code, 'code', ApiCode.serviceUnavailable)
+            .having((ApiException e) => e.message, 'message',
+                'Registry is down for maintenance.')),
       );
     });
 
     test('reports a null body on a non-2xx as a malformed response', () async {
       final ApiClient client = clientWith(
         (RequestOptions _, int __) => jsonResponse(null, statusCode: 500),
-        permissiveStatus: true,
       ).client;
 
       await expectLater(
@@ -528,19 +681,39 @@ void main() {
       );
     });
 
-    test('surfaces the body text on a non-2xx raw response', () async {
-      final RecordingHttpAdapter adapter = RecordingHttpAdapter(
-        (RequestOptions _, int __) => textResponse('gateway down', statusCode: 502),
-      );
-      final Dio dio = buildTestDio(
-        storage: storage,
-        adapter: adapter,
-        withInterceptors: false,
-      );
-      dio.options.validateStatus = (int? _) => true;
+    test('reports a non-2xx whose body is JSON but not an envelope object',
+        () async {
+      // A JSON array where an envelope was expected — the shape a misbehaving
+      // gateway or an error page rendered by the wrong middleware produces.
+      // `_unwrap` has nothing to read a `code` out of, so it must say the
+      // status rather than guess. Previously recorded in qa-report.md § 2.3 as
+      // an unreachable line; it is reachable, and this is the case that reaches
+      // it, so the "unreachable" note was wrong rather than the code being dead.
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) =>
+            jsonResponse(<int>[1, 2, 3], statusCode: 502),
+      ).client;
 
       await expectLater(
-        ApiClient(dio: dio, storage: storage).request<String>(
+        client.get<dynamic>('/thing'),
+        throwsA(
+          isA<ApiException>()
+              .having((ApiException e) => e.status, 'status', 502)
+              .having((ApiException e) => e.code, 'code', ApiCode.internalError)
+              .having((ApiException e) => e.message, 'message',
+                  'Request failed with status 502.'),
+        ),
+      );
+    });
+
+    test('surfaces the body text on a non-2xx raw response', () async {
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) =>
+            textResponse('gateway down', statusCode: 502),
+      ).client;
+
+      await expectLater(
+        client.request<String>(
           HttpMethod.get,
           '/export',
           options: const ApiRequestOptions(raw: true),
@@ -555,19 +728,12 @@ void main() {
     });
 
     test('truncates a long non-2xx raw body to 200 characters', () async {
-      final RecordingHttpAdapter adapter = RecordingHttpAdapter(
-        (RequestOptions _, int __) =>
-            textResponse('x' * 500, statusCode: 500),
-      );
-      final Dio dio = buildTestDio(
-        storage: storage,
-        adapter: adapter,
-        withInterceptors: false,
-      );
-      dio.options.validateStatus = (int? _) => true;
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => textResponse('x' * 500, statusCode: 500),
+      ).client;
 
       await expectLater(
-        ApiClient(dio: dio, storage: storage).request<String>(
+        client.request<String>(
           HttpMethod.get,
           '/export',
           options: const ApiRequestOptions(raw: true),
@@ -579,80 +745,18 @@ void main() {
 
     test('falls back to a status message when a non-2xx raw body is empty',
         () async {
-      final RecordingHttpAdapter adapter = RecordingHttpAdapter(
+      final ApiClient client = clientWith(
         (RequestOptions _, int __) => textResponse('', statusCode: 503),
-      );
-      final Dio dio = buildTestDio(
-        storage: storage,
-        adapter: adapter,
-        withInterceptors: false,
-      );
-      dio.options.validateStatus = (int? _) => true;
+      ).client;
 
       await expectLater(
-        ApiClient(dio: dio, storage: storage).request<String>(
+        client.request<String>(
           HttpMethod.get,
           '/export',
           options: const ApiRequestOptions(raw: true),
         ),
         throwsA(isA<ApiException>()
             .having((ApiException e) => e.message, 'message', 'Request failed.')),
-      );
-    });
-  });
-
-  group('DEFECT D-1 — what the app actually sees today', () {
-    test('a 422 validation envelope reaches the caller as NETWORK_ERROR with '
-        'no field errors, because Dio rejects the status before _unwrap runs',
-        () async {
-      // Same server response as the permissive-validateStatus test above, but
-      // through a Dio configured exactly as `buildDio` configures it.
-      final ApiClient client = clientWith(
-        (RequestOptions _, int __) => jsonResponse(
-          failEnvelope(
-            code: ApiCode.validationError,
-            message: 'The given data was invalid.',
-            errors: <Map<String, dynamic>>[
-              <String, dynamic>{'field': 'phone', 'message': 'already taken'},
-            ],
-          ),
-          statusCode: 422,
-        ),
-      ).client;
-
-      await expectLater(
-        client.post<dynamic>('/auth/citizen/register'),
-        throwsA(
-          isA<ApiException>()
-              // The status survives, so `isValidation` still answers true …
-              .having((ApiException e) => e.status, 'status', 422)
-              .having((ApiException e) => e.isValidation, 'isValidation', isTrue)
-              // … but the machine-readable code, the server's message and every
-              // per-field error are gone. The register/login forms therefore
-              // cannot highlight the offending field, which is what the plan's
-              // manual-verification item 8 expects them to do.
-              .having((ApiException e) => e.code, 'code', ApiCode.networkError)
-              .having((ApiException e) => e.message, 'message',
-                  'Cannot reach the server. Check your connection and try again.')
-              .having((ApiException e) => e.fields, 'fields', isEmpty),
-        ),
-      );
-    });
-
-    test('a 401 still answers isUnauthorized, so the session guard survives',
-        () async {
-      final ApiClient client = clientWith(
-        (RequestOptions _, int __) => jsonResponse(
-          failEnvelope(code: ApiCode.unauthorized, message: 'Token expired'),
-          statusCode: 401,
-        ),
-      ).client;
-
-      await expectLater(
-        client.get<dynamic>('/me/profile'),
-        throwsA(isA<ApiException>()
-            .having((ApiException e) => e.status, 'status', 401)
-            .having((ApiException e) => e.isUnauthorized, 'isUnauthorized', isTrue)),
       );
     });
   });

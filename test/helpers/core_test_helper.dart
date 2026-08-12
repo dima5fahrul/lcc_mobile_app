@@ -74,6 +74,59 @@ FlutterSecureStorage inMemorySecureStorage(Map<String, String> store) {
 StorageService inMemoryStorageService(Map<String, String> store) =>
     StorageService(inMemorySecureStorage(store));
 
+/// [inMemoryStorageService], with every read held open for [hold] first.
+///
+/// Exists for the AC-18 concurrency cases in `refresh_interceptor_test.dart`.
+/// `RefreshInterceptor`'s no-refresh-token exit returns `false` about two
+/// microtasks after it is entered, so whether a *second* concurrent 401 ever
+/// meets the open completer gate would otherwise be a race — the test would
+/// keep passing while quietly no longer exercising the shared-gate path it is
+/// named after. Holding the read makes the contention certain: every caller in
+/// the burst is parked on the same in-flight refresh before it settles.
+///
+/// Writes and deletes are left instant; only reads are slowed, because the read
+/// is the only thing the refresh prologue awaits.
+///
+/// Every key read is appended to [readLog] when one is supplied. That is what
+/// makes "the burst shared one refresh" *observable* on the exits that send no
+/// HTTP call at all: `_performRefresh` reads the refresh-token key exactly once
+/// per refresh it opens, so a log holding one entry for N concurrent 401s is
+/// direct evidence of the shared gate, where a request count would show nothing.
+StorageService slowReadStorageService(
+  Map<String, String> store,
+  Duration hold, {
+  List<String>? readLog,
+}) {
+  final MockSecureStorage mock = MockSecureStorage();
+
+  when(() => mock.read(key: any(named: 'key'))).thenAnswer(
+    (Invocation i) async {
+      final String key = i.namedArguments[#key] as String;
+      readLog?.add(key);
+      await Future<void>.delayed(hold);
+      return store[key];
+    },
+  );
+
+  when(() => mock.write(key: any(named: 'key'), value: any(named: 'value')))
+      .thenAnswer((Invocation i) async {
+    final String key = i.namedArguments[#key] as String;
+    final String? value = i.namedArguments[#value] as String?;
+    if (value == null) {
+      store.remove(key);
+    } else {
+      store[key] = value;
+    }
+  });
+
+  when(() => mock.delete(key: any(named: 'key')))
+      .thenAnswer((Invocation i) async {
+    store.remove(i.namedArguments[#key] as String);
+  });
+
+  return StorageService(mock);
+}
+
 // ── Envelope builders ───────────────────────────────────────────────────────
 
 /// A success envelope: `{success: true, message, data, ...}`.
