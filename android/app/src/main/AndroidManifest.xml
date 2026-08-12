@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for network access in release builds. The debug manifest
+         declares this too, but the release variant does not merge the debug
+         manifest, so without this entry here the release APK has no INTERNET
+         permission and every network call fails (V-7, ADR-0002). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="lcc_mobile_app"
         android:name="${applicationName}"
