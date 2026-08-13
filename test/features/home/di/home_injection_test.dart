@@ -14,7 +14,9 @@ import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
+import 'package:lcc_mobile_app/features/news/di/news_injection.dart';
 import 'package:lcc_mobile_app/features/home/domain/repositories/home_repository.dart';
 import 'package:lcc_mobile_app/features/home/domain/usecases/home_usecases.dart';
 import 'package:lcc_mobile_app/features/home/presentation/bloc/home_bloc.dart';
@@ -30,6 +32,9 @@ void main() {
     await authInjection.reset();
     await serviceInjection.reset();
     await homeInjection.reset();
+    // B2c's containers — see `app_test_harness.dart`'s `resetHarness`.
+    await newsInjection.reset();
+    await helpInjection.reset();
   });
 
   test('DI-6: one line in init() populates the whole feature', () {

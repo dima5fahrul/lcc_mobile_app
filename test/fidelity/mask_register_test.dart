@@ -204,33 +204,113 @@ void main() {
           reason: 'an exclusion without a reason is a slot that vanished');
     });
 
-    test('the B2c addendum is recorded as not-yet-captured, not as a pair', () {
-      // § 6.5.2(a): missing but CAPTURABLE. Listing it under `pairs` would
-      // claim a baseline image that does not exist.
+    test('the B2c addendum stays an ADDENDUM even now that it is captured', () {
+      // § 6.5.2(a): missing but CAPTURABLE, extended by B2c. B2a wrote this as
+      // `status: not captured`; B2c captured it and flipped the field, and the
+      // assertion moves with it rather than being deleted — the invariant it
+      // guards is not "no image exists" but "slot 15 is an EXTENSION, recorded
+      // with its provenance, and never smuggled into `pairs:`".
       expect(source, contains('slot: "15-news-detail"'));
-      expect(source, contains('status: not captured'));
-      // Matched on the fragment that survives the fold: the value is a folded
-      // YAML block, so the sentence is wrapped in the file and a longer needle
-      // would fail on the newline rather than on a missing rule.
+      expect(source, contains('status: captured'));
+      expect(source, contains('web_commit: 62f8a529'));
+
+      // Still not a `pairs:` entry: the `addenda:` block is what carries a
+      // capture whose provenance is a manifest addendum rather than the
+      // original route table.
+      final int addenda = source.indexOf('addenda:');
+      expect(addenda, greaterThan(0));
+      expect(source.substring(0, addenda), isNot(contains('15-news-detail')));
+
+      // Matched on fragments that survive the fold: the values are folded YAML
+      // blocks, so a longer needle would fail on a newline rather than on a
+      // missing rule.
       expect(source, contains('re-capturing an'));
       expect(source, contains('FAIL (B2-AC-38)'));
+    });
+
+    test('the addendum records WHICH surface it captured, and the Tier 3 '
+        'disposition that follows', () {
+      // The capture is the not-found render, because `routes.ts:60`'s composed
+      // regex can never match and the article render is unreachable at
+      // `62f8a529` (manifest F-8). A slot whose file name says "news-detail"
+      // and whose content is a not-found page is exactly the kind of artefact
+      // that misleads a reviewer if the register does not say so.
+      expect(source, contains('surface: not-found'));
+      expect(source, contains('NOT EVALUATED for the'));
+      expect(source, contains('newsIdFromHash'));
     });
   });
 
   group('baseline integrity (B2-AC-32)', () {
-    test('all 28 existing PNGs are present and none was added', () {
-      const String dir = '../../docs/fidelity-baseline/2026-08-13';
+    const String dir = '../../docs/fidelity-baseline/2026-08-13';
+
+    /// The 14 slots B1d captured, per locale. This list is the **register of
+    /// what may not change** — § 6.5.2(a): *"Extending is permitted;
+    /// re-capturing an existing slot is not. Any modification to slots 01–14 is
+    /// an automatic FAIL (B2-AC-38)."*
+    const List<String> b1dSlots = <String>[
+      '01-home', '02-service', '03-history', '04-wallet', '05-account',
+      '06-help', '07-news', '08-signin', '09-resident-certificate',
+      '10-birth-declaration', '11-death-declaration',
+      '12-marriage-certificate', '13-divorce-certificate', '14-family-book',
+    ];
+
+    /// The one slot B2c is permitted to add, per § 6.5.2(a) and the
+    /// `addenda` block of `page_pairs.yaml`.
+    const List<String> b2cSlots = <String>['15-news-detail'];
+
+    List<String> slotsIn(String locale) => Directory('$dir/$locale')
+        .listSync()
+        .whereType<File>()
+        .map((File f) => f.uri.pathSegments.last)
+        .where((String name) => name.endsWith('.png'))
+        .map((String name) => name.substring(0, name.length - 4))
+        .toList()
+      ..sort();
+
+    test('every B1d slot is still present in both locales', () {
+      for (final String locale in <String>['en', 'lo']) {
+        expect(slotsIn(locale), containsAll(b1dSlots),
+            reason: 'a missing slot 01–14 means the baseline was re-captured '
+                'or truncated — an automatic FAIL (B2-AC-38).');
+      }
+    });
+
+    test('no slot beyond B1d’s 14 and B2c’s 15th exists', () {
+      // The teeth of the "extending is permitted, re-capturing is not" rule:
+      // this fails on a 16th slot appearing without an addendum, which is how a
+      // second, unattributed capture session would show up.
+      const Set<String> allowed = <String>{...b1dSlots, ...b2cSlots};
 
       for (final String locale in <String>['en', 'lo']) {
-        final List<File> pngs = Directory('$dir/$locale')
-            .listSync()
-            .whereType<File>()
-            .where((File f) => f.path.endsWith('.png'))
+        final List<String> unexpected = slotsIn(locale)
+            .where((String slot) => !allowed.contains(slot))
             .toList();
 
-        expect(pngs, hasLength(14),
-            reason: 'B2a captures nothing. 14 slots per locale, 28 total; '
-                'B2c adds the 15th and nothing else may.');
+        expect(unexpected, isEmpty,
+            reason: 'an unregistered baseline slot in `$locale/`. A new slot '
+                'needs a `page_pairs.yaml` entry and a manifest addendum '
+                'recording its provenance (§ 6.5.2(a)).');
+      }
+    });
+
+    test('B2c’s slot 15 is captured in BOTH locales or in neither', () {
+      // § 6.5.6: heights are not canonical and every comparison pairs against
+      // the locale-matching image. A slot present in one locale only is worse
+      // than an absent one — it invites a cross-locale pairing.
+      final bool en = slotsIn('en').contains(b2cSlots.single);
+      final bool lo = slotsIn('lo').contains(b2cSlots.single);
+
+      expect(en, lo,
+          reason: 'slot ${b2cSlots.single} exists in en=$en / lo=$lo. Both or '
+              'neither.');
+    });
+
+    test('the total is 14 or 15 slots per locale, never more', () {
+      for (final String locale in <String>['en', 'lo']) {
+        expect(slotsIn(locale).length, inInclusiveRange(14, 15),
+            reason: 'B1d captured 14 per locale; § 3.1 authorises B2c to add '
+                'exactly one. 28 or 30 files in total, nothing else.');
       }
     });
   });

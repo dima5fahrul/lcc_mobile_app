@@ -109,10 +109,18 @@ import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
+import '../../features/help/di/help_injection.dart';
+import '../../features/help/presentation/bloc/help_bloc.dart';
+import '../../features/help/presentation/pages/help_page.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/di/home_injection.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/news/di/news_injection.dart';
+import '../../features/news/presentation/bloc/news_bloc.dart';
+import '../../features/news/presentation/bloc/news_detail_bloc.dart';
+import '../../features/news/presentation/pages/news_detail_page.dart';
+import '../../features/news/presentation/pages/news_page.dart';
 import '../../features/service/di/service_injection.dart';
 import '../../features/service/presentation/bloc/service_bloc.dart';
 import '../../features/service/presentation/pages/service_page.dart';
@@ -353,15 +361,61 @@ class AppRoutes {
         child: AuthPage(from: state.uri.queryParameters[kFromQueryParam]),
       ),
     ),
+    // B2c. Same CR-1 pattern as `/service` and `/`: the BLoC is resolved HERE
+    // and owned by this `BlocProvider`. `create:` carries the lifetime —
+    // `helpInjection` registers `HelpBloc` with `registerFactory`, so each
+    // visit gets a fresh one and the provider closes it on the way out. That
+    // per-visit lifetime is required, not incidental: the BLoC holds a live
+    // debounce `Timer`, one visit's search term and page, and which question
+    // and guide are expanded.
     GoRoute(
       path: AppNameRoutes.help,
       name: AppNameRoutes.help,
-      builder: (_, __) => const _PlaceholderPage(title: 'Help'),
+      builder: (_, __) => BlocProvider<HelpBloc>(
+        create: (_) => helpInjection<HelpBloc>()..add(const HelpStarted()),
+        child: const HelpPage(),
+      ),
     ),
     GoRoute(
       path: AppNameRoutes.news,
       name: AppNameRoutes.news,
-      builder: (_, __) => const _PlaceholderPage(title: 'News'),
+      builder: (_, __) => BlocProvider<NewsBloc>(
+        create: (_) => newsInjection<NewsBloc>()..add(const NewsStarted()),
+        child: const NewsPage(),
+      ),
+      // ── The first parameterised route in this table (B2c) ─────────────────
+      //
+      // A CHILD of `/news`, not a sibling: `go_router` matches children
+      // relative to the parent, so `path: ':slug'` is `/news/:slug`, and the
+      // back-navigation stack the detail page's "Back to news" relies on has
+      // `/news` beneath it by construction rather than by convention.
+      //
+      // `NewsDetailBloc` needs the slug at construction, which is why
+      // `news_feature_injection.dart` registers it with `registerFactoryParam`
+      // rather than `registerFactory`. The parameter is read from
+      // `GoRouterState` **here**, in the builder — SSD § 6.4's seam holds
+      // exactly as it does for every other page: the builder resolves and
+      // provides, and no widget touches a locator (G-L5, which is proven to
+      // fire).
+      //
+      // `state.pathParameters` returns the percent-DECODED segment, and
+      // `ApiEndpoint.newsArticle` re-encodes it for the wire. One decode, one
+      // encode — the same pairing `kFromQueryParam` documents above, and the
+      // reason a slug containing a literal `%` survives the round trip.
+      routes: <RouteBase>[
+        GoRoute(
+          path: ':slug',
+          // `name:` is the full path, matching every other route in this
+          // table's `AppNameRoutes` convention (N-4).
+          name: AppNameRoutes.newsDetail,
+          builder: (_, GoRouterState state) => BlocProvider<NewsDetailBloc>(
+            create: (_) => newsInjection<NewsDetailBloc>(
+              param1: state.pathParameters['slug'] ?? '',
+            )..add(const NewsDetailStarted()),
+            child: const NewsDetailPage(),
+          ),
+        ),
+      ],
     ),
     if (kDebugMode)
       GoRoute(
@@ -409,12 +463,27 @@ class _GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-// ── Placeholder page (still used by the not-yet-built routes) ──────────────
+// ── Placeholder page (still used by /debug) ────────────────────────────────
 /// Inline placeholder. P0-5 replaced it on the five main tabs with the real
-/// shell + per-tab pages, and the auth-wiring dispatch replaced it on
-/// `/signin` with the real `AuthPage`. It survives for `/help`, `/news` and
-/// `/debug`, which keep the router navigable end-to-end until their own
-/// batches land.
+/// shell + per-tab pages, the auth-wiring dispatch replaced it on `/signin`
+/// with the real `AuthPage`, and **B2c replaced it on `/help` and `/news`**
+/// with the real pages.
+///
+/// ## Why the class survives (B2-AC-37)
+///
+/// SSD § 9.2's N-5 assumed B2 deletes it outright. The B2 spec narrowed that:
+/// § 3.1's B2c column is *"the `/news`, `/news/:slug`, `/help` builders and the
+/// `_PlaceholderPage` deletion"*, and § 7's B2-AC-37 spells out the actual
+/// requirement — *"`_PlaceholderPage`'s `/help` and `/news` uses deleted, the
+/// `/debug` use retained"*.
+///
+/// `/debug` is `kDebugMode`-gated and has no page of its own; deleting the
+/// class would take the route with it. So the two **uses** are gone and the
+/// class stays, with exactly one call site.
+///
+/// The next batch to give `/debug` a real page deletes this class in the same
+/// change. Do not delete it before then — a route that builds nothing is worse
+/// than a placeholder that says so.
 class _PlaceholderPage extends StatelessWidget {
   const _PlaceholderPage({required this.title});
 

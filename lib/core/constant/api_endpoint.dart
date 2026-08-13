@@ -90,4 +90,54 @@ class ApiEndpoint {
   // resolved unilaterally.
   static const String news = '/news';
   static const String helpFaqs = '/help/faqs';
+
+  // ── Content, the rest (public, anonymous) — B2c ────────────────────────────
+  //
+  // `endpoints.ts:369-380`'s remaining `content.*` members. Additive only
+  // (SSD § 6.5, B2-AC-19): nothing above changed, `baseUrl` and the release
+  // HTTPS guard are byte-identical.
+  //
+  // **§ 3.1's B2c column says "7 paths" and is right; the B2b comment above,
+  // which enumerates what B2c still owes, says "five" and lists six while
+  // omitting `/help/channels` entirely.** The seven are: `/news/categories`,
+  // `/news/:slug`, `/help/categories`, `/help/articles`,
+  // `/help/articles/:slug`, `/help/channels`, and the FAQ feedback POST.
+  // Recorded as a spec/comment discrepancy rather than silently reconciled.
+
+  /// `endpoints.ts:369` — `content.newsCategories`.
+  static const String newsCategories = '/news/categories';
+
+  /// `endpoints.ts:373` — `content.helpCategories`.
+  static const String helpCategories = '/help/categories';
+
+  /// `endpoints.ts:376` — `content.helpArticles`.
+  static const String helpArticles = '/help/articles';
+
+  /// `endpoints.ts:379` — `content.supportChannels`.
+  static const String helpChannels = '/help/channels';
+
+  // ── Parameterised content paths ────────────────────────────────────────────
+  //
+  // Functions, not constants, because the segment is a runtime value. The
+  // alternative — a `'/news'` constant plus string concatenation at each call
+  // site — is how a path template drifts from the one the web uses.
+  //
+  // The segment is percent-encoded. Slugs are `[a-z0-9-]` on staging today and
+  // need no encoding, but `newsArticle` is reachable from a **route
+  // parameter**, and an unencoded `/` or `?` in one would silently retarget the
+  // request at a different endpoint.
+
+  /// `endpoints.ts:370` — `content.newsArticle(slug)`.
+  static String newsArticle(String slug) =>
+      '/news/${Uri.encodeComponent(slug)}';
+
+  /// `endpoints.ts:377` — `content.helpArticle(slug)`.
+  static String helpArticle(String slug) =>
+      '/help/articles/${Uri.encodeComponent(slug)}';
+
+  /// `endpoints.ts:375` — `content.faqFeedback(id, helpful)`. **The one
+  /// non-anonymous content call**: it is the only `content.*` member that omits
+  /// `anonymous: true`, and B2's only POST (§ 6.5.1, Tier 0 NOT APPLICABLE).
+  static String helpFaqFeedback(String id) =>
+      '/help/faqs/${Uri.encodeComponent(id)}/feedback';
 }

@@ -72,6 +72,19 @@ import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
 import 'package:lcc_mobile_app/features/home/domain/repositories/home_repository.dart';
 import 'package:lcc_mobile_app/features/home/domain/usecases/home_usecases.dart';
 import 'package:lcc_mobile_app/features/home/presentation/bloc/home_bloc.dart';
+import 'package:lcc_mobile_app/features/help/data/datasources/help_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/help/data/repositories/help_repository_impl.dart';
+import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
+import 'package:lcc_mobile_app/features/help/domain/repositories/help_repository.dart';
+import 'package:lcc_mobile_app/features/help/domain/usecases/help_usecases.dart';
+import 'package:lcc_mobile_app/features/help/presentation/bloc/help_bloc.dart';
+import 'package:lcc_mobile_app/features/news/data/datasources/news_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/news/data/repositories/news_repository_impl.dart';
+import 'package:lcc_mobile_app/features/news/di/news_injection.dart';
+import 'package:lcc_mobile_app/features/news/domain/repositories/news_repository.dart';
+import 'package:lcc_mobile_app/features/news/domain/usecases/news_usecases.dart';
+import 'package:lcc_mobile_app/features/news/presentation/bloc/news_bloc.dart';
+import 'package:lcc_mobile_app/features/news/presentation/bloc/news_detail_bloc.dart';
 import 'package:lcc_mobile_app/features/service/data/datasources/service_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/service/data/repositories/service_repository_impl.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
@@ -266,7 +279,50 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     ),
   );
 
+  // ── News feature (mirrors NewsFeatureInjection.init) ──────────────────────
+  // Registered for the same reason the service catalogue is: `AppRoutes` builds
+  // the whole table up front, and `/news` — now with a `/news/:slug` child —
+  // resolves from this container the moment anything navigates there. An
+  // unregistered feature would surface as a GetIt throw inside an unrelated
+  // navigation test.
+  final NewsRepository newsRepository = NewsRepositoryImpl(
+    remote: NewsRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  newsInjection.registerSingleton<NewsRepository>(newsRepository);
+  newsInjection.registerFactory<NewsBloc>(
+    () => NewsBloc(
+      getNewsCategories: GetNewsCategories(repository: newsRepository),
+      getNewsArticles: GetNewsArticles(repository: newsRepository),
+    ),
+  );
+  // `registerFactoryParam`, as production does — the detail BLoC takes the
+  // route's slug at construction.
+  newsInjection.registerFactoryParam<NewsDetailBloc, String, void>(
+    (String slug, _) => NewsDetailBloc(
+      slug: slug,
+      getNewsArticle: GetNewsArticle(repository: newsRepository),
+      getNewsCatalogue: GetNewsCatalogue(repository: newsRepository),
+    ),
+  );
+
+  // ── Help feature (mirrors HelpFeatureInjection.init) ──────────────────────
+  final HelpRepository helpRepository = HelpRepositoryImpl(
+    remote: HelpRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  helpInjection.registerSingleton<HelpRepository>(helpRepository);
+  helpInjection.registerFactory<HelpBloc>(
+    () => HelpBloc(
+      getHelpCategories: GetHelpCategories(repository: helpRepository),
+      getHelpFaqs: GetHelpFaqs(repository: helpRepository),
+      getHelpGuides: GetHelpGuides(repository: helpRepository),
+      getHelpGuide: GetHelpGuide(repository: helpRepository),
+      getSupportChannels: GetSupportChannels(repository: helpRepository),
+      sendFaqFeedback: SendFaqFeedback(repository: helpRepository),
+    ),
+  );
+
   stubHomeEndpoints(adapter);
+  stubContentEndpoints(adapter);
 
   return AppHarness(
     store: store,
@@ -336,15 +392,57 @@ void stubHomeEndpoints(DioAdapter adapter) {
   });
 }
 
-/// Empties all five GetIt containers. Without this the second test in a file
+/// Answers the five B2c content reads with empty successes.
+///
+/// **Not politeness — a precondition**, exactly as [stubHomeEndpoints]'
+/// doc explains: `http_mock_adapter` throws on a route it was not told about,
+/// and the throw surfaces inside `pumpAndSettle` as an unrelated-looking
+/// failure in whatever test happened to navigate there.
+///
+/// `/news` and `/help/faqs` are **already** stubbed by [stubHomeEndpoints] —
+/// Home consumes both — so they are deliberately not repeated here. `DioAdapter`
+/// lets a later registration win, and a duplicate would silently make which
+/// stub answers depend on call order.
+///
+/// `GET /news/<slug>` and `GET /help/articles/<slug>` are **not** stubbed: they
+/// need a concrete segment, so a suite that navigates to a detail route stubs
+/// its own. A blanket stub would answer every slug with an empty object and
+/// turn a 404 test into a pass.
+void stubContentEndpoints(DioAdapter adapter) {
+  void ok(String path, Object data, {Map<String, dynamic>? meta}) {
+    adapter.onGet(
+      path,
+      (dynamic server) => server.reply(200, <String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': data,
+        if (meta != null) 'meta': meta,
+      }),
+    );
+  }
+
+  ok(ApiEndpoint.newsCategories, const <dynamic>[]);
+  ok(ApiEndpoint.helpCategories, const <dynamic>[]);
+  ok(ApiEndpoint.helpArticles, const <dynamic>[]);
+  ok(ApiEndpoint.helpChannels, const <dynamic>[]);
+}
+
+/// Empties all seven GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
+///
+/// Every feature container added to [bootHarness] MUST be added here in the
+/// same change. B2b's own comment in `dependency_injection_test.dart` records
+/// what a forgotten line costs: a test that passes once and throws on the next
+/// `init()`, in a file that has nothing to do with the new feature.
 Future<void> resetHarness() async {
   await injection.reset();
   await sessionInjection.reset();
   await authInjection.reset();
   await serviceInjection.reset();
   await homeInjection.reset();
+  await newsInjection.reset();
+  await helpInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

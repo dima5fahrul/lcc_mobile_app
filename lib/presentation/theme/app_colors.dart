@@ -94,6 +94,28 @@ abstract final class AppColors {
   static const Color headerGradientMid = Color(0xFF2A3F99);
   static const Color headerGradientEnd = Color(0xFF1E3070);
 
+  /// `#1A2D6B` — the **0 %** stop of the news header's gradient,
+  /// `linear-gradient(135deg, #1A2D6B 0%, #344EAD 100%)` (`NewsPage.tsx:66`).
+  /// The 100 % stop is [primary]. Note the direction is the reverse of the
+  /// catalogue header's: news runs dark → brand, service runs brand → dark.
+  static const Color newsHeaderStart = Color(0xFF1A2D6B);
+
+  /// `#1a2d7a` — the **100 %** stop of the help header's gradient,
+  /// `linear-gradient(135deg, #344EAD 0%, #1a2d7a 100%)`
+  /// (`HelpCenterPage.tsx:153`). The 0 % stop is [primary].
+  ///
+  /// Distinct from both [headerGradientEnd] (`#1E3070`, the catalogue header)
+  /// and [newsHeaderStart] (`#1A2D6B`) — three different dark-navy stops on
+  /// three different headers, and the source really does write three values.
+  /// Collapsing them onto one token would be a substitution, not a
+  /// simplification.
+  static const Color helpHeaderEnd = Color(0xFF1A2D7A);
+
+  /// `rgba(245,158,11,0.28)` — the amber radial bloom behind the help header
+  /// (`HelpCenterPage.tsx:157`). The RGB is [warningStrong] (`#F59E0B`); only
+  /// the alpha is new, so this is that token at 28 %.
+  static const Color helpHeaderBloom = Color(0x47F59E0B);
+
   // ── Neutrals ───────────────────────────────────────────────────────────────
   //
   // Tailwind's stock grey ramp, EXCEPT the two the source deliberately

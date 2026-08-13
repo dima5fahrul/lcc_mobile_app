@@ -61,14 +61,32 @@ excluded:
       the auth pages are frozen (§ 4.2). Carries the captcha mask so that
       whoever does own it inherits a usable slot.
 
-# Not a slot yet. § 6.5.2(a): missing but CAPTURABLE.
+# § 6.5.2(a): missing but CAPTURABLE. Captured by B2c on 2026-08-13.
 addenda:
   - slot: "15-news-detail"
     route: "/news/:slug"
     owner: B2c
-    status: not captured
+    status: captured
+    captured: 2026-08-13
+    web_commit: 62f8a529aaa024a8b35b0af50a8fbd4850a63962
+    size: 390x844
     note: >-
-      Public, reachable, unauthenticated, and simply not in the 2026-08-13 set.
-      B2c extends the baseline at the identical commit with the identical rig
-      and appends a manifest addendum. Extending is permitted; re-capturing an
+      Captured at the identical commit with the identical rig, and the manifest
+      carries the provenance in Addendum A. Slots 01-14 were SHA-256'd before
+      and after and are byte-identical; extending is permitted, re-capturing an
       existing slot is an automatic FAIL (B2-AC-38).
+    surface: not-found
+    surface_note: >-
+      IT IS NOT A PICTURE OF AN ARTICLE, and that is a finding rather than a
+      capture error. `routes.ts:60` composes `new RegExp('^#' +
+      NEWS_DETAIL.source)` where NEWS_DETAIL already starts with `^`, giving
+      `^#^\/news\/([^/]+)$` -- a pattern no string can match. So
+      `newsIdFromHash()` always returns null, `App.tsx:183` passes `id={null}`,
+      the detail query never fires, and every visit to `#/news/<anything>`
+      renders the `!article` branch. Verified on the live rig: GET /news/<slug>
+      is never issued. Manifest F-8 has the full write-up.
+    tier3: >-
+      GATED for the not-found render, against this slot. NOT EVALUATED for the
+      ARTICLE render, because no image of it can exist at this commit. Tiers 1
+      and 2 are unaffected and remain blocking -- they read the source, not a
+      screenshot (§ 6.5.2(b)'s own reasoning).

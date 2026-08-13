@@ -31,7 +31,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/auth/di/auth_feature_injection.dart';
+import '../../features/help/di/help_feature_injection.dart';
 import '../../features/home/di/home_feature_injection.dart';
+import '../../features/news/di/news_feature_injection.dart';
 import '../../features/service/di/service_feature_injection.dart';
 import '../../features/session/di/session_feature_injection.dart';
 import '../../features/session/di/session_injection.dart';
@@ -154,5 +156,24 @@ class DependencyInjection {
     //    rather than a wiring one — appending keeps it satisfied without
     //    making the six steps above depend on it.
     await HomeFeatureInjection.init();
+
+    // 8. News (DI-6, B2c). One line, as the rule requires.
+    //
+    //    Ordering: anywhere after step 2. All four of its endpoints are
+    //    `anonymous: true`, so — like the service catalogue and unlike Home —
+    //    it has no dependency on the session being registered and none the
+    //    session has on it. Appended for the reason step 6 gives: appending is
+    //    the change that cannot break the steps above.
+    await NewsFeatureInjection.init();
+
+    // 9. Help (DI-6, B2c). One line.
+    //
+    //    Ordering: after step 2 for the shared `ApiClient`. Help makes B2's one
+    //    authenticated write (`POST /help/faqs/<id>/feedback`), so it needs the
+    //    Auth/Refresh interceptor chain that lives inside the root client —
+    //    which is a dependency on step 2's *instance*, not on the session
+    //    feature's registrations, and is satisfied by re-exporting the same
+    //    `ApiClient` rather than by ordering against step 3.
+    await HelpFeatureInjection.init();
   }
 }

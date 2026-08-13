@@ -32,6 +32,21 @@ class AppNameRoutes {
   static const String help = '/help';
   static const String news = '/news';
 
+  /// `/news/:slug` — the app's **first parameterised route** (B2c).
+  ///
+  /// The template, not a location: `context.go` is called with
+  /// `'$news/${article.slug}'`, and this constant is the `GoRoute.name` so the
+  /// route table keeps N-4's "the name is the path" convention with no second
+  /// surface to drift.
+  ///
+  /// Deliberately **not** in [registered]: that set is `ServiceAvailability`'s
+  /// client route registry (SSD § 13.2 C-2), which answers "does this service
+  /// have a page" by exact match against a service's `route_path`. A template
+  /// containing `:slug` can never equal one, and adding it would put a string
+  /// in the registry that no lookup can ever hit — a member that means nothing
+  /// is worse than an absent one.
+  static const String newsDetail = '/news/:slug';
+
   // ── Debug-only route (boilerplate parity) ───────────────────────────────
   /// Only mounted in debug builds — see the `if (kDebugMode)` guard in
   /// [AppRoutes]. Backed by the debug HTTP inspector screen.

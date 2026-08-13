@@ -12,7 +12,11 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/features/help/presentation/pages/help_page.dart';
+import 'package:lcc_mobile_app/features/news/presentation/pages/news_detail_page.dart';
+import 'package:lcc_mobile_app/features/news/presentation/pages/news_page.dart';
 import 'package:lcc_mobile_app/utils/routes/app_name_routes.dart';
 import 'package:lcc_mobile_app/utils/routes/app_routes.dart';
 
@@ -24,24 +28,74 @@ GoRouter routerOf(WidgetTester tester) =>
 void main() {
   tearDown(resetHarness);
 
-  testWidgets('/help and /news serve a full-frame placeholder with no bottom '
-      'bar', (WidgetTester tester) async {
+  testWidgets('/help and /news serve their real pages, full-frame with no '
+      'bottom bar (B2c)', (WidgetTester tester) async {
     final AppHarness harness = await bootHarness();
     await pumpAssembledApp(tester, harness);
 
-    for (final ({String path, String title}) route in <({String path, String title})>[
-      (path: AppNameRoutes.help, title: 'Help'),
-      (path: AppNameRoutes.news, title: 'News'),
-    ]) {
-      routerOf(tester).go(route.path);
-      await tester.pumpAndSettle();
+    routerOf(tester).go(AppNameRoutes.help);
+    await tester.pumpAndSettle();
+    expect(routerOf(tester).state.uri.toString(), AppNameRoutes.help);
+    expect(find.byType(HelpPage), findsOneWidget);
+    // Mounted outside the ShellRoute, so the bar is absent structurally — not
+    // hidden by a flag some future sub-route could forget to set.
+    expect(find.byType(NavigationBar), findsNothing,
+        reason: AppNameRoutes.help);
 
-      expect(routerOf(tester).state.uri.toString(), route.path);
-      expect(find.text(route.title), findsOneWidget);
-      // Mounted outside the ShellRoute, so the bar is absent structurally —
-      // not hidden by a flag some future sub-route could forget to set.
-      expect(find.byType(NavigationBar), findsNothing, reason: route.path);
+    routerOf(tester).go(AppNameRoutes.news);
+    await tester.pumpAndSettle();
+    expect(routerOf(tester).state.uri.toString(), AppNameRoutes.news);
+    expect(find.byType(NewsPage), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing,
+        reason: AppNameRoutes.news);
+  });
+
+  testWidgets('B2-AC-37: neither page renders the placeholder any more',
+      (WidgetTester tester) async {
+    // The deletion half of B2-AC-37, asserted rather than assumed: the class
+    // survives for `/debug`, so "it still compiles" proves nothing about
+    // whether these two routes stopped using it.
+    final AppHarness harness = await bootHarness();
+    await pumpAssembledApp(tester, harness);
+
+    for (final String path in <String>[
+      AppNameRoutes.help,
+      AppNameRoutes.news,
+    ]) {
+      routerOf(tester).go(path);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('placeholder'), findsNothing, reason: path);
     }
+  });
+
+  testWidgets('/news/:slug is a CHILD route — the first parameterised one',
+      (WidgetTester tester) async {
+    final AppHarness harness = await bootHarness();
+    // The detail route's two reads. Not in `stubContentEndpoints` because one
+    // of them needs a concrete slug.
+    harness.adapter.onGet(
+      ApiEndpoint.newsArticle('a-slug'),
+      (dynamic server) => server.reply(200, <String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': <String, dynamic>{
+          'slug': 'a-slug',
+          'title': <String, dynamic>{'en': 'A headline', 'lo': 'A headline'},
+          'excerpt': <String, dynamic>{'en': 'An excerpt', 'lo': 'An excerpt'},
+        },
+      }),
+    );
+    await pumpAssembledApp(tester, harness);
+
+    routerOf(tester).go('${AppNameRoutes.news}/a-slug');
+    await tester.pumpAndSettle();
+
+    expect(routerOf(tester).state.uri.toString(), '/news/a-slug');
+    expect(find.byType(NewsDetailPage), findsOneWidget);
+    expect(find.text('A headline'), findsOneWidget,
+        reason: 'the slug reached the datasource, so the route parameter is '
+            'wired end to end and not merely matched');
+    expect(find.byType(NavigationBar), findsNothing);
   });
 
   testWidgets('/debug is mounted in a debug build', (WidgetTester tester) async {
@@ -61,10 +115,13 @@ void main() {
 
   testWidgets('the placeholder explains itself rather than rendering blank',
       (WidgetTester tester) async {
+    // B2c narrowed this from `/help` to `/debug` — the class survives for the
+    // one remaining call site (B2-AC-37), so the assertion moves rather than
+    // being deleted.
     final AppHarness harness = await bootHarness();
     await pumpAssembledApp(tester, harness);
 
-    routerOf(tester).go(AppNameRoutes.help);
+    routerOf(tester).go(AppNameRoutes.debug);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('placeholder'), findsOneWidget);

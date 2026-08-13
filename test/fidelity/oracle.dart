@@ -57,6 +57,23 @@ List<Map<String, dynamic>> loadApi(String name) =>
     (_readJson('$kOracleDir/api/$name.json')['data'] as List<dynamic>)
         .cast<Map<String, dynamic>>();
 
+/// `oracle/api/<name>.json` → the envelope's `data` **object**.
+///
+/// Additive companion to [loadApi] (B2c). B2a recorded only array endpoints;
+/// B2c's set includes two that answer a single object — `GET /news/<slug>` and
+/// `GET /help/articles/<slug>` — and casting those through [loadApi] would
+/// throw on the `List` cast rather than say what is wrong.
+Map<String, dynamic> loadApiObject(String name) =>
+    _readJson('$kOracleDir/api/$name.json')['data'] as Map<String, dynamic>;
+
+/// `oracle/api/<name>.json` → the envelope's `meta` block, or null.
+///
+/// The paged recordings carry one and the unpaged ones do not, which is itself
+/// worth being able to assert: a fixture that lost its `meta` would silently
+/// make every pager test render "1 / 1".
+Map<String, dynamic>? loadApiMeta(String name) =>
+    _readJson('$kOracleDir/api/$name.json')['meta'] as Map<String, dynamic>?;
+
 /// One expected node from a Tier 1 view.
 class OracleNode {
   const OracleNode({
