@@ -39,7 +39,14 @@ abstract final class AppTheme {
       colorScheme: scheme,
       // Applied to the whole default `TextTheme` by `ThemeData` itself — see
       // `AppTypography`'s note on why no explicit `textTheme` is supplied.
+      //
+      // Both lines, always. `fontFamily` alone resolves Lao and nothing else —
+      // the bundled face is a Lao-only subset — so a theme carrying only the
+      // first line leaves every Latin letter and every ASCII digit to whatever
+      // the platform resolver happens to pick. `fontFamilyFallback` is what
+      // makes that choice ours.
       fontFamily: AppTypography.fontFamily,
+      fontFamilyFallback: AppTypography.fontFamilyFallback,
       scaffoldBackgroundColor: AppColors.surface,
       appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,

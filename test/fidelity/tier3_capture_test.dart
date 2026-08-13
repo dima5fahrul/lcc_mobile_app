@@ -13,7 +13,7 @@
 /// | 390 CSS px wide, fixed | `setSurfaceSize(Size(390, …))` |
 /// | viewport expanded to full content height | a surface taller than the page, so nothing scrolls or clips |
 /// | `scale: "css"` — 1 device pixel per CSS px | `devicePixelRatio = 1` |
-/// | real fonts | `loadNotoSansLao()` — without it every locale lays out identically |
+/// | real fonts | `loadAppFonts()` — **both** families; with only the Lao one, Latin and every ASCII digit lay out in the placeholder font |
 /// | per-locale image, heights not canonical (§ 6.5.6) | one capture per locale |
 ///
 /// The `devicePixelRatio = 1` line is the one that looks like boilerplate and
@@ -65,7 +65,7 @@ void main() {
   for (final String locale in <String>['en', 'lo']) {
     testWidgets('captures /service at 390 CSS px — $locale',
         (WidgetTester tester) async {
-      await loadNotoSansLao();
+      await loadAppFonts();
 
       tester.view.devicePixelRatio = 1.0;
       await tester.binding.setSurfaceSize(const Size(kRigWidth, kRigHeight));

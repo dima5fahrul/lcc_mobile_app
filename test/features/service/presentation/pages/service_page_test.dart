@@ -8,11 +8,14 @@
 ///
 /// | Group | Criterion |
 /// |---|---|
+/// | font chain | **GOR-246 AC-24** — coverage at the `cmap`, with a negative control |
 /// | four states | **B2-AC-16** — loading · data · empty (stubbed) · error-with-retry |
 /// | C-1 / C-3 / C-4 | **B2-AC-34** — 43 render, no `route_path` gating, dead tap |
 /// | server order | **B2-AC-35** — no client re-sort, no `active` filter |
 /// | Lao at scale | **B2-AC-15** — 43 names + 8 categories, zero tofu, taller |
 library;
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,9 +25,12 @@ import 'package:lcc_mobile_app/features/service/domain/service_availability.dart
 import 'package:lcc_mobile_app/features/service/presentation/bloc/service_bloc.dart';
 import 'package:lcc_mobile_app/features/service/presentation/pages/service_page.dart';
 import 'package:lcc_mobile_app/features/service/presentation/widgets/catalogue_grid.dart';
+import 'package:lcc_mobile_app/features/service/presentation/widgets/bilingual_text.dart';
 import 'package:lcc_mobile_app/features/service/presentation/widgets/catalogue_panels.dart';
 import 'package:lcc_mobile_app/features/service/presentation/widgets/category_card.dart';
 import 'package:lcc_mobile_app/features/service/presentation/widgets/service_card.dart';
+import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
+import 'package:lcc_mobile_app/presentation/theme/app_typography.dart';
 
 import '../../../../helpers/service_test_helper.dart';
 
@@ -38,7 +44,190 @@ import '../../../../helpers/service_test_helper.dart';
   return (repository: repository, bloc: bloc);
 }
 
+bool _isAsciiLetter(int c) =>
+    (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A);
+
 void main() {
+  // ── AC-24, re-asserted against the chain ──────────────────────────────────
+  //
+  // **This group must stay first in the file.** `FontLoader` registrations are
+  // process-global and cannot be undone, so the "before" half of the negative
+  // control below can only be taken before any test in this file has loaded a
+  // face. Moving this group down turns its `before` measurement into an
+  // `after` one and the control stops controlling for anything.
+  group('GOR-246 AC-24 — the resolved font chain, at the cmap and by '
+      'measurement', () {
+    // The three classes the page draws. Kept separate rather than merged
+    // because the whole defect was that one class passed while two did not,
+    // and a merged assertion would have reported that as a pass.
+    const String kLatin = 'All Services';
+    const String kDigits = '1234567890';
+    const String kLao = 'ບໍລິການທັງໝົດ';
+    const double kSize = 24;
+
+    double widthOf(String text) {
+      final TextPainter painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: const TextStyle(
+            fontSize: kSize,
+            fontFamily: AppTypography.fontFamily,
+            fontFamilyFallback: AppTypography.fontFamilyFallback,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      return painter.width;
+    }
+
+    testWidgets('negative control — every class measures differently once the '
+        'chain is loaded', (WidgetTester tester) async {
+      // ## Why this test exists, and why it is required evidence
+      //
+      // § 6 of the B2a architecture review, ruling on this criterion: *"A
+      // criterion is not discharged by proving that a configuration value was
+      // propagated. It must assert the capability that value was configured to
+      // obtain. If the test would still pass with the underlying resource
+      // empty, absent, or inert, it is not evidence for the criterion — it is
+      // evidence for the wiring."*
+      //
+      // This is the instrument that satisfies that for a font. Before any face
+      // is registered, `flutter_test` lays everything out in a placeholder
+      // whose every glyph is exactly one em square — so a string of N
+      // characters measures exactly `N * fontSize`, whatever the characters
+      // are. That equality is a *fingerprint of absence*: it is what a missing
+      // face looks like, and it is precisely what `bda76a1` shipped for Latin
+      // and for ASCII digits without anyone noticing.
+      //
+      // Asserting the width *changes*, per class, is therefore the one
+      // measurement that cannot pass against an empty, absent or inert face.
+
+      // ── before ──
+      expect(widthOf(kLatin), kLatin.length * kSize,
+          reason: 'precondition: no face is registered yet, so Latin must be '
+              'the placeholder font. If this fails, the group has been '
+              'reordered and the control below is measuring nothing.');
+      expect(widthOf(kDigits), kDigits.length * kSize,
+          reason: 'precondition: digits are the placeholder font too');
+      final double laoBefore = widthOf(kLao);
+      expect(laoBefore, kLao.length * kSize,
+          reason: 'precondition: Lao is the placeholder font too');
+
+      await loadAppFonts();
+
+      // ── after ──
+      // Each class must move. One moving was the old state of the world:
+      // loading NotoSansLao alone changed Lao and left Latin and the digits at
+      // the placeholder's `N * 24`, which is how a Lao-only subset passed a
+      // criterion about the font being "actually applied".
+      expect(widthOf(kLatin), isNot(kLatin.length * kSize),
+          reason: 'Latin still measures at the placeholder font: the chain is '
+              'not resolving Roboto, and AC-24 is FAIL exactly as it was at '
+              'bda76a1');
+      expect(widthOf(kDigits), isNot(kDigits.length * kSize),
+          reason: 'ASCII digits still measure at the placeholder font. This is '
+              'the class that hid the defect, because it appears in BOTH '
+              'locales — the fee amounts and the `13 ບໍລິການ` counts');
+      expect(widthOf(kLao), isNot(laoBefore),
+          reason: 'Lao still measures at the placeholder font: the bundled '
+              'face is not loading at all');
+    });
+
+    test('cmap — the chain covers every code point the page renders, digits '
+        'included', () {
+      // Coverage is read out of the files' `cmap` tables, never inferred from
+      // a filename: `NotoSansLao-Regular.ttf` is named for a family whose
+      // Google Fonts release *does* carry Latin, and the AOSP subset bundled
+      // here does not. The name told us nothing.
+      final Set<int> chain = appFontChainCoverage();
+
+      // What the page actually draws, both locales, all nine states, taken
+      // from the Tier 1 oracle. Plus the full ASCII digit class: the oracle
+      // holds only the digits the recorded catalogue happens to produce, and a
+      // catalogue that grows past 43 rows must not be able to introduce an
+      // undrawable numeral.
+      final Set<int> required = <int>{
+        ...renderedCodePoints(),
+        for (int c = 0x30; c <= 0x39; c++) c,
+      };
+
+      String describe(Iterable<int> cps) => (cps.toList()..sort())
+          .map((int c) => 'U+${c.toRadixString(16).toUpperCase().padLeft(4, '0')}'
+              ' ${String.fromCharCode(c)}')
+          .join(', ');
+
+      final Set<int> missing =
+          required.where((int c) => !chain.contains(c)).toSet();
+      expect(missing, isEmpty,
+          reason: 'the resolved chain '
+              '(${AppTypography.fontFamily} → '
+              '${AppTypography.fontFamilyFallback.join(' → ')}) cannot draw '
+              '${missing.length} code point(s) the page renders: '
+              '${describe(missing)}');
+
+      // Per class, so a future failure names what broke rather than dumping a
+      // list. These are the classes § 6 enumerates.
+      void classCovered(String name, Iterable<int> cps) {
+        final Set<int> gap = cps.where((int c) => !chain.contains(c)).toSet();
+        expect(gap, isEmpty, reason: '$name: ${describe(gap)}');
+      }
+
+      classCovered('ASCII uppercase', <int>[for (int c = 0x41; c <= 0x5A; c++) c]);
+      classCovered('ASCII lowercase', <int>[for (int c = 0x61; c <= 0x7A; c++) c]);
+      classCovered('ASCII digits', <int>[for (int c = 0x30; c <= 0x39; c++) c]);
+      classCovered(
+        'Lao (as rendered)',
+        renderedCodePoints().where((int c) => c >= 0x0E80 && c <= 0x0EFF),
+      );
+      classCovered(
+        'punctuation and marks (as rendered)',
+        renderedCodePoints().where((int c) =>
+            c < 0x0E80 && !(c >= 0x30 && c <= 0x39) && !_isAsciiLetter(c)),
+      );
+    });
+
+    test('the assertion above is not vacuous — neither family alone suffices',
+        () {
+      // The reflexive application of the same rule. Without this, the coverage
+      // test could be passing because the *union* happens to be large, and
+      // would keep passing if `fontFamilyFallback` were deleted tomorrow —
+      // which is the regression this whole finding is about.
+      final Set<int> required = <int>{
+        ...renderedCodePoints(),
+        for (int c = 0x30; c <= 0x39; c++) c,
+      };
+
+      Set<int> coverageOf(List<File> faces) => faces
+          .map(cmapCodePoints)
+          .reduce((Set<int> a, Set<int> b) => a..addAll(b));
+
+      final Set<int> laoOnly =
+          coverageOf(kNotoSansLaoFaces.map(File.new).toList());
+      final Set<int> robotoOnly = coverageOf(robotoFaceFiles());
+
+      expect(required.where((int c) => !laoOnly.contains(c)), isNotEmpty,
+          reason: 'NotoSansLao alone would cover the page, so the fallback is '
+              'not load-bearing and this suite proves nothing about it');
+      expect(required.where((int c) => !robotoOnly.contains(c)), isNotEmpty,
+          reason: 'Roboto alone would cover the page, so the bundled Lao face '
+              'is not load-bearing');
+    });
+
+    test('the chain reaches ThemeData — necessary, and NOT sufficient', () {
+      // Recorded deliberately as the *weak* half. This is the assertion that
+      // was AC-24's sole evidence at `bda76a1`, and on its own it passes
+      // against an empty `.ttf`. It is kept because a chain that covers
+      // everything and never reaches the theme is equally broken — but it is
+      // named here so nobody re-promotes it to being the proof.
+      final ThemeData theme = AppTheme.light();
+      expect(theme.textTheme.bodyMedium?.fontFamily, AppTypography.fontFamily);
+      expect(
+        theme.textTheme.bodyMedium?.fontFamilyFallback,
+        AppTypography.fontFamilyFallback,
+      );
+    });
+  });
+
   group('B2-AC-16 — four distinguishable states, category view', () {
     testWidgets('loading is a skeleton, not an empty grid',
         (WidgetTester tester) async {
@@ -411,24 +600,69 @@ void main() {
       //     `FlutterError` in a widget test, so "neither clips" is a real
       //     assertion with teeth.
       //
-      // (b) is NOT testable here. Measured during this batch: the catalogue
-      //     grid lays out to **820.0 px in both locales**, header 181.0 in
-      //     both, whole column 1094.0 in both — with the real `NotoSansLao`
-      //     faces loaded via `FontLoader`. Headless layout is not reproducing
-      //     the per-locale wrap difference the browser shows (baseline: 1491
-      //     lo vs 1404 en). Asserting `lo > en` here would therefore fail for a
-      //     reason that has nothing to do with the port, and *weakening* it to
-      //     `lo >= en` would be a green tick over an unmeasured claim — which
-      //     is the failure mode CLAUDE.md § Gate Status Reporting exists to
-      //     prevent. The height relation is carried to Tier 3 against the
-      //     locale-matching baseline PNG and reported there.
-      await loadNotoSansLao();
+      // (b) is NOT asserted here — but **not** for the reason this comment
+      //     used to give, and the correction matters more than the verdict.
+      //
+      //     The withdrawn text recorded grid 820.0 / header 181.0 / column
+      //     1094.0, *identical in both locales*, and read that equality as
+      //     "headless layout does not reproduce the per-locale wrap
+      //     difference" — i.e. as an inherent limit of `flutter_test`. It is
+      //     not. Those three numbers are **void as evidence**; do not cite
+      //     them in either direction (ruled: B2a architecture review § 4).
+      //     They were the product of two independent defects stacked:
+      //
+      //       1. only `NotoSansLao` was registered, so English laid out in the
+      //          placeholder font and `en` was never a measurement of English
+      //          typography at all; and
+      //       2. **the `lo` iteration of this very loop was rendering English.**
+      //          `pumpWidget` reuses the root element when the widget type is
+      //          unchanged, so the second `EasyLocalization` never ran
+      //          `initState` and never applied its `startLocale`. The loop
+      //          compared `en` with `en` and reported the tie as a finding.
+      //
+      //     (2) is why the equality was *exact on all three metrics* — the
+      //     anomaly § 4 flagged, since English in the placeholder font is
+      //     ~1.0 em/glyph against real Lao at ~0.62 em and should have made
+      //     `en` taller, not equal. Both are fixed below: the chain is loaded,
+      //     and the tree is torn down between locales with an assertion that
+      //     the switch actually happened. Re-derived with both fixed, the
+      //     locales are **not** equal — column 1196.0 `en` vs 1238.0 `lo`.
+      //
+      //     The disposition nevertheless stands, for the reason § 2.4 of the
+      //     ruling gives: the two locales resolve through *different faces*
+      //     with different metrics, so "which render is taller" is a
+      //     typography question settled against the locale-matching baseline
+      //     PNG, never on a headless layout number. Asserting `lo > en` here
+      //     would be a green tick on the right answer obtained from the wrong
+      //     oracle — and this test has now been wrong once for exactly that
+      //     shape of reason. Carried to Tier 3; B2-AC-15's height clause is
+      //     released by B2-AC-27, not by this file.
+      await loadAppFonts();
 
       for (final Locale locale in <Locale>[Locale('en'), Locale('lo')]) {
+        // **Tear the tree down first.** Without this the second iteration
+        // silently reuses the first locale — see (2) above. This one line is
+        // the difference between testing two locales and testing one twice.
+        await tester.pumpWidget(const SizedBox.shrink());
+
         final (:FakeServiceRepository repository, :ServiceBloc bloc) = build();
         bloc.add(const ServiceStarted());
         await pumpServicePage(tester, bloc, locale: locale);
         await settleCatalogue(tester);
+
+        // And prove it took. A structural assertion is not enough on its own
+        // here: every check below this point passes just as happily against
+        // the wrong locale, which is precisely how the defect survived. This
+        // is the § 6 rule turned on this test — assert the capability, not the
+        // configuration.
+        final ServiceCategory first = recordedCategories().first;
+        expect(
+          find.text(first.name.forLanguage(locale.languageCode)),
+          findsOneWidget,
+          reason: 'the tree is not rendering ${locale.languageCode}; the '
+              'locale switch did not take and everything below is measuring '
+              'the previous locale',
+        );
 
         expect(tester.takeException(), isNull,
             reason: 'a RenderFlex overflow in ${locale.languageCode} is an '

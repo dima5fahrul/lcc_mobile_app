@@ -1,14 +1,30 @@
-/// The type scale and the `NotoSansLao` family wiring.
+/// The type scale and the font-family **chain** wiring.
 ///
 /// ## The family
 ///
-/// One family for both locales. `NotoSansLao` carries Latin glyphs as well as
-/// Lao ones, so pinning it app-wide keeps English and Lao rendering from the
-/// same metrics — which is what makes the Lao page's greater height a *layout*
-/// question rather than a font-substitution artefact. **AC-24** (the font is
-/// declared, bundled and actually applied) is asserted against
-/// `AppTheme.light().textTheme`, and this file is where the family it reads
-/// comes from.
+/// A two-family chain, not one family. `NotoSansLao` is a Lao-only subset —
+/// 0/26 Latin letters and 0/10 ASCII digits, verified against its `cmap` — so
+/// it cannot be the whole stack. It is bundled and primary because Lao is
+/// `fallbackLocale` and it is the only Lao source we ship; `Roboto` sits
+/// behind it in [fontFamilyFallback] and supplies Latin and the ASCII
+/// numerals that appear in *both* locales (fee amounts, the `13 ບໍລິການ`
+/// counts). The two coverage sets are disjoint, so the chain never competes
+/// with itself.
+///
+/// `Roboto` is named, not bundled: it is the Android platform face, so the
+/// declaration costs no APK bytes. What the declaration buys is that the
+/// fallback is *chosen* rather than inherited from whatever the OEM resolver
+/// happens to return.
+///
+/// Because the two locales resolve through different faces, they do **not**
+/// share a metric set. Any argument that compares an English and a Lao render
+/// must therefore rest on the Tier 3 pair against the locale-matching
+/// baseline, never on headless layout numbers — see B2-AC-15.
+///
+/// **AC-24** (the font is declared, bundled and actually applied) is asserted
+/// against the resolved *chain*, not against a family name reaching
+/// `ThemeData`. Family-name propagation was the sole evidence when AC-24 first
+/// closed at `bda76a1`, and it is why a family with no Latin coverage passed.
 ///
 /// ## The scale
 ///
@@ -31,9 +47,28 @@ import 'dart:ui' show FontWeight;
 
 /// Type-scale tokens. Never instantiated.
 abstract final class AppTypography {
-  /// The bundled family. Declared in `pubspec.yaml`'s `fonts:` block with a
-  /// 400 and a 700 face; the 700 face is what [bold] resolves to.
+  /// The bundled family, and the **first** link of the chain — not the whole
+  /// of it. Declared in `pubspec.yaml`'s `fonts:` block with a 400 and a 700
+  /// face; the 700 face is what [bold] resolves to. It covers Lao and nothing
+  /// else, so it is never sufficient on its own: read it together with
+  /// [fontFamilyFallback], and see this library's note on why.
   static const String fontFamily = 'NotoSansLao';
+
+  /// What resolves the code points [fontFamily] cannot: Latin letters, the
+  /// ASCII numerals that appear in *both* locales, and the punctuation
+  /// (`. , - ( ) & " –`) the Lao subset also omits.
+  ///
+  /// `Roboto` is **named, not bundled** — no `pubspec.yaml` `fonts:` entry, no
+  /// asset, no APK bytes. On Android it is the platform face; the declaration's
+  /// value is that the fallback becomes ours rather than whatever the OEM
+  /// resolver would have returned unasked. In the test harness it is loaded
+  /// from `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/` so the headless
+  /// renderer resolves the same chain the device does — see
+  /// `test/helpers/service_test_helper.dart`'s `loadAppFonts()`.
+  ///
+  /// A `List<String>`, matching `TextStyle.fontFamilyFallback`'s own type, so
+  /// it hands straight to `ThemeData` without a copy at the call site.
+  static const List<String> fontFamilyFallback = <String>['Roboto'];
 
   // ── Sizes (Tailwind text-* at a 16 px root) ────────────────────────────────
 
