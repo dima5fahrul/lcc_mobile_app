@@ -21,8 +21,8 @@ import 'package:lcc_mobile_app/features/session/domain/entities/citizen_profile.
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
-import '../../../../helpers/core_test_helper.dart';
-import '../../../../helpers/session_test_helper.dart';
+import '../../../helpers/core_test_helper.dart';
+import '../../../helpers/session_test_helper.dart';
 
 void main() {
   late Map<String, String> store;

@@ -13,7 +13,10 @@
 ///
 /// Note the containers are not idempotent — a second `init()` throws
 /// `already registered inside GetIt`. That is a real constraint on the frozen
-/// DI files (§ 4.1), so each test boots once and `tearDown` empties all three.
+/// DI files (§ 4.1), so each test boots once and `tearDown` empties all
+/// **four**: B2a adds `serviceInjection`, and a container that `tearDown`
+/// forgets does not fail on the test that added it — it fails on the second
+/// test in the file, with a message naming `ApiClient`.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -32,6 +35,11 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/request_otp.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
+import 'package:lcc_mobile_app/features/service/domain/repositories/service_repository.dart';
+import 'package:lcc_mobile_app/features/service/domain/usecases/get_service_categories.dart';
+import 'package:lcc_mobile_app/features/service/domain/usecases/get_services.dart';
+import 'package:lcc_mobile_app/features/service/presentation/bloc/service_bloc.dart';
 import 'package:lcc_mobile_app/features/session/data/datasources/session_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
@@ -47,6 +55,7 @@ void main() {
     await injection.reset();
     await sessionInjection.reset();
     await authInjection.reset();
+    await serviceInjection.reset();
   });
 
   group('root container', () {
@@ -148,6 +157,44 @@ void main() {
       // on one would be invisible to the other.
       expect(injection<ApiClient>(), same(injection<ApiClient>()));
       expect(authInjection<AuthRemoteDatasource>(), isNotNull);
+    });
+  });
+
+  group('service container (B2a, DI-6)', () {
+    test('resolves the repository and both usecases', () {
+      expect(serviceInjection<ServiceRepository>(), isA<ServiceRepository>());
+      expect(
+        serviceInjection<GetServiceCategories>(),
+        isA<GetServiceCategories>(),
+      );
+      expect(serviceInjection<GetServices>(), isA<GetServices>());
+    });
+
+    test('DI-3: it re-exports the ROOT ApiClient rather than building a Dio',
+        () {
+      expect(serviceInjection<ApiClient>(), same(injection<ApiClient>()));
+    });
+
+    test('DI-1: the ROOT container did not grow a fourth registration', () {
+      // The root holds exactly StorageService, ApiClient and SessionBloc. A
+      // feature that registers itself on the root instead of its own container
+      // is the failure this pins — it works, and it makes the root the place
+      // everything accumulates.
+      expect(injection.isRegistered<ServiceRepository>(), isFalse);
+      expect(injection.isRegistered<GetServices>(), isFalse);
+      expect(injection.isRegistered<ServiceBloc>(), isFalse);
+    });
+
+    test('ServiceBloc is a FACTORY — a fresh one per visit to /service', () {
+      final ServiceBloc first = serviceInjection<ServiceBloc>();
+      final ServiceBloc second = serviceInjection<ServiceBloc>();
+      addTearDown(first.close);
+      addTearDown(second.close);
+
+      expect(first, isNot(same(second)),
+          reason: 'a shared ServiceBloc would hand the next visit the previous '
+              "visit's search results and a debounce Timer already scheduled "
+              'against a closed emitter');
     });
   });
 

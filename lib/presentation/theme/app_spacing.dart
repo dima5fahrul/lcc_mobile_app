@@ -44,6 +44,16 @@ abstract final class AppSpacing {
   /// `p-8` — 32 px.
   static const double gap32 = 32;
 
+  /// `p-10` — 40 px. The padding of the catalogue's error and empty panels
+  /// (`ServicePage.tsx:267,434,510`).
+  static const double gap40 = 40;
+
+  /// `w-14 h-14` — 56 px. Two different things at the same size: the
+  /// `GlassIcon` on a catalogue card (`ServicePage.tsx:454`, passed as
+  /// `size={56}`) and the neutral round-rect tile the error/empty panels put
+  /// their glyph in.
+  static const double tile56 = 56;
+
   // ── Radii ──────────────────────────────────────────────────────────────────
 
   /// `rounded-lg` — 8 px.

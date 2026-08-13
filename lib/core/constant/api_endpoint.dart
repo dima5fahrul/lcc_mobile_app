@@ -56,4 +56,12 @@ class ApiEndpoint {
 
   // ── The signed-in citizen ──────────────────────────────────────────────────
   static const String meProfile = '/me/profile';
+
+  // ── Service catalogue (public, anonymous) ─────────────────────────────────
+  // `endpoints.ts:167-171`'s `catalog.categories` / `catalog.services`. Both
+  // are `anonymous: true` in the source and stay so here: the catalogue is
+  // readable signed-out, which is what makes a signed-out citizen able to
+  // browse all 43 services. Additive only (SSD § 6.5) — nothing above changed.
+  static const String serviceCategories = '/service-categories';
+  static const String services = '/services';
 }

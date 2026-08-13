@@ -61,10 +61,38 @@ abstract final class AppColors {
   /// inactive branch.
   static const Color muted = Color(0xFF6B7280);
 
-  /// The two stops of the sign-in backdrop gradient.
-  /// `AuthPage.tsx` — `linear-gradient(#101C48 → #1A2A5E)`.
+  /// `#101C48` — the sign-in backdrop base. `AuthPage.tsx:192`,
+  /// `bg-[#101C48]`. Verified present in the web source.
   static const Color authGradientStart = Color(0xFF101C48);
+
+  /// `#1A2A5E` — **the one token in this file with no web counterpart.**
+  ///
+  /// The doc these two constants shipped with (`3c0f974`) attributed them to
+  /// *"`AuthPage.tsx` — `linear-gradient(#101C48 → #1A2A5E)`"*. Deriving the
+  /// Tier 2 oracle caught it: `grep -rn 1A2A5E sources/lcc-app` returns
+  /// **nothing** at `62f8a529`. That gradient does not exist. The web's
+  /// backdrop is a flat `bg-[#101C48]` (`:192`) beneath an
+  /// `rgba(14,28,75,…)` / `rgba(16,28,72,…)` photo overlay (`:215`).
+  ///
+  /// The value came from the *Flutter* page — `auth_page.dart:200` draws
+  /// `[Color(0xFF101C48), Color(0xFF1A2A5E)]` — so this is a Flutter-only
+  /// disparity that a token layer then documented as if it were a port.
+  ///
+  /// **Not fixed here, and that is a scope decision, not an oversight.** The
+  /// AuthPage backdrop is exactly R-12's subject; R-12 is on specs.md § 6.5.5's
+  /// closed pre-existing-disparity register, owned by
+  /// `GOR-245-b1b2-r12-emblem-restoration`, and the auth pages are frozen
+  /// (§ 4.2). The constant stays so the frozen page keeps rendering what it
+  /// renders today; the Tier 2 oracle **excludes** it by name with this reason
+  /// (`oracle/tier2/tokens.json` → `excluded.authGradientEnd`), because
+  /// comparing it against the web would be comparing Flutter against itself.
   static const Color authGradientEnd = Color(0xFF1A2A5E);
+
+  /// The 60 % and 100 % stops of the catalogue header's brand gradient,
+  /// `linear-gradient(135deg, #344EAD 0%, #2A3F99 60%, #1E3070 100%)`
+  /// (`ServicePage.tsx:362-365`). The 0 % stop is [primary].
+  static const Color headerGradientMid = Color(0xFF2A3F99);
+  static const Color headerGradientEnd = Color(0xFF1E3070);
 
   // ── Neutrals ───────────────────────────────────────────────────────────────
   //
@@ -72,6 +100,13 @@ abstract final class AppColors {
   // overrides for contrast — see [gray400] / [gray500].
 
   static const Color white = Color(0xFFFFFFFF);
+
+  /// `rgb(0 0 0 / 0.05)` — Tailwind `shadow-sm`, the hairline lift under every
+  /// catalogue card, panel and skeleton tile.
+  static const Color cardShadow = Color(0x0D000000);
+
+  /// `rgb(0 0 0 / 0.1)` — Tailwind `shadow-md`, under the search field.
+  static const Color cardShadowMedium = Color(0x1A000000);
 
   /// `rgba(0,0,0,0.18)` — `GlassIcon.tsx`'s glyph drop-shadow
   /// (`drop-shadow(0 1px 1px rgba(0,0,0,0.18))`). Named here rather than
@@ -96,11 +131,38 @@ abstract final class AppColors {
   /// 2.6:1 on white). `theme.css:92`. 5.40:1 white / 4.82:1 on `#F0F2F8`.
   static const Color gray400 = Color(0xFF616B7A);
 
-  /// `#E5E7EB` — Tailwind `gray-200`. Input borders, hairline dividers.
+  /// `#1F2937` — Tailwind `gray-800`, **not** overridden by `theme.css`.
+  /// `ServiceCard.tsx:65`'s resting service name.
+  static const Color gray800 = Color(0xFF1F2937);
+
+  /// `#D1D5DB` — Tailwind `gray-300`. The category card's trailing chevron
+  /// (`ServicePage.tsx:455`, `text-gray-300`).
+  static const Color gray300 = Color(0xFFD1D5DB);
+
+  /// `#E5E7EB` — Tailwind `gray-200`. Input borders, hairline dividers, and
+  /// the skeleton tile/bar fill (`ServicePage.tsx:245-246`).
   static const Color gray200 = Color(0xFFE5E7EB);
+
+  /// `#F3F4F6` — Tailwind `gray-100`. Card hairline borders, the neutral
+  /// empty-state icon tile, `ServiceCard`'s divider
+  /// (`ServicePage.tsx:243,435,510`, `ServiceCard.tsx:57,78`).
+  static const Color gray100 = Color(0xFFF3F4F6);
 
   /// `#F9FAFB` — Tailwind `gray-50`. Resting input fill.
   static const Color gray50 = Color(0xFFF9FAFB);
+
+  /// `#9CA3AF` — Tailwind's **stock** `gray-400`, written as an *inline hex*
+  /// at `ServicePage.tsx:465` for a category whose service count is zero.
+  ///
+  /// This is deliberately NOT [gray400]. `theme.css:92` overrides the
+  /// `--color-gray-400` custom property to `#616B7A`, so every `text-gray-400`
+  /// *class* resolves to the accessible value — but an inline
+  /// `style={{ color: "#9CA3AF" }}` never reads that property and renders the
+  /// stock grey. Porting this one label as [gray400] would be a Tier 2 value
+  /// mismatch dressed up as an accessibility improvement; the source's own
+  /// override mechanism did not reach it, and B2 ports the web rather than
+  /// improving it (ADR-0001, § V.8 item 20).
+  static const Color gray400Inline = Color(0xFF9CA3AF);
 
   // ── Semantic ───────────────────────────────────────────────────────────────
   //
@@ -160,6 +222,68 @@ abstract final class AppColors {
   static ({Color color, Color background}) helpSwatch(int index) =>
       helpPalette[index % helpPalette.length];
 
+  // ── Category tints and accents ─────────────────────────────────────────────
+  //
+  // `ServicePage.tsx:144-153`'s `CATEGORIES` table carries, per category, a
+  // `bg` (a pale tile wash) and a `color`.
+  //
+  // These sit uneasily beside this file's own rule that a runtime-supplied
+  // colour is data and must never be transcribed, so the distinction is worth
+  // being precise about: `/service-categories` publishes `color` and **not**
+  // `bg`. The eight `bg` values are therefore compile-time copy the API cannot
+  // send, and belong here. The eight `color` values are *also* transcribed —
+  // but only as the fallback for `c.color || seed?.color || "#344EAD"`
+  // (`:325`), a branch that cannot fire while the API sends a colour for all
+  // eight, which it does. They are ported because the source's fallback chain
+  // is ported, not because anything reads them today; the rendered accent is
+  // always the wire's.
+  //
+  // They live in the theme rather than in `features/service/presentation/`
+  // because B2-AC-11 admits no colour literal outside this directory, and the
+  // rule does not bend for a table of eight.
+
+  /// `#EEF2FF` / `#344EAD` — Civil & Population.
+  static const Color categoryTintCivil = Color(0xFFEEF2FF);
+  static const Color categoryAccentCivil = Color(0xFF344EAD);
+
+  /// `#E0F2FE` / `#0EA5E9` — Immigration.
+  static const Color categoryTintImmigration = Color(0xFFE0F2FE);
+  static const Color categoryAccentImmigration = Color(0xFF0EA5E9);
+
+  /// `#DCFCE7` / `#16A34A` — Tax & Payment.
+  static const Color categoryTintFinance = Color(0xFFDCFCE7);
+  static const Color categoryAccentFinance = Color(0xFF16A34A);
+
+  /// `#FFEDD5` / `#EA580C` — Land & Property.
+  static const Color categoryTintHousing = Color(0xFFFFEDD5);
+  static const Color categoryAccentHousing = Color(0xFFEA580C);
+
+  /// `#FEF3C7` / `#F59E0B` — Transport.
+  static const Color categoryTintTransport = Color(0xFFFEF3C7);
+  static const Color categoryAccentTransport = Color(0xFFF59E0B);
+
+  /// `#FCE7F3` / `#DB2777` — Social Protection.
+  static const Color categoryTintWelfare = Color(0xFFFCE7F3);
+  static const Color categoryAccentWelfare = Color(0xFFDB2777);
+
+  /// `#DBEAFE` / `#2563EB` — Education.
+  static const Color categoryTintEducation = Color(0xFFDBEAFE);
+  static const Color categoryAccentEducation = Color(0xFF2563EB);
+
+  /// `#FEE2E2` / `#DC2626` — Health.
+  static const Color categoryTintHealth = Color(0xFFFEE2E2);
+  static const Color categoryAccentHealth = Color(0xFFDC2626);
+
+  /// `seed?.bg ?? "#F3F4F6"` (`ServicePage.tsx:326`) — the wash for a category
+  /// this build has no seed row for. Same value as [gray100]; named separately
+  /// because it is a *fallback decision*, not a border colour, and the two
+  /// would be changed for different reasons.
+  static const Color categoryTintFallback = Color(0xFFF3F4F6);
+
+  /// `c.color || seed?.color || "#344EAD"` — the last link of the accent
+  /// fallback chain. Same value as [primary]; named for the same reason.
+  static const Color categoryAccentFallback = Color(0xFF344EAD);
+
   // ── glass.ts ───────────────────────────────────────────────────────────────
 
   /// `glass.ts`'s `shade()` — lighten toward white (`percent > 0`) or darken
@@ -191,6 +315,32 @@ abstract final class AppColors {
       channel(color.g),
       channel(color.b),
     );
+  }
+
+  /// Parses a wire-supplied `#RRGGBB` (or `#AARRGGBB`, or the same without the
+  /// `#`) into a [Color], falling back to [fallback] on anything unparseable.
+  ///
+  /// This is the "parse them at the edge; pass them down as values" half of
+  /// this file's rule about runtime colour families. `ServiceCategory.color`
+  /// and `Service.color` arrive as strings and must become a `Color`
+  /// *somewhere*; doing it here keeps the conversion — and the only place a
+  /// channel-arithmetic literal could hide — inside the one directory
+  /// B2-AC-11 exempts.
+  ///
+  /// **Never throws.** CSS is forgiving about a malformed colour (the
+  /// declaration is dropped and the inherited value shows), and a catalogue row
+  /// with a typo'd hex must degrade to a plain tile, not take down a page of
+  /// 43. [fallback] defaults to [primary], which is the last link of the
+  /// source's own `c.color || seed?.color || "#344EAD"` chain.
+  static Color parseHex(String value, {Color fallback = primary}) {
+    String hex = value.trim();
+    if (hex.startsWith('#')) hex = hex.substring(1);
+    if (hex.length == 6) hex = 'FF$hex';
+    if (hex.length != 8) return fallback;
+
+    final int? parsed = int.tryParse(hex, radix: 16);
+    if (parsed == null) return fallback;
+    return Color(parsed);
   }
 
   /// `glass.ts`'s `hexToRgba()` has **no port**, deliberately.

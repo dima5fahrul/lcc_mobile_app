@@ -82,6 +82,16 @@
 /// In debug builds the `navigatorKey` is [ChuckerFlutter.navigatorKey] so
 /// Chucker's overlay can draw over the router's navigator (boilerplate
 /// parity). Release builds use a plain `GlobalKey<NavigatorState>`.
+///
+/// ## N-4 — `route_names.dart` is gone (SSD § 9.2)
+///
+/// `RouteNames` mirrored [AppNameRoutes] constant-for-constant, and its own doc
+/// admitted the hazard: *"every constant here MUST equal its `AppNameRoutes`
+/// twin"*, enforced by a test rather than by the type system. All seven uses
+/// were `name:` arguments in this file and nothing ever called `goNamed`, so
+/// the second surface bought nothing and could drift. Every `GoRoute.name` now
+/// takes the [AppNameRoutes] path constant directly, which is what `RouteNames`
+/// resolved to anyway — the route *names* are byte-identical to before.
 library;
 
 import 'dart:async';
@@ -101,11 +111,12 @@ import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/service/di/service_injection.dart';
+import '../../features/service/presentation/bloc/service_bloc.dart';
 import '../../features/service/presentation/pages/service_page.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
 import '../../presentation/shell/app_shell.dart';
 import 'app_name_routes.dart';
-import 'route_names.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -244,27 +255,45 @@ class AppRoutes {
       routes: <RouteBase>[
         GoRoute(
           path: AppNameRoutes.home,
-          name: RouteNames.home,
+          name: AppNameRoutes.home,
           builder: (_, __) => const HomePage(),
         ),
+        // CR-1 again, and this is the pattern every B2 page follows: the BLoC
+        // is resolved HERE, by the route builder, and owned by this
+        // `BlocProvider`. `create:` (not `.value`) carries the lifetime —
+        // `serviceInjection` registers `ServiceBloc` with `registerFactory`, so
+        // each visit gets a fresh one and the provider closes it on the way
+        // out. That per-visit lifetime is required, not incidental: the BLoC
+        // holds a live debounce `Timer` and one visit's search results, and a
+        // surviving instance would hand the next visit both.
+        //
+        // `..add(const ServiceStarted())` is the mount fetch — the pair of
+        // `useQuery` calls `ServicePage.tsx:298-299` fires on render. Doing it
+        // in the builder rather than in `ServicePage.initState` keeps the page
+        // a pure function of its BLoC, which is what lets a widget test pump
+        // it against any state without a container.
         GoRoute(
           path: AppNameRoutes.service,
-          name: RouteNames.service,
-          builder: (_, __) => const ServicePage(),
+          name: AppNameRoutes.service,
+          builder: (_, __) => BlocProvider<ServiceBloc>(
+            create: (_) =>
+                serviceInjection<ServiceBloc>()..add(const ServiceStarted()),
+            child: const ServicePage(),
+          ),
         ),
         GoRoute(
           path: AppNameRoutes.history,
-          name: RouteNames.history,
+          name: AppNameRoutes.history,
           builder: (_, __) => const HistoryPage(),
         ),
         GoRoute(
           path: AppNameRoutes.wallet,
-          name: RouteNames.wallet,
+          name: AppNameRoutes.wallet,
           builder: (_, __) => const WalletPage(),
         ),
         GoRoute(
           path: AppNameRoutes.account,
-          name: RouteNames.account,
+          name: AppNameRoutes.account,
           builder: (_, __) => const AccountPage(),
         ),
       ],
@@ -278,7 +307,7 @@ class AppRoutes {
     // shell.
     GoRoute(
       path: AppNameRoutes.signin,
-      name: RouteNames.signin,
+      name: AppNameRoutes.signin,
       // `state.uri.queryParameters` returns the percent-DECODED value, so
       // `AuthPage` receives `/account`, not `%2Faccount`. See the
       // [kFromQueryParam] note for the full encode/decode pairing.
@@ -305,18 +334,18 @@ class AppRoutes {
     ),
     GoRoute(
       path: AppNameRoutes.help,
-      name: RouteNames.help,
+      name: AppNameRoutes.help,
       builder: (_, __) => const _PlaceholderPage(title: 'Help'),
     ),
     GoRoute(
       path: AppNameRoutes.news,
-      name: RouteNames.news,
+      name: AppNameRoutes.news,
       builder: (_, __) => const _PlaceholderPage(title: 'News'),
     ),
     if (kDebugMode)
       GoRoute(
         path: AppNameRoutes.debug,
-        name: RouteNames.debug,
+        name: AppNameRoutes.debug,
         builder: (_, __) => const _PlaceholderPage(title: 'Debug'),
       ),
   ];
@@ -334,23 +363,28 @@ class AppRoutes {
 /// BLoC transitions `loading → authenticated` (boot) or
 /// `authenticated → unauthenticated` (sign-out).
 ///
-/// `dispose()` removes the stream subscription; call it when the router is
-/// torn down (typically never, since the router lives for the app's
-/// lifetime, but it keeps the analyzer honest about resource ownership).
+/// ## N-7 — app-lifetime ownership, stated instead of pretended (SSD § 9.2, CR-7)
+///
+/// This class used to carry a `dispose()` that cancelled the subscription, and
+/// **that method had no call site anywhere in the tree.** `go_router` removes
+/// its own listener from a `refreshListenable` but never disposes it, and the
+/// one router this app builds is created in `App.initState` and held until the
+/// process exits. So the teardown path was unreachable by construction: it read
+/// as resource discipline while providing none, and the next reader had to
+/// re-derive that before trusting it.
+///
+/// The subscription is therefore deliberately not retained and deliberately
+/// never cancelled — it lives exactly as long as the app does, which is also
+/// exactly as long as the `SessionBloc` stream it listens to. **If a second,
+/// shorter-lived router is ever built** (a nested navigator, a per-test router
+/// that outlives its BLoC), reintroduce cancellation *together with* the call
+/// site that invokes it, in the same change.
 class _GoRouterRefreshStream extends ChangeNotifier {
   _GoRouterRefreshStream(Stream<dynamic> stream) {
-    _subscription = stream.asBroadcastStream().listen(
+    stream.asBroadcastStream().listen(
       (_) => notifyListeners(),
       onError: (_) => notifyListeners(),
     );
-  }
-
-  late final StreamSubscription<dynamic> _subscription;
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
   }
 }
 

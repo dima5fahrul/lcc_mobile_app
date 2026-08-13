@@ -49,6 +49,9 @@ abstract final class AppTypography {
   /// `text-sm` — 14 px.
   static const double size14 = 14;
 
+  /// `text-[15px]` — 15 px. `ServiceCard.tsx:70`'s service description.
+  static const double size15 = 15;
+
   /// `text-base` — 16 px. Body default.
   static const double size16 = 16;
 
@@ -84,8 +87,17 @@ abstract final class AppTypography {
   /// default 1.4+ would push the sub-brand out of a 64 px bar.
   static const double lineTight = 1.2;
 
+  /// `leading-snug` — 1.375. Card titles and blurbs, which the source packs
+  /// tighter than body copy (`ServicePage.tsx:457,460`, `ServiceCard.tsx:64`).
+  static const double lineSnug = 1.375;
+
   /// `leading-normal` — 1.4.
   static const double lineNormal = 1.4;
+
+  /// The `@layer base` line-height `theme.css:155` gives every `h1`–`h4`,
+  /// `label`, `button` and `input`. Utility classes override the *size*, not
+  /// this, so a heading that keeps its default size keeps 1.5 too.
+  static const double lineBaseElement = 1.5;
 
   /// `leading-relaxed` — 1.6. Long-form article body.
   static const double lineRelaxed = 1.6;

@@ -1,0 +1,74 @@
+# The page-pair manifest — which baseline slot Tier 3 pairs with which Flutter
+# page. specs.md § 6.5.4 item 1, B2-AC-30.
+#
+# ## The exclusions are the primary answer, and masking is secondary
+#
+# The baseline has 14 slots per locale but covers only **6 unique pages**. Eight
+# of the fourteen are the signin form wearing another page's filename, because
+# `/history`, `/account` and the six certificate routes hard-redirect to
+# `/signin` while signed out and the capture followed the redirect.
+#
+# Pairing `03-history.png` with a Flutter history page would therefore compare a
+# Flutter page against a web SIGNIN FORM and report a catastrophic false
+# disparity — one that looks like a total port failure and is in fact a
+# filename. Masking cannot help: the whole image is the wrong page.
+#
+# So those slots are excluded from pairing outright. Only slot 08 is a
+# legitimate signin reference, and signin is not B2's.
+
+version: 1
+baseline: docs/fidelity-baseline/2026-08-13
+web_commit: 62f8a529aaa024a8b35b0af50a8fbd4850a63962
+
+# Slots B2 may pair against, and what owns each.
+pairs:
+  - slot: "01-home"
+    route: "/"
+    owner: B2b
+    note: >-
+      Signed-out render only. The `summary` and `digitalId` regions are
+      `enabled: isAuthenticated` and are NOT in this baseline; § 6.5.2(b) rules
+      them Tier 3 NOT EVALUATED, named region by region, with Tiers 1 and 2
+      still binding.
+  - slot: "02-service"
+    route: "/service"
+    owner: B2a
+    note: The pilot. Complete public baseline, no auth-gated region.
+  - slot: "06-help"
+    route: "/help"
+    owner: B2c
+  - slot: "07-news"
+    route: "/news"
+    owner: B2c
+
+# Slots that exist, are captured, and must NOT be paired.
+excluded:
+  - slots: ["03-history", "05-account", "09-resident-certificate",
+            "10-birth-declaration", "11-death-declaration",
+            "12-marriage-certificate", "13-divorce-certificate",
+            "14-family-book"]
+    reason: >-
+      These are NOT renders of the routes they are named after — every one is
+      the signin page, reached by the signed-out redirect. Pairing any of them
+      would compare a Flutter page against a web signin form.
+  - slots: ["04-wallet"]
+    reason: >-
+      A real wallet render, but the wallet is not a B2 page. Excluded as
+      out-of-scope rather than as unusable; B-later owns it.
+  - slots: ["08-signin"]
+    reason: >-
+      The one legitimate signin reference. Signin is not B2's — it is auth, and
+      the auth pages are frozen (§ 4.2). Carries the captcha mask so that
+      whoever does own it inherits a usable slot.
+
+# Not a slot yet. § 6.5.2(a): missing but CAPTURABLE.
+addenda:
+  - slot: "15-news-detail"
+    route: "/news/:slug"
+    owner: B2c
+    status: not captured
+    note: >-
+      Public, reachable, unauthenticated, and simply not in the 2026-08-13 set.
+      B2c extends the baseline at the identical commit with the identical rig
+      and appends a manifest addendum. Extending is permitted; re-capturing an
+      existing slot is an automatic FAIL (B2-AC-38).

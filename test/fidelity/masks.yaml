@@ -1,0 +1,71 @@
+# The mask register — specs.md § 6.5.4, B2-AC-30.
+#
+# A mask hides a region of a baseline screenshot from Tier 3's paired
+# presentation. That is a power to hide evidence, so the register exists to
+# make every use of it visible in a reviewed diff, with a reason, forever.
+#
+# THE FOUR RULES, restated here because this is the file that breaks them:
+#
+#   1. A mask may only cover content that is NON-DETERMINISTIC IN THE SOURCE.
+#      The captcha operands re-randomise on every mount, so no capture of them
+#      can ever match another. That is the only qualifying condition.
+#
+#   2. A mask may NEVER cover content that merely differs between web and
+#      Flutter. That is the abuse this register exists to make visible. If a
+#      region diffs because the port is wrong, fix the port.
+#
+#   3. Rectangles are derived ONCE and recorded here. Never re-derived per run:
+#      a mask recomputed each time silently tracks whatever moves into that
+#      region, which is rule 2 with extra steps.
+#
+#   4. Adding an entry is an ARCHITECT-VISIBLE ACT. B2a may add exactly one
+#      (this one). B2b and B2c may add none without escalation.
+#
+# Masking is scoped to Tier 3's paired presentation and to any supporting image
+# diff used as a reviewer aid. It must NOT become a pixel gate by the back door:
+# § II.R-E rejected pixel-diff *as the gate*, and a mask register plus an image
+# differ is exactly the shape that quietly becomes one.
+
+version: 1
+baseline: docs/fidelity-baseline/2026-08-13
+web_commit: 62f8a529aaa024a8b35b0af50a8fbd4850a63962
+
+masks:
+  - slot: "08-signin"
+    region: captcha-operands
+    # Manifest §"What could NOT be captured" item 2: the "Security Check" field
+    # re-randomises its operands on every mount — 3+7, 3+9, 8+8, 9+5 observed
+    # across four consecutive mounts of the same route.
+    reason: >-
+      The arithmetic captcha's operands are regenerated on every mount, so the
+      region can never match any other capture of the same page. Non-deterministic
+      in the source, which is rule 1's only qualifying condition.
+    # Derived ONCE, on 2026-08-13, from the baseline PNGs themselves: the chip is
+    # the single exact-#EEF2FF region in each image, and its bounding box was read
+    # off the pixels rather than guessed from the CSS. Reproduce with:
+    #
+    #   python3 - <<'PY'
+    #   from PIL import Image
+    #   im = Image.open('en/08-signin.png').convert('RGB'); px = im.load()
+    #   box = [p for y in range(im.size[1]) for x in range(im.size[0])
+    #          if (p := (x, y)) and px[x, y] == (238, 242, 255)]
+    #   print(min(p[0] for p in box), min(p[1] for p in box),
+    #         max(p[0] for p in box), max(p[1] for p in box))
+    #   PY
+    #
+    # Two rectangles, one region: the Lao page is taller (990 vs 914) and the
+    # chip sits lower and one pixel wider. § 6.5.6 — locale heights are not
+    # canonical, so a single rectangle would be wrong for one of the two.
+    derived: "2026-08-13"
+    derived_from: pixel bounding box of the exact #EEF2FF chip in the baseline PNG
+    rects:
+      - locale: en
+        x: 40
+        y: 501
+        width: 84
+        height: 44
+      - locale: lo
+        x: 40
+        y: 552
+        width: 86
+        height: 47

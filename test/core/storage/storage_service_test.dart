@@ -110,35 +110,39 @@ void main() {
     });
   });
 
-  group('legacy single-token API (boilerplate compatibility)', () {
-    test('saves, reads and deletes under the legacy key', () async {
-      await storage.saveToken('legacy-1');
-      expect(store[StorageKeys.token], 'legacy-1');
-      expect(await storage.getToken(), 'legacy-1');
-
-      await storage.deleteToken();
-      expect(await storage.getToken(), isNull);
-    });
-
-    test('is a separate slot from the LCC access token', () async {
-      await storage.saveToken('legacy-1');
-      await storage.saveTokens('access-1');
-
-      expect(await storage.getToken(), 'legacy-1');
-      expect(await storage.getAccessToken(), 'access-1');
-    });
-  });
-
   group('frozen key strings (GOR-245 § 4.2)', () {
     test('are exactly the values every shipped install already holds', () {
       expect(StorageKeys.accessToken, 'lcc.access_token');
       expect(StorageKeys.refreshToken, 'lcc.refresh_token');
       expect(StorageKeys.lang, 'lcc.lang');
       expect(StorageKeys.sessionBox, 'session_box');
-      // Legacy boilerplate leftovers — § 5 permits removal only once grep
-      // proves zero references, so their values stay pinned meanwhile.
-      expect(StorageKeys.token, 'auth_token');
-      expect(StorageKeys.movieBox, 'movie_box');
+    });
+  });
+
+  group('CR-2 — the boilerplate single-token slot is gone (B2-AC-37)', () {
+    test('no key in the store survives outside the four frozen ones', () async {
+      await storage.saveTokens('access-1', 'refresh-1');
+      await storage.saveLang('en');
+
+      // `auth_token` and `movie_box` are the two deleted `StorageKeys`
+      // constants. Asserting on the *raw* strings rather than the (now absent)
+      // symbols is the only way this test can still fail if someone
+      // reintroduces the slot under a new name pointing at the same key.
+      expect(store.keys, isNot(contains('auth_token')));
+      expect(store.keys, isNot(contains('movie_box')));
+      expect(
+        store.keys.toSet(),
+        <String>{
+          StorageKeys.accessToken,
+          StorageKeys.refreshToken,
+          StorageKeys.lang,
+        },
+      );
+    });
+
+    test('sessionBox is still declared and still never opened (SSD § 12)', () {
+      expect(StorageKeys.sessionBox, 'session_box');
+      expect(store.keys, isNot(contains(StorageKeys.sessionBox)));
     });
   });
 }

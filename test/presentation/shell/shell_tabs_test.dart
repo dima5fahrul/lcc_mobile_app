@@ -78,5 +78,28 @@ void main() {
       // `/services` is not `/service/...`; only a `/` boundary counts.
       expect(shellTabIndexFor('/services'), 0);
     });
+
+    group('CR-8 — the unmatched fallback is explicit (B2-AC-37)', () {
+      test('is the named constant, not an anonymous literal 0', () {
+        // The point of CR-8 is that "no tab owns this location" is a *decision*
+        // with a name, so asserting against the constant is the assertion —
+        // if the fallback is ever retuned, this test moves with it instead of
+        // silently continuing to pass against a hardcoded 0.
+        expect(shellTabIndexFor(AppNameRoutes.signin),
+            kUnmatchedShellTabIndex);
+        expect(shellTabIndexFor('/nothing-like-this'),
+            kUnmatchedShellTabIndex);
+        expect(shellTabIndexFor(''), kUnmatchedShellTabIndex);
+        expect(shellTabIndexFor('/services'), kUnmatchedShellTabIndex);
+      });
+
+      test('resolves to a real tab index, so the bottom bar cannot throw', () {
+        // `NavigationBar.selectedIndex` must be in range. The fallback being
+        // "home" is a choice; the fallback being *addressable* is a contract.
+        expect(kUnmatchedShellTabIndex, greaterThanOrEqualTo(0));
+        expect(kUnmatchedShellTabIndex, lessThan(shellTabs.length));
+        expect(shellTabs[kUnmatchedShellTabIndex].path, AppNameRoutes.home);
+      });
+    });
   });
 }

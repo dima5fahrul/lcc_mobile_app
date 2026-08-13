@@ -65,6 +65,13 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/request_otp.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:lcc_mobile_app/features/service/data/datasources/service_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/service/data/repositories/service_repository_impl.dart';
+import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
+import 'package:lcc_mobile_app/features/service/domain/repositories/service_repository.dart';
+import 'package:lcc_mobile_app/features/service/domain/usecases/get_service_categories.dart';
+import 'package:lcc_mobile_app/features/service/domain/usecases/get_services.dart';
+import 'package:lcc_mobile_app/features/service/presentation/bloc/service_bloc.dart';
 import 'package:lcc_mobile_app/features/session/data/datasources/session_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/session/data/repositories/session_repository_impl.dart';
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
@@ -212,6 +219,25 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     ),
   );
 
+  // ── Service catalogue (mirrors ServiceFeatureInjection.init) ──────────────
+  // Registered even by tests that never visit `/service`: `AppRoutes` builds
+  // the whole table up front and the `/service` builder resolves from this
+  // container the moment the shell navigates there, so an unregistered service
+  // feature would surface as a GetIt throw inside an unrelated navigation
+  // test rather than as a missing registration.
+  final ServiceRepository serviceRepository = ServiceRepositoryImpl(
+    remote: ServiceRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  serviceInjection.registerSingleton<ServiceRepository>(serviceRepository);
+  // `registerFactory`, as production does: one ServiceBloc per visit.
+  serviceInjection.registerFactory<ServiceBloc>(
+    () => ServiceBloc(
+      getServiceCategories:
+          GetServiceCategories(repository: serviceRepository),
+      getServices: GetServices(repository: serviceRepository),
+    ),
+  );
+
   return AppHarness(
     store: store,
     storage: storage,
@@ -222,13 +248,14 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
   );
 }
 
-/// Empties all three GetIt containers. Without this the second test in a file
+/// Empties all four GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
 Future<void> resetHarness() async {
   await injection.reset();
   await sessionInjection.reset();
   await authInjection.reset();
+  await serviceInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

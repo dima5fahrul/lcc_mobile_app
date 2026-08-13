@@ -79,7 +79,21 @@ const List<ShellTab> shellTabs = <ShellTab>[
   ),
 ];
 
-/// Index of the tab owning [location], or `0` (home) when none matches.
+/// The index [shellTabIndexFor] returns when **no** tab owns the location.
+///
+/// **CR-8 (SSD § 9.3).** This used to be a bare `return 0` at the bottom of the
+/// loop, which reads as "fell through" rather than as a decision, and made two
+/// different situations indistinguishable at the call site: `/` legitimately
+/// matching Home, and `/signin` matching nothing at all. Both still highlight
+/// Home — that is the right answer, because a route outside the shell has no
+/// bottom bar to mis-highlight and the shell must render *something* if one is
+/// ever mounted inside it — but naming the constant makes it a stated fallback
+/// with a test on it ([shellTabIndexFor] over an unmatched location) instead of
+/// an accident that happens to be correct.
+const int kUnmatchedShellTabIndex = 0;
+
+/// Index of the tab owning [location], or [kUnmatchedShellTabIndex] when none
+/// matches.
 ///
 /// A sub-route counts as its parent tab (`/service/resident-certificate` keeps
 /// Service highlighted) — the same thing the React `activeTab` does for the
@@ -91,5 +105,5 @@ int shellTabIndexFor(String location) {
     if (location == path) return i;
     if (path != AppNameRoutes.home && location.startsWith('$path/')) return i;
   }
-  return 0;
+  return kUnmatchedShellTabIndex;
 }

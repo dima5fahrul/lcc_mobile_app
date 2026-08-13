@@ -1,8 +1,15 @@
 /// Persistent storage wrapper backed by [FlutterSecureStorage].
 ///
-/// Extends the flutter-boilerplate `StorageService` (which only knew how to
-/// save/read/delete a single token) to handle the LCC token *pair*, the
-/// language preference, and an observable auth-state flag.
+/// Replaces the flutter-boilerplate `StorageService` (which only knew how to
+/// save/read/delete a single token) with the LCC token *pair*, the language
+/// preference, and an observable auth-state flag.
+///
+/// **CR-2 (SSD § 6.7).** The boilerplate's `saveToken` / `getToken` /
+/// `deleteToken` are gone, together with `StorageKeys.token` and
+/// `StorageKeys.movieBox`. They had zero production call sites — the only code
+/// exercising them was the test that asserted they existed — so they were a
+/// second, parallel token slot that a future contributor could reach for and
+/// silently desynchronise from the pair the interceptors actually read.
 ///
 /// Ported from `lcc-app/src/app/api/client.ts` `tokens` object:
 /// - `saveTokens(access, refresh?)`   ← `tokens.set`
@@ -26,14 +33,6 @@ class StorageService {
   /// Notifies `true` when a session is established, `false` when cleared.
   /// Mirrors the `subscribe` Set in the TS `tokens` object.
   final ValueNotifier<bool> authStateNotifier = ValueNotifier<bool>(false);
-
-  // ── Legacy single-token API (boilerplate compat) ──────────────────────────
-  Future<void> saveToken(String token) =>
-      _storage.write(key: StorageKeys.token, value: token);
-
-  Future<String?> getToken() => _storage.read(key: StorageKeys.token);
-
-  Future<void> deleteToken() => _storage.delete(key: StorageKeys.token);
 
   // ── LCC token pair ─────────────────────────────────────────────────────────
   /// Persists the access token and (optionally) the refresh token, then fires

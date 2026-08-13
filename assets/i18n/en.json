@@ -188,7 +188,12 @@
     "resultsFor": "{count} result(s) for \"{q}\"",
     "emptyTitle": "No services available yet",
     "emptyDesc": "Services in this category are coming soon.",
-    "browseOther": "Browse other categories"
+    "browseOther": "Browse other categories",
+    "categoriesError": "Could not load the categories.",
+    "servicesError": "Could not load the services.",
+    "errorHint": "Check your connection and try again.",
+    "retry": "Retry",
+    "noCategories": "No categories are published yet."
   },
   "hero": {
     "idSignIn": "Sign in to activate"

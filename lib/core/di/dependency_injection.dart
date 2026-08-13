@@ -31,6 +31,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/auth/di/auth_feature_injection.dart';
+import '../../features/service/di/service_feature_injection.dart';
 import '../../features/session/di/session_feature_injection.dart';
 import '../../features/session/di/session_injection.dart';
 import '../../features/session/domain/repositories/session_repository.dart';
@@ -132,5 +133,15 @@ class DependencyInjection {
     //    attempt is scoped to one visit to /signin.
     //    See the provider note in `auth_page.dart`.
     await AuthFeatureInjection.init();
+
+    // 6. Service catalogue (DI-6, B2a). One line, as the rule requires.
+    //
+    //    Ordering: anywhere after step 2. The catalogue is anonymous —
+    //    `endpoints.ts` marks both its endpoints `anonymous: true` — so unlike
+    //    the auth feature it has no dependency on the session being registered
+    //    and no dependency the session has on it. It sits last because that is
+    //    where a feature with no ordering constraint should sit: appending is
+    //    the change that cannot break the four steps above.
+    await ServiceFeatureInjection.init();
   }
 }
