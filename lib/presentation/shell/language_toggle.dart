@@ -46,19 +46,28 @@ library;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/di/dependency_injection.dart';
 import '../../core/storage/storage_service.dart';
 
 class LanguageToggle extends StatelessWidget {
-  const LanguageToggle({super.key, this.storage});
+  const LanguageToggle({super.key, required this.storage});
 
-  /// Optional override for the persistence sink.
+  /// The persistence sink for the chosen language.
   ///
-  /// Left null in the app; `main.dart`'s DI container supplies the real
-  /// [StorageService]. It is resolved lazily *inside the tap handler* rather
-  /// than in `build`, so the toggle still renders in a widget test that has
-  /// not registered the container — only an actual tap needs the dependency.
-  final StorageService? storage;
+  /// **Required, and never resolved from a locator here** (CR-1). The SSD's
+  /// § 6.4 seam is "route builders and `main.dart` may resolve from a locator;
+  /// no widget may" — so the `ShellRoute` builder in
+  /// `lib/utils/routes/app_routes.dart` calls `injection<StorageService>()`
+  /// once and threads the result down through `AppShell` → `AppTopBar` → here.
+  ///
+  /// This used to be `StorageService?` with a
+  /// `storage ?? injection<StorageService>()` fallback inside the tap handler,
+  /// i.e. a global-locator read from inside a widget with a test-only
+  /// constructor seam bolted on beside it. Making the parameter required
+  /// deletes the fallback branch: there is now exactly one way the dependency
+  /// arrives, the same way in the app and in a test, and `G-L5`
+  /// (`test/architecture/layering_test.dart`) fails the build if the locator
+  /// read ever comes back.
+  final StorageService storage;
 
   static const Locale _en = Locale('en');
   static const Locale _lo = Locale('lo');
@@ -82,9 +91,9 @@ class LanguageToggle extends StatelessWidget {
   Future<void> _toggle(BuildContext context) async {
     final Locale next = _isEnglish(context) ? _lo : _en;
 
-    // Both dependencies resolved before the first await, so nothing reads
-    // `context` across an asynchronous gap.
-    final StorageService sink = storage ?? injection<StorageService>();
+    // Resolved before the first await, so nothing reads `context` across an
+    // asynchronous gap.
+    //
     // Type left inferred: `EasyLocalization.of` returns a library-private
     // provider type that cannot be named from here.
     final localization = EasyLocalization.of(context);
@@ -93,7 +102,7 @@ class LanguageToggle extends StatelessWidget {
     // running app (see `main.dart`), and harmless in a test that only wants to
     // assert the persistence side.
     await localization?.setLocale(next);
-    await sink.saveLang(next.languageCode);
+    await storage.saveLang(next.languageCode);
   }
 
   @override

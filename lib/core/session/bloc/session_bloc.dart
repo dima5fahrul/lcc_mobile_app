@@ -29,13 +29,13 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../../../core/network/api_exception.dart';
-import '../../../../core/storage/storage_service.dart';
-import '../../../../core/usecase/usecase.dart';
-import '../../domain/entities/citizen_profile.dart';
-import '../../domain/entities/citizen_session.dart';
-import '../../domain/repositories/session_repository.dart';
-import '../../domain/usecases/get_profile.dart';
+import '../../network/api_exception.dart';
+import '../../storage/storage_service.dart';
+import '../../usecase/usecase.dart';
+import '../../../features/session/domain/entities/citizen_profile.dart';
+import '../../../features/session/domain/entities/citizen_session.dart';
+import '../../../features/session/domain/repositories/session_repository.dart';
+import '../../../features/session/domain/usecases/get_profile.dart';
 
 part 'session_bloc.freezed.dart';
 

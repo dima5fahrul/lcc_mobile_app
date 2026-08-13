@@ -18,7 +18,7 @@ import 'package:lcc_mobile_app/core/storage/storage_keys.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
 import 'package:lcc_mobile_app/core/usecase/usecase.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/citizen_profile.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../../helpers/core_test_helper.dart';

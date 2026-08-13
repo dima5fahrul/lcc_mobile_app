@@ -23,8 +23,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/session/bloc/session_bloc.dart';
 import '../../../../presentation/shell/tab_placeholder.dart';
-import '../../../session/presentation/bloc/session_bloc.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});

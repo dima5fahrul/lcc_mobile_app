@@ -18,9 +18,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/session/bloc/session_bloc.dart';
 import '../../../../presentation/shell/tab_placeholder.dart';
 import '../../../../utils/routes/app_name_routes.dart';
-import '../../../session/presentation/bloc/session_bloc.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

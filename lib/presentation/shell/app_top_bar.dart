@@ -27,12 +27,22 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/storage/storage_service.dart';
 import '../../utils/routes/app_name_routes.dart';
 import 'app_brand.dart';
 import 'language_toggle.dart';
 
 class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
-  const AppTopBar({super.key});
+  const AppTopBar({super.key, required this.storage});
+
+  /// Threaded down to [LanguageToggle], which persists the chosen language.
+  ///
+  /// The bar itself has no use for it. It is here because CR-1's seam puts the
+  /// only sanctioned `injection<StorageService>()` call in the `ShellRoute`
+  /// builder, and this widget sits between that builder and the one widget
+  /// that needs the value. Passing it explicitly is the cost of not letting a
+  /// widget reach into a global container.
+  final StorageService storage;
 
   @override
   Size get preferredSize => const Size.fromHeight(AppBrand.topBarHeight);
@@ -97,9 +107,11 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
       ),
-      actions: const <Widget>[
-        LanguageToggle(),
-        SizedBox(width: 12),
+      actions: <Widget>[
+        // Not `const`: `storage` is a runtime value, so neither this element
+        // nor the list around it can be constant any more.
+        LanguageToggle(storage: storage),
+        const SizedBox(width: 12),
       ],
     );
   }

@@ -54,6 +54,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../core/storage/storage_service.dart';
 import 'app_bottom_nav.dart';
 import 'app_top_bar.dart';
 
@@ -62,6 +63,7 @@ class AppShell extends StatelessWidget {
     super.key,
     required this.location,
     required this.child,
+    required this.storage,
   });
 
   /// `GoRouterState.matchedLocation` for the page currently in [child].
@@ -70,10 +72,18 @@ class AppShell extends StatelessWidget {
   /// The active route's page, built by the `ShellRoute`.
   final Widget child;
 
+  /// Passed straight through to [AppTopBar] → `LanguageToggle`.
+  ///
+  /// CR-1's seam: the `ShellRoute` builder in
+  /// `lib/utils/routes/app_routes.dart` is a route builder, so it is allowed
+  /// to resolve this from the container. The shell is a widget, so it is not —
+  /// it only forwards what it was handed.
+  final StorageService storage;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppTopBar(),
+      appBar: AppTopBar(storage: storage),
       body: child,
       bottomNavigationBar: AppBottomNav(location: location),
     );

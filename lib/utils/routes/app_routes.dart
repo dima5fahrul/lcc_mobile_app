@@ -52,6 +52,31 @@
 /// `/signin` now serves the real `AuthPage` (defect F-3 closed). `/help` and
 /// `/news` still serve [_PlaceholderPage]; they are later batches.
 ///
+/// ## Dependency acquisition (CR-1, SSD § 6.4)
+///
+/// This file is one of exactly two places allowed to read the global service
+/// locator — the other is `main.dart`. The SSD's seam is:
+///
+/// > Route builders and `main.dart` may resolve from a locator. No widget may.
+///
+/// Route builders are composition-root code: they run once per navigation,
+/// they are already the place where a route's shape is decided, and they are
+/// not part of anybody's widget tree in a test. So the two dependencies that
+/// used to be pulled out of a container from *inside* a widget are pulled out
+/// here instead and handed down as constructor arguments / providers:
+///
+/// - `injection<StorageService>()` → [AppShell] → `AppTopBar` →
+///   `LanguageToggle` (was `storage ?? injection<StorageService>()` inside the
+///   toggle's tap handler).
+/// - `authInjection<AuthBloc>()` → a `BlocProvider<AuthBloc>` above `AuthPage`
+///   (was `authInjection<AuthBloc>()` in `AuthPage.initState`).
+///
+/// Every page added from here on acquires its BLoC the same way, in this
+/// table. `G-L5` in `test/architecture/layering_test.dart` is what keeps that
+/// true: it fails the build if any file under a `presentation/` directory
+/// names `injection` / `authInjection` / `sessionInjection` or imports a
+/// `**/di/**` path.
+///
 /// ## Debug HTTP inspector
 ///
 /// In debug builds the `navigatorKey` is [ChuckerFlutter.navigatorKey] so
@@ -64,14 +89,19 @@ import 'dart:async';
 import 'package:chucker_flutter/chucker_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/di/dependency_injection.dart';
+import '../../core/session/bloc/session_bloc.dart';
+import '../../core/storage/storage_service.dart';
 import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/auth/di/auth_injection.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/service/presentation/pages/service_page.dart';
-import '../../features/session/presentation/bloc/session_bloc.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
 import '../../presentation/shell/app_shell.dart';
 import 'app_name_routes.dart';
@@ -199,8 +229,18 @@ class AppRoutes {
   static List<RouteBase> _buildRoutes() => <RouteBase>[
     // ── Main tabs: wrapped in the app shell (port of `MAIN_TABS`) ──────────
     ShellRoute(
+      // CR-1: the shell's `StorageService` is resolved *here*, in the route
+      // builder, not inside `LanguageToggle`. Resolved per build rather than
+      // hoisted to a field because `injection` is a lazy singleton — every
+      // call returns the same instance — and hoisting would make the route
+      // table capture a container reading taken before `resetHarness()` runs
+      // between two tests.
       builder: (BuildContext context, GoRouterState state, Widget child) =>
-          AppShell(location: state.matchedLocation, child: child),
+          AppShell(
+        location: state.matchedLocation,
+        storage: injection<StorageService>(),
+        child: child,
+      ),
       routes: <RouteBase>[
         GoRoute(
           path: AppNameRoutes.home,
@@ -242,8 +282,26 @@ class AppRoutes {
       // `state.uri.queryParameters` returns the percent-DECODED value, so
       // `AuthPage` receives `/account`, not `%2Faccount`. See the
       // [kFromQueryParam] note for the full encode/decode pairing.
-      builder: (_, GoRouterState state) =>
-          AuthPage(from: state.uri.queryParameters[kFromQueryParam]),
+      //
+      // CR-1: the `AuthBloc` is created here, by the route builder, and owned
+      // by this `BlocProvider`. `create:` (not `.value`) is deliberate and is
+      // the half that carries the lifetime contract — `BlocProvider(create:)`
+      // closes the BLoC it created when the provider leaves the tree, which is
+      // exactly the teardown `AuthPage.dispose()` used to perform by hand.
+      // `AuthPage` no longer creates it, so `AuthPage` no longer closes it:
+      // one creator, one closer, still exactly one `close()` per visit to
+      // `/signin`. That per-visit lifetime is required, not incidental — an
+      // auth attempt holds a half-typed password and an unverified OTP
+      // challenge, and a surviving BLoC would replay a stale
+      // `AuthStatus.success` into the next mount's `BlocListener`.
+      //
+      // `authInjection` registers `AuthBloc` with `registerFactory`, so each
+      // resolution is a fresh instance — which is what makes owning-and-
+      // closing it correct here, and is the same pairing the page had before.
+      builder: (_, GoRouterState state) => BlocProvider<AuthBloc>(
+        create: (_) => authInjection<AuthBloc>(),
+        child: AuthPage(from: state.uri.queryParameters[kFromQueryParam]),
+      ),
     ),
     GoRoute(
       path: AppNameRoutes.help,

@@ -1,7 +1,7 @@
 /// `AuthPage` — the sign-in / register / OTP / reset shell.
 ///
-/// Ported from `lcc-app/src/app/components/AuthPage.tsx`. The shell holds an
-/// [AuthBloc] via [BlocProvider] and manages the four-step state machine
+/// Ported from `lcc-app/src/app/components/AuthPage.tsx`. The page reads an
+/// [AuthBloc] from its ancestors and manages the four-step state machine
 /// (`form(login)` / `form(register)` / `otp` / `reset`) plus the OTP purpose.
 ///
 /// On a successful login or OTP verify the page reads the emitted
@@ -9,34 +9,49 @@
 /// `SessionSignIn(session)` — the AuthBloc does not depend on SessionBloc, so
 /// the two features stay decoupled (matches the TS `signIn(session)` port).
 ///
-/// ## Provider scoping (defect F-1)
+/// ## Provider scoping (defect F-1, then CR-1)
 ///
-/// Two BLoCs are read from this subtree and both are now genuinely provided:
+/// Two BLoCs are read from this subtree and both are genuinely provided —
+/// neither by this page:
 ///
 /// - **`SessionBloc`** — app-scoped. `main.dart` puts a
 ///   `BlocProvider<SessionBloc>.value` **above** `MaterialApp.router`, so every
 ///   route, inside the shell or not, has it as an ancestor. `/signin` is
 ///   mounted outside the `ShellRoute`, which is exactly why the provider has to
 ///   sit above the router rather than in `AppShell`. Backed by the
-///   `registerLazySingleton<SessionBloc>` in
-///   `features/session/di/session_feature_injection.dart` — one instance for
-///   the app's lifetime, shared with the router's `refreshListenable`.
-/// - **`AuthBloc`** — auth-screen-scoped, provided by [AuthPage] itself and by
-///   nothing above it. `AuthFeatureInjection` registers it with
-///   `registerFactory`, i.e. a fresh BLoC per resolution, so the provider must
-///   be one that owns a per-mount instance: this page resolves exactly once in
-///   `initState`, hands it down with `BlocProvider.value`, and `close()`s it in
-///   `dispose`. Factory registration and page-scoped ownership match, which is
-///   the pairing F-2 got wrong in the opposite direction (a factory BLoC held
-///   as if it were a singleton).
+///   `registerLazySingleton<SessionBloc>` on the root container — one instance
+///   for the app's lifetime, shared with the router's `refreshListenable`.
+/// - **`AuthBloc`** — auth-screen-scoped, provided by the `/signin` **route
+///   builder** in `lib/utils/routes/app_routes.dart`, which wraps this page in
+///   `BlocProvider<AuthBloc>(create: (_) => authInjection<AuthBloc>())`.
 ///
-///   The lifetime is deliberate, not incidental: leaving `/signin` must throw
-///   away the in-flight auth attempt. A half-entered password, an unverified
-///   OTP challenge and the phone number it was issued for are all short-lived
-///   credentials — an app-scoped AuthBloc would keep them resident, and worse,
-///   would replay a stale `AuthStatus.success` into `BlocListener` the next
-///   time the page mounted, signing the citizen in from a state they had
-///   already navigated away from.
+/// ## Who closes the `AuthBloc` (CR-1, SSD § 6.4)
+///
+/// **This page creates nothing, so this page closes nothing.** Before CR-1 it
+/// resolved the BLoC in `initState`, handed it down with `BlocProvider.value`,
+/// and called `close()` in `dispose` — correct then, because it was the
+/// creator. CR-1 moved the resolution into the route builder, and
+/// `BlocProvider(create:)` disposes what its `create` callback returned when
+/// the provider leaves the tree. Keeping a `close()` here as well would be a
+/// second close of the same instance from a non-owner; dropping the page's
+/// ownership entirely is what keeps the count at exactly one.
+///
+/// (`BlocProvider.value`, which the page used, deliberately does *not* close —
+/// that is why the page had to. The `.value` → `create:` swap is precisely the
+/// transfer of that obligation, and it must not be performed by halves: keep
+/// both and the OTP state machine is closed twice, keep neither and it leaks.
+/// `test/features/auth/presentation/pages/auth_page_bloc_lifetime_test.dart`
+/// counts the `close()` calls across a full `/signin` mount → unmount so that
+/// either mistake fails the suite rather than the app.)
+///
+/// The per-visit lifetime itself is unchanged and is deliberate: leaving
+/// `/signin` must throw away the in-flight auth attempt. A half-entered
+/// password, an unverified OTP challenge and the phone number it was issued
+/// for are all short-lived credentials — an app-scoped AuthBloc would keep them
+/// resident, and worse, would replay a stale `AuthStatus.success` into
+/// `BlocListener` the next time the page mounted, signing the citizen in from a
+/// state they had already navigated away from. `authInjection` registers
+/// `AuthBloc` with `registerFactory`, so every visit resolves a fresh one.
 ///
 /// ## Post-success destination
 ///
@@ -54,10 +69,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/session/bloc/session_bloc.dart';
 import '../../../../utils/routes/app_name_routes.dart';
 import '../../../session/domain/entities/citizen_session.dart';
-import '../../../session/presentation/bloc/session_bloc.dart';
-import '../../di/auth_injection.dart';
 import '../bloc/auth_bloc.dart';
 import 'login_form.dart';
 import 'otp_form.dart';
@@ -73,7 +87,14 @@ enum AuthMode { login, register }
 /// Which one-time-code flow the OTP screen is serving. Port of `OtpPurpose`.
 enum OtpPurpose { login, register }
 
-class AuthPage extends StatefulWidget {
+/// Stateless since CR-1.
+///
+/// It was a `StatefulWidget` for one reason — to hold the `AuthBloc` it
+/// resolved in `initState` and `close()` it in `dispose`. The route builder now
+/// owns both halves of that lifetime (see "Who closes the `AuthBloc`" above),
+/// so there is no per-instance state left to keep, and no `dispose` for a
+/// future edit to bolt a second `close()` onto.
+class AuthPage extends StatelessWidget {
   const AuthPage({super.key, this.from});
 
   /// Where to send the citizen once the session is established — the decoded
@@ -83,31 +104,7 @@ class AuthPage extends StatefulWidget {
   final String? from;
 
   @override
-  State<AuthPage> createState() => _AuthPageState();
-}
-
-class _AuthPageState extends State<AuthPage> {
-  late final AuthBloc _authBloc;
-
-  @override
-  void initState() {
-    super.initState();
-    _authBloc = authInjection<AuthBloc>();
-  }
-
-  @override
-  void dispose() {
-    _authBloc.close();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>.value(
-      value: _authBloc,
-      child: _AuthShell(from: widget.from),
-    );
-  }
+  Widget build(BuildContext context) => _AuthShell(from: from);
 }
 
 /// The shell: a dark-blue gradient background with a white card carrying the

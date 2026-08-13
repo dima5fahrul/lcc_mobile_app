@@ -12,7 +12,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/utils/routes/app_name_routes.dart';
 import 'package:lcc_mobile_app/utils/routes/app_routes.dart';
 

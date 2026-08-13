@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# post-commit — auto-emits a `commit` telemetry event for every commit in THIS repo (ADR-0012).
+#
+# This is the lcc_mobile_app variant of the factory-root .githooks/post-commit. It differs in
+# exactly two ways, both necessary, because this repo is a separate git checkout nested inside
+# the factory tree rather than the factory repo itself:
+#
+#   1. emit-telemetry.sh does NOT live in this repo. The factory-root copy of this hook resolves
+#      it as "$repo_root/scripts/emit-telemetry.sh"; here that path does not exist, so the hook
+#      would fail silently on every commit. The factory root is resolved explicitly instead.
+#   2. TELEMETRY_PROJECT_NAME must be "lcc-mobile-app" (hyphens — the projects/ directory name
+#      and the project_name every existing telemetry row for this work already carries). The
+#      generic hook's fallback is `basename "$repo_root"`, which here yields "lcc_mobile_app"
+#      (underscores) — a different string, which would split this project into two in every
+#      dashboard grouping. An already-exported value still wins, as in the generic hook.
+#
+# One-time setup per clone (git does not auto-enable a non-default hooksPath):
+#     git config core.hooksPath .githooks
+#
+# Never blocks the commit: git ignores a post-commit hook's exit code, and this exits 0 anyway.
+
+set -uo pipefail
+
+factory_root="/Users/linkit/Project/ai-software-factory"
+emitter="$factory_root/scripts/emit-telemetry.sh"
+
+export TELEMETRY_PROJECT_NAME="${TELEMETRY_PROJECT_NAME:-lcc-mobile-app}"
+
+commit_hash="$(git rev-parse HEAD 2>/dev/null)" || exit 0
+
+if [[ ! -x "$emitter" ]]; then
+  echo "post-commit: emitter not found at $emitter (non-blocking, commit succeeded)." >&2
+  exit 0
+fi
+
+if ! "$emitter" commit "$commit_hash" >/dev/null 2>&1; then
+  echo "post-commit: telemetry emission for $commit_hash failed (non-blocking, commit succeeded)." >&2
+  echo "  Retry manually: TELEMETRY_PROJECT_NAME=lcc-mobile-app $emitter commit $commit_hash" >&2
+fi
+
+exit 0

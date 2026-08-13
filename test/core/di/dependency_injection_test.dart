@@ -36,7 +36,7 @@ import 'package:lcc_mobile_app/features/session/data/datasources/session_remote_
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 
 void main() {
   setUp(() async {
@@ -89,15 +89,15 @@ void main() {
 
     test('F-2: SessionBloc is a singleton — every resolution is the same '
         'instance', () {
-      final SessionBloc first = sessionInjection<SessionBloc>();
-      final SessionBloc second = sessionInjection<SessionBloc>();
+      final SessionBloc first = injection<SessionBloc>();
+      final SessionBloc second = injection<SessionBloc>();
 
       expect(first, same(second));
       addTearDown(first.close);
     });
 
     test('SessionBloc reads the root StorageService, not a second one', () {
-      final SessionBloc bloc = sessionInjection<SessionBloc>();
+      final SessionBloc bloc = injection<SessionBloc>();
       addTearDown(bloc.close);
 
       expect(bloc.storage, same(injection<StorageService>()));

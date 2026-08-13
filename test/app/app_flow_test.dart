@@ -25,14 +25,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
+import 'package:lcc_mobile_app/core/di/dependency_injection.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/core/storage/storage_keys.dart';
 import 'package:lcc_mobile_app/features/account/presentation/pages/account_page.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/pages/auth_page.dart';
 import 'package:lcc_mobile_app/features/history/presentation/pages/history_page.dart';
 import 'package:lcc_mobile_app/features/home/presentation/pages/home_page.dart';
 import 'package:lcc_mobile_app/features/service/presentation/pages/service_page.dart';
-import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/features/wallet/presentation/pages/wallet_page.dart';
 import 'package:lcc_mobile_app/utils/routes/app_name_routes.dart';
 
@@ -146,8 +146,8 @@ void main() {
 
     // F-2, stated as an invariant before the flow runs: every resolution of
     // SessionBloc is the same object the router was handed.
-    expect(sessionInjection<SessionBloc>(), same(harness.sessionBloc));
-    expect(sessionInjection<SessionBloc>(), same(sessionInjection<SessionBloc>()));
+    expect(injection<SessionBloc>(), same(harness.sessionBloc));
+    expect(injection<SessionBloc>(), same(injection<SessionBloc>()));
 
     await goTo(tester, AppNameRoutes.account);
     expect(find.byType(AuthPage), findsOneWidget);

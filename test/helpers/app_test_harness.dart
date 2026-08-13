@@ -70,7 +70,7 @@ import 'package:lcc_mobile_app/features/session/data/repositories/session_reposi
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/main.dart';
 
 import 'core_test_helper.dart';
@@ -183,9 +183,10 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
   sessionInjection.registerSingleton<GetProfile>(
     GetProfile(repository: sessionRepository),
   );
-  // Lazy *singleton*, exactly as the production DI does — one SessionBloc for
-  // the app's lifetime is the F-2 invariant these tests exist to prove.
-  sessionInjection.registerLazySingleton<SessionBloc>(
+  // Lazy *singleton* on the ROOT container, exactly as the production DI does
+  // (CR-3 moved it off `sessionInjection`) — one SessionBloc for the app's
+  // lifetime is the F-2 invariant these tests exist to prove.
+  injection.registerLazySingleton<SessionBloc>(
     () => SessionBloc(
       storage: storage,
       getProfile: sessionInjection<GetProfile>(),
@@ -217,7 +218,7 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     dio: dio,
     adapter: adapter,
     apiClient: apiClient,
-    sessionBloc: sessionInjection<SessionBloc>(),
+    sessionBloc: injection<SessionBloc>(),
   );
 }
 

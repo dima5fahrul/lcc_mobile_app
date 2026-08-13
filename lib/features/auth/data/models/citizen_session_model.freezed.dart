@@ -14,7 +14,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CitizenSessionModel {
 
- String get actor; CitizenAccountModel get citizen; AuthTokensModel get tokens;
+ String get actor; CitizenAccount get citizen; AuthTokens get tokens;
 /// Create a copy of CitizenSessionModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -45,11 +45,11 @@ abstract mixin class $CitizenSessionModelCopyWith<$Res>  {
   factory $CitizenSessionModelCopyWith(CitizenSessionModel value, $Res Function(CitizenSessionModel) _then) = _$CitizenSessionModelCopyWithImpl;
 @useResult
 $Res call({
- String actor, CitizenAccountModel citizen, AuthTokensModel tokens
+ String actor, CitizenAccount citizen, AuthTokens tokens
 });
 
 
-$CitizenAccountModelCopyWith<$Res> get citizen;$AuthTokensModelCopyWith<$Res> get tokens;
+$CitizenAccountCopyWith<$Res> get citizen;$AuthTokensCopyWith<$Res> get tokens;
 
 }
 /// @nodoc
@@ -66,26 +66,26 @@ class _$CitizenSessionModelCopyWithImpl<$Res>
   return _then(_self.copyWith(
 actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as String,citizen: null == citizen ? _self.citizen : citizen // ignore: cast_nullable_to_non_nullable
-as CitizenAccountModel,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
-as AuthTokensModel,
+as CitizenAccount,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
+as AuthTokens,
   ));
 }
 /// Create a copy of CitizenSessionModel
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$CitizenAccountModelCopyWith<$Res> get citizen {
+$CitizenAccountCopyWith<$Res> get citizen {
   
-  return $CitizenAccountModelCopyWith<$Res>(_self.citizen, (value) {
+  return $CitizenAccountCopyWith<$Res>(_self.citizen, (value) {
     return _then(_self.copyWith(citizen: value));
   });
 }/// Create a copy of CitizenSessionModel
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$AuthTokensModelCopyWith<$Res> get tokens {
+$AuthTokensCopyWith<$Res> get tokens {
   
-  return $AuthTokensModelCopyWith<$Res>(_self.tokens, (value) {
+  return $AuthTokensCopyWith<$Res>(_self.tokens, (value) {
     return _then(_self.copyWith(tokens: value));
   });
 }
@@ -170,7 +170,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String actor,  CitizenAccountModel citizen,  AuthTokensModel tokens)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String actor,  CitizenAccount citizen,  AuthTokens tokens)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CitizenSessionModel() when $default != null:
 return $default(_that.actor,_that.citizen,_that.tokens);case _:
@@ -191,7 +191,7 @@ return $default(_that.actor,_that.citizen,_that.tokens);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String actor,  CitizenAccountModel citizen,  AuthTokensModel tokens)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String actor,  CitizenAccount citizen,  AuthTokens tokens)  $default,) {final _that = this;
 switch (_that) {
 case _CitizenSessionModel():
 return $default(_that.actor,_that.citizen,_that.tokens);case _:
@@ -211,7 +211,7 @@ return $default(_that.actor,_that.citizen,_that.tokens);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String actor,  CitizenAccountModel citizen,  AuthTokensModel tokens)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String actor,  CitizenAccount citizen,  AuthTokens tokens)?  $default,) {final _that = this;
 switch (_that) {
 case _CitizenSessionModel() when $default != null:
 return $default(_that.actor,_that.citizen,_that.tokens);case _:
@@ -230,8 +230,8 @@ class _CitizenSessionModel implements CitizenSessionModel {
   
 
 @override final  String actor;
-@override final  CitizenAccountModel citizen;
-@override final  AuthTokensModel tokens;
+@override final  CitizenAccount citizen;
+@override final  AuthTokens tokens;
 
 /// Create a copy of CitizenSessionModel
 /// with the given fields replaced by the non-null parameter values.
@@ -263,11 +263,11 @@ abstract mixin class _$CitizenSessionModelCopyWith<$Res> implements $CitizenSess
   factory _$CitizenSessionModelCopyWith(_CitizenSessionModel value, $Res Function(_CitizenSessionModel) _then) = __$CitizenSessionModelCopyWithImpl;
 @override @useResult
 $Res call({
- String actor, CitizenAccountModel citizen, AuthTokensModel tokens
+ String actor, CitizenAccount citizen, AuthTokens tokens
 });
 
 
-@override $CitizenAccountModelCopyWith<$Res> get citizen;@override $AuthTokensModelCopyWith<$Res> get tokens;
+@override $CitizenAccountCopyWith<$Res> get citizen;@override $AuthTokensCopyWith<$Res> get tokens;
 
 }
 /// @nodoc
@@ -284,8 +284,8 @@ class __$CitizenSessionModelCopyWithImpl<$Res>
   return _then(_CitizenSessionModel(
 actor: null == actor ? _self.actor : actor // ignore: cast_nullable_to_non_nullable
 as String,citizen: null == citizen ? _self.citizen : citizen // ignore: cast_nullable_to_non_nullable
-as CitizenAccountModel,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
-as AuthTokensModel,
+as CitizenAccount,tokens: null == tokens ? _self.tokens : tokens // ignore: cast_nullable_to_non_nullable
+as AuthTokens,
   ));
 }
 
@@ -293,18 +293,18 @@ as AuthTokensModel,
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$CitizenAccountModelCopyWith<$Res> get citizen {
+$CitizenAccountCopyWith<$Res> get citizen {
   
-  return $CitizenAccountModelCopyWith<$Res>(_self.citizen, (value) {
+  return $CitizenAccountCopyWith<$Res>(_self.citizen, (value) {
     return _then(_self.copyWith(citizen: value));
   });
 }/// Create a copy of CitizenSessionModel
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
-$AuthTokensModelCopyWith<$Res> get tokens {
+$AuthTokensCopyWith<$Res> get tokens {
   
-  return $AuthTokensModelCopyWith<$Res>(_self.tokens, (value) {
+  return $AuthTokensCopyWith<$Res>(_self.tokens, (value) {
     return _then(_self.copyWith(tokens: value));
   });
 }

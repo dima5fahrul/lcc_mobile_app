@@ -21,7 +21,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/features/home/presentation/pages/home_page.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/presentation/shell/app_shell.dart';
 
 import 'helpers/app_test_harness.dart';

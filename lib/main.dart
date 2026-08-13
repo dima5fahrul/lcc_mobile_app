@@ -22,9 +22,9 @@
 /// BLoC nobody dispatches to and the auth gate would never fire. Two things
 /// now prevent that:
 ///
-/// - `SessionBloc` is a `registerLazySingleton` on `sessionInjection` (see
-///   `features/session/di/session_feature_injection.dart`), so every
-///   resolution — from anywhere, forever — returns the same object.
+/// - `SessionBloc` is a `registerLazySingleton` on the root `injection` (see
+///   `core/di/dependency_injection.dart`), so every resolution — from
+///   anywhere, forever — returns the same object.
 /// - This file resolves it exactly once into [sessionBloc] and hands that one
 ///   reference to both `AppRoutes.build` and the `BlocProvider.value` that
 ///   sits **above** `MaterialApp.router`.
@@ -63,9 +63,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/di/dependency_injection.dart';
 import 'core/observer/app_bloc_observer.dart';
+import 'core/session/bloc/session_bloc.dart';
 import 'core/storage/storage_service.dart';
-import 'features/session/di/session_injection.dart';
-import 'features/session/presentation/bloc/session_bloc.dart';
 import 'i18n/i18n.dart';
 import 'presentation/shell/app_brand.dart';
 import 'utils/routes/app_routes.dart';
@@ -78,7 +77,7 @@ Future<void> main() async {
   Bloc.observer = AppBlocObserver();
 
   // F-2: resolved once, shared by the router and the widget tree.
-  final SessionBloc sessionBloc = sessionInjection<SessionBloc>();
+  final SessionBloc sessionBloc = injection<SessionBloc>();
 
   // The persisted UI language (`lcc.lang`, default `lo`).
   final Locale startLocale =

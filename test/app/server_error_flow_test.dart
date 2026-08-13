@@ -46,7 +46,7 @@ import 'package:lcc_mobile_app/features/session/data/datasources/session_remote_
 import 'package:lcc_mobile_app/features/session/data/repositories/session_repository_impl.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
-import 'package:lcc_mobile_app/features/session/presentation/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 
 import '../helpers/core_test_helper.dart';
 import '../helpers/session_test_helper.dart';
