@@ -28,14 +28,17 @@ export TELEMETRY_PROJECT_NAME="${TELEMETRY_PROJECT_NAME:-lcc-mobile-app}"
 
 commit_hash="$(git rev-parse HEAD 2>/dev/null)" || exit 0
 
-if [[ ! -x "$emitter" ]]; then
+# Test -f, not -x, and invoke through bash: the emitter is a bash script normally called as
+# `bash emit-telemetry.sh ...`, so its executable bit is not guaranteed to be set. An -x test
+# here silently disabled this hook on its very first commit (2026-08-13).
+if [[ ! -f "$emitter" ]]; then
   echo "post-commit: emitter not found at $emitter (non-blocking, commit succeeded)." >&2
   exit 0
 fi
 
-if ! "$emitter" commit "$commit_hash" >/dev/null 2>&1; then
+if ! bash "$emitter" commit "$commit_hash" >/dev/null 2>&1; then
   echo "post-commit: telemetry emission for $commit_hash failed (non-blocking, commit succeeded)." >&2
-  echo "  Retry manually: TELEMETRY_PROJECT_NAME=lcc-mobile-app $emitter commit $commit_hash" >&2
+  echo "  Retry manually: TELEMETRY_PROJECT_NAME=lcc-mobile-app bash $emitter commit $commit_hash" >&2
 fi
 
 exit 0
