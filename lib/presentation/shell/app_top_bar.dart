@@ -29,6 +29,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/storage/storage_service.dart';
 import '../../utils/routes/app_name_routes.dart';
+import '../theme/app_colors.dart';
 import 'app_brand.dart';
 import 'language_toggle.dart';
 
@@ -63,7 +64,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -83,7 +84,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.white,
                         fontSize: 13,
                         height: 1.2,
                         fontWeight: FontWeight.w600,
@@ -95,7 +96,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
+                        color: AppColors.white.withValues(alpha: 0.75),
                         fontSize: 11,
                         height: 1.2,
                       ),

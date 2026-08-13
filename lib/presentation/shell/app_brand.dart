@@ -1,115 +1,58 @@
-/// LCC brand tokens and the app-wide [ThemeData].
+/// The shell's brand surface.
 ///
-/// Ported from the hard-coded colour literals scattered through
-/// `lcc-app/src/app/components/Layout.tsx` and `AuthPage.tsx`:
+/// ## What moved, and where to
 ///
-/// | React literal | Where it is used                          | Token here          |
-/// |---------------|-------------------------------------------|---------------------|
-/// | `#344EAD`     | `BRAND` — header bar, active nav, CTAs    | [AppBrand.primary]  |
-/// | `#EEF2FF`     | tinted icon tiles behind brand-coloured   | [AppBrand.primarySoft] |
-/// | `#F0F2F8`     | `bg-[#F0F2F8]` app background             | [AppBrand.surface]  |
-/// | `#6B7280`     | inactive bottom-nav icon + label          | [AppBrand.muted]    |
+/// This file used to be the app's entire design system: four colour literals
+/// and the whole `ThemeData`, sitting inside `presentation/shell/` — the folder
+/// that owns the header bar. SSD § 10.1 moved that out, because fidelity
+/// Tier 2 and B2's five new features all have to read the tokens, and none of
+/// them is shell chrome:
 ///
-/// The React app applies these per-element through Tailwind/inline styles. A
-/// Flutter port should not do that — repeating `Color(0xFF344EAD)` at every
-/// call site is exactly the duplication the M3 `ColorScheme` exists to remove.
-/// So the tokens are declared once here and handed to `MaterialApp.theme`;
-/// widgets read them through `Theme.of(context)` wherever a scheme role
-/// exists, and through [AppBrand] directly only for the two tokens M3 has no
-/// role for ([surface] as the scaffold wash, [muted] as the inactive-nav grey).
+/// | Was here                  | Now                                          |
+/// |---------------------------|----------------------------------------------|
+/// | `AppBrand.light()`'s body | `presentation/theme/app_theme.dart`           |
+/// | the four colour literals  | `presentation/theme/app_colors.dart`          |
+/// | `topBarHeight`            | `presentation/theme/app_spacing.dart`         |
 ///
-/// This file lives under `lib/presentation/shell/` deliberately: the shell is
-/// the only surface that owns app-wide chrome, and GOR-245 § 3.1 scopes new
-/// presentation code to that folder.
+/// ## Why [AppBrand] still exists
+///
+/// SSD § 10.1 says this file is "reduced to the brand **widget**". There is no
+/// brand widget to reduce it to — the brand mark is rendered inline inside
+/// `app_top_bar.dart`'s `AppBar.title`, and extracting it is not one of the two
+/// changes (`ThemeData` sourcing, R-24) B2a's § 3.1 scope permits in that file.
+/// Recorded as a spec defect rather than papered over.
+///
+/// So what remains is a **shell-scoped alias surface**, not a second token
+/// layer: every member below forwards to `presentation/theme/`, holds no
+/// literal of its own, and exists only so the call sites this batch may not
+/// touch keep compiling. `tab_placeholder.dart` reads three of these and is
+/// outside B2a's scope (§ 3.1 lists it in no sub-batch), so deleting the names
+/// is not available to this ticket.
+///
+/// **New code must import `presentation/theme/` directly.** This file is a
+/// migration seam with a scheduled end, not an API.
 library;
 
-import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
-class AppBrand {
-  AppBrand._();
+/// Brand tokens as the shell's pre-B2a call sites named them.
+///
+/// Every member forwards. See the library doc for why the indirection exists
+/// and when it goes away.
+abstract final class AppBrand {
+  /// Forwards to [AppColors.primary] — `#344EAD`.
+  static const primary = AppColors.primary;
 
-  /// `#344EAD` — the LCC brand blue. Header, active nav, primary CTAs.
-  static const Color primary = Color(0xFF344EAD);
+  /// Forwards to [AppColors.primarySoft] — `#EEF2FF`.
+  static const primarySoft = AppColors.primarySoft;
 
-  /// `#EEF2FF` — the pale brand tint used behind brand-coloured icons.
-  static const Color primarySoft = Color(0xFFEEF2FF);
+  /// Forwards to [AppColors.surface] — `#F0F2F8`.
+  static const surface = AppColors.surface;
 
-  /// `#F0F2F8` — the page wash behind every screen.
-  static const Color surface = Color(0xFFF0F2F8);
+  /// Forwards to [AppColors.muted] — `#6B7280`.
+  static const muted = AppColors.muted;
 
-  /// `#6B7280` — secondary text and inactive bottom-nav items.
-  static const Color muted = Color(0xFF6B7280);
-
-  /// Height of the top bar. `h-16` in `Layout.tsx` = 64 logical pixels, taller
-  /// than Material's 56 default, so the brand + sub-brand stack fits.
-  static const double topBarHeight = 64;
-
-  /// The app-wide light theme.
-  ///
-  /// Only a light theme is produced: the React source has no dark mode, and
-  /// inventing one here would be design work this ticket has no source for.
-  /// `MaterialApp` therefore pins `themeMode: light` (see `main.dart`).
-  static ThemeData light() {
-    final ColorScheme scheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      primary: primary,
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: scheme,
-      fontFamily: 'NotoSansLao',
-      scaffoldBackgroundColor: surface,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        toolbarHeight: topBarHeight,
-        elevation: 3,
-        centerTitle: false,
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: primarySoft,
-        elevation: 3,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        iconTheme: WidgetStateProperty.resolveWith(
-          (states) => IconThemeData(
-            size: 22,
-            color: states.contains(WidgetState.selected) ? primary : muted,
-          ),
-        ),
-        labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => TextStyle(
-            fontSize: 11,
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w600
-                : FontWeight.w400,
-            color: states.contains(WidgetState.selected) ? primary : muted,
-          ),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: primary,
-          minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: primary),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
+  /// Forwards to [AppSpacing.topBarHeight] — 64.
+  static const topBarHeight = AppSpacing.topBarHeight;
 }

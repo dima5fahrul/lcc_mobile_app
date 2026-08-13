@@ -66,7 +66,7 @@ import 'core/observer/app_bloc_observer.dart';
 import 'core/session/bloc/session_bloc.dart';
 import 'core/storage/storage_service.dart';
 import 'i18n/i18n.dart';
-import 'presentation/shell/app_brand.dart';
+import 'presentation/theme/app_theme.dart';
 import 'utils/routes/app_routes.dart';
 
 Future<void> main() async {
@@ -134,7 +134,7 @@ class _AppState extends State<App> {
       child: MaterialApp.router(
         title: 'Lao Citizen Center',
         debugShowCheckedModeBanner: false,
-        theme: AppBrand.light(),
+        theme: AppTheme.light(),
         // No dark theme: the React source has none, so there is nothing to
         // port and inventing one is design work this ticket has no source for.
         themeMode: ThemeMode.light,

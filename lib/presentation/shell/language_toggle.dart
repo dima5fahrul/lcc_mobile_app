@@ -16,14 +16,25 @@
 /// - The chip styling (translucent white fill + hairline border on the brand
 ///   bar) mirrors `bg-white/15 border-white/20 rounded-xl`.
 ///
+/// ## R-24 — the flags, resolved
+///
+/// `LanguageToggle.tsx:14-53` hand-draws a UK and a Lao flag in inline SVG.
+/// GOR-245's asset scope had no room for them and `Icons.translate` stood in.
+/// **B2a ships `flutter_svg`, which is the condition § VII.4 / SSD § 10.3
+/// attached R-24 to**, so the stand-in is gone: `assets/icons/flags/{uk,lao}.svg`
+/// are transcriptions of those two `<svg>` blocks, element for element.
+///
+/// They are SVG assets rather than a `CustomPainter` pair on purpose — a
+/// transcription can be checked against the source line by line, where a
+/// subtle geometry error inside a painter is invisible in review.
+///
+/// The flags are `aria-hidden` in the source. They stay unannounced here: the
+/// accessible name is the visible `EN` / `ລາວ` label plus the `Switch to …`
+/// tooltip, and an [ExcludeSemantics] makes that structural rather than
+/// incidental.
+///
 /// ## Deliberate omissions from the React source
 ///
-/// - **The SVG flags.** `LanguageToggle.tsx` hand-draws a UK and a Lao flag in
-///   inline SVG. Reproducing them would mean either a `CustomPainter` pair or
-///   new image assets; GOR-245 § 3.1 scopes new assets to `assets/i18n/*.json`
-///   only, so a decorative flag is out of scope. `Icons.translate` stands in —
-///   it was `aria-hidden` in the source, i.e. carried no meaning the label does
-///   not already carry.
 /// - **`me.updateProfile({preferred_lang})`.** The React toggle also mirrors
 ///   the choice onto the citizen's account so it follows them to another
 ///   device. That is a `PATCH /me/profile` call; GOR-245 § 6 declares *no API
@@ -45,8 +56,12 @@ library;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/storage/storage_service.dart';
+import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_typography.dart';
 
 class LanguageToggle extends StatelessWidget {
   const LanguageToggle({super.key, required this.storage});
@@ -116,28 +131,33 @@ class LanguageToggle extends StatelessWidget {
       message: tooltip,
       child: InkWell(
         onTap: () => _toggle(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         child: Semantics(
           button: true,
           label: tooltip,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.gap10,
+              vertical: AppSpacing.gap8,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.white.withValues(alpha: 0.15),
+              border: Border.all(
+                color: AppColors.white.withValues(alpha: 0.2),
+              ),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(Icons.translate, size: 16, color: Colors.white),
-                const SizedBox(width: 6),
+                _Flag(isEnglish: isEnglish),
+                const SizedBox(width: AppSpacing.gap6),
                 Text(
                   label,
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    color: AppColors.white,
+                    fontSize: AppTypography.size12,
+                    fontWeight: AppTypography.medium,
                   ),
                 ),
               ],
@@ -148,3 +168,49 @@ class LanguageToggle extends StatelessWidget {
     );
   }
 }
+
+/// The flag disc — **R-24**.
+///
+/// `LanguageToggle.tsx:76-83`: a `w-5 h-5` circle, `overflow-hidden`, with a
+/// `ring-1 ring-white/40` hairline, showing the flag of the language currently
+/// in effect (`lang === "en" ? <UkFlag/> : <LaoFlag/>`).
+///
+/// Both SVGs already clip themselves to a circle, exactly as the source's do —
+/// `<clipPath><circle r="30"/></clipPath>` over a 60-unit viewBox. The
+/// [ClipOval] here reproduces the CSS `overflow-hidden` on the wrapper, which
+/// is what keeps the ring flush with the artwork.
+class _Flag extends StatelessWidget {
+  const _Flag({required this.isEnglish});
+
+  final bool isEnglish;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: Container(
+        width: AppSpacing.flagSize,
+        height: AppSpacing.flagSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppColors.white.withValues(alpha: 0.4),
+          ),
+        ),
+        child: ClipOval(
+          child: SvgPicture.asset(
+            isEnglish ? kUkFlagAsset : kLaoFlagAsset,
+            width: AppSpacing.flagSize,
+            height: AppSpacing.flagSize,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// `LanguageToggle.tsx:14-37` — hand-transcribed, not generated by
+/// `tool/generate_lucide_svgs.mjs`. These are not lucide icons.
+const String kUkFlagAsset = 'assets/icons/flags/uk.svg';
+
+/// `LanguageToggle.tsx:39-53`.
+const String kLaoFlagAsset = 'assets/icons/flags/lao.svg';

@@ -21,12 +21,12 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lcc_mobile_app/presentation/shell/app_brand.dart';
+import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
 
 void main() {
   group('AC-24 Noto Sans Lao', () {
     test('ThemeData propagates NotoSansLao as the default font family', () {
-      final ThemeData theme = AppBrand.light();
+      final ThemeData theme = AppTheme.light();
 
       // `ThemeData(fontFamily:)` propagates into every `TextTheme` style.
       // Asserting across the three primary text scales proves the whole app
@@ -44,14 +44,14 @@ void main() {
     test('OFL-licensed Noto Sans Lao TTFs are declared in pubspec fonts', () {
       // The declaration itself is in pubspec.yaml's `flutter: fonts:` block.
       // This test guards against accidental removal: if the family is
-      // undeclared, `AppBrand.light()` would still compile (fontFamily is just
+      // undeclared, `AppTheme.light()` would still compile (fontFamily is just
       // a string) but the real app would silently fall back to Roboto and
       // reintroduce R-13's tofu boxes. The ThemeData test above catches the
       // theme-side regression; this catches the asset-side regression.
       //
       // We verify the font family name matches what pubspec declares —
       // 'NotoSansLao' — and that the two TTF assets exist on disk.
-      expect(AppBrand.light().textTheme.bodyLarge?.fontFamily, 'NotoSansLao');
+      expect(AppTheme.light().textTheme.bodyLarge?.fontFamily, 'NotoSansLao');
     });
   });
 }

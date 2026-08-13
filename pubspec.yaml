@@ -31,6 +31,9 @@ dependencies:
   # Network (Dio only — per project decision, no `http`)
   dio: ^5.8.0
 
+  # SVG rendering (§ 6.3 — the lucide icon layer and the R-24 language flags)
+  flutter_svg: ^2.2.1
+
   # Debug
   chucker_flutter: ^1.9.2
 
@@ -64,6 +67,11 @@ flutter:
   assets:
     - assets/i18n/
     - assets/images/
+    # Two entries, not the single `- assets/icons/` § 6.3.3 asks for: Flutter's
+    # asset-directory declaration is NOT recursive, so `- assets/icons/` alone
+    # bundles nothing (both SVG sets live one level down). See qa notes.
+    - assets/icons/lucide/
+    - assets/icons/flags/
   fonts:
     - family: NotoSansLao
       fonts:
