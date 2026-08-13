@@ -110,6 +110,8 @@ import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/history/presentation/pages/history_page.dart';
+import '../../features/home/di/home_injection.dart';
+import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/service/di/service_injection.dart';
 import '../../features/service/presentation/bloc/service_bloc.dart';
@@ -253,10 +255,29 @@ class AppRoutes {
         child: child,
       ),
       routes: <RouteBase>[
+        // B2b. Same CR-1 pattern as `/service` below: the BLoC is resolved
+        // HERE, by the route builder, and owned by this `BlocProvider`.
+        // `create:` (not `.value`) carries the lifetime — `homeInjection`
+        // registers `HomeBloc` with `registerFactory`, so each visit gets a
+        // fresh one and the provider closes it on the way out. Required rather
+        // than incidental on this page: the BLoC holds a live debounce `Timer`
+        // *and* the citizen's summary and digital-ID data, and a surviving
+        // instance would carry one citizen's UIN across a sign-out.
+        //
+        // `..add(const HomeStarted())` is the mount fetch — the three
+        // anonymous `useQuery` calls `HomePage.tsx:171-178` fires on render.
+        // The two authenticated ones are not dispatched here: they are
+        // `enabled: isAuthenticated`, which re-evaluates when the flag
+        // changes, so `HomePage`'s `BlocListener<SessionBloc>` owns them. That
+        // keeps this builder from having to read a second BLoC and keeps
+        // "signing in mid-visit fills the tiles" working.
         GoRoute(
           path: AppNameRoutes.home,
           name: AppNameRoutes.home,
-          builder: (_, __) => const HomePage(),
+          builder: (_, __) => BlocProvider<HomeBloc>(
+            create: (_) => homeInjection<HomeBloc>()..add(const HomeStarted()),
+            child: const HomePage(),
+          ),
         ),
         // CR-1 again, and this is the pattern every B2 page follows: the BLoC
         // is resolved HERE, by the route builder, and owned by this

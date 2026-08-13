@@ -32,10 +32,17 @@ class ServiceRemoteDatasourceImpl implements ServiceRemoteDatasource {
 
   @override
   Future<List<ServiceCategoryModel>> getCategories() async {
-    final List<dynamic> rows = await apiClient.get<List<dynamic>>(
+    // `get<dynamic>`, NOT `get<List<dynamic>>`. ApiClient._send<T> forwards T to
+    // Dio, which casts the decoded ENVELOPE — an object — to T. Asking for a List
+    // therefore throws before _unwrap ever sees the payload, and the throw surfaces
+    // as ApiException(0, NETWORK_ERROR, 'Cannot reach the server'), so it reads as
+    // an outage rather than a bug. Every test here mocks ApiClient, so the generic
+    // argument never met a transport until B2b probed it against buildTestDio.
+    final dynamic raw = await apiClient.get<dynamic>(
       ApiEndpoint.serviceCategories,
       anonymous: true,
     );
+    final List<dynamic> rows = raw as List<dynamic>;
     return rows
         .whereType<Map<String, dynamic>>()
         .map(ServiceCategoryModel.fromJson)
@@ -49,11 +56,18 @@ class ServiceRemoteDatasourceImpl implements ServiceRemoteDatasource {
   }) async {
     // Nulls are dropped by `ApiClient._buildQuery`, so "no filter" really does
     // send no parameter rather than `?search=`.
-    final List<dynamic> rows = await apiClient.get<List<dynamic>>(
+    // `get<dynamic>`, NOT `get<List<dynamic>>`. ApiClient._send<T> forwards T to
+    // Dio, which casts the decoded ENVELOPE — an object — to T. Asking for a List
+    // therefore throws before _unwrap ever sees the payload, and the throw surfaces
+    // as ApiException(0, NETWORK_ERROR, 'Cannot reach the server'), so it reads as
+    // an outage rather than a bug. Every test here mocks ApiClient, so the generic
+    // argument never met a transport until B2b probed it against buildTestDio.
+    final dynamic raw = await apiClient.get<dynamic>(
       ApiEndpoint.services,
       query: <String, dynamic>{'search': search, 'category': category},
       anonymous: true,
     );
+    final List<dynamic> rows = raw as List<dynamic>;
     return rows
         .whereType<Map<String, dynamic>>()
         .map(ServiceModel.fromJson)

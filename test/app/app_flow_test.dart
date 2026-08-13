@@ -317,7 +317,18 @@ void main() {
     final AppHarness harness = await bootHarness();
     await pumpAssembledApp(tester, harness);
 
-    await tester.tap(find.text('Sign in to activate'));
+    // B2b turned Home from a one-screen placeholder into a seven-region
+    // scroll, and the CTA now sits under the LaoID card rather than in the
+    // middle of an empty page. At the test surface's default 800x600 it lands
+    // below the fold — `tap()` warned that the offset would not hit test and
+    // struck the bottom nav's History destination instead, which is how this
+    // read `from=%2Fhistory`. Scrolling to it is the fix; the assertion below
+    // is unchanged and is still the point of the test.
+    final Finder cta = find.text('Sign in to activate');
+    await tester.ensureVisible(cta);
+    await tester.pumpAndSettle();
+
+    await tester.tap(cta);
     await tester.pumpAndSettle();
 
     // HomePage sends the citizen to /account (protected) on purpose, so the

@@ -174,7 +174,19 @@
     "categoriesSubtitle": "Find the right service across government sectors.",
     "viewServices": "View services",
     "exploreAll": "Explore All",
-    "seeService": "See service"
+    "seeService": "See service",
+    "activeApplications": "Active applications",
+    "readyDocuments": "Documents ready",
+    "walletBalance": "Wallet balance",
+    "unreadNotifications": "Unread notices",
+    "retry": "Try again",
+    "summaryError": "We could not load your summary.",
+    "servicesError": "We could not load the service list.",
+    "servicesEmpty": "No services are open for online requests yet.",
+    "newsError": "We could not load the news.",
+    "newsEmpty": "There are no announcements right now.",
+    "faqError": "We could not load the questions.",
+    "faqEmpty": "No questions have been published yet."
   },
   "service": {
     "allCategories": "All categories",
@@ -196,7 +208,20 @@
     "noCategories": "No categories are published yet."
   },
   "hero": {
-    "idSignIn": "Sign in to activate"
+    "idSignIn": "Sign in to activate",
+    "idCardBrand": "LaoID",
+    "idCardSub": "Digital Identity",
+    "idUin": "UIN",
+    "idVerified": "Verified",
+    "idName": "Full name",
+    "idNationality": "Nationality",
+    "idNationalityValue": "Lao PDR",
+    "idTapVerify": "Tap to verify in person",
+    "idShow": "Show",
+    "idHide": "Hide",
+    "idVerifyTitle": "In-person verification",
+    "idVerifyDesc": "Ask the officer to scan this QR code to confirm your identity.",
+    "idVerifyClose": "Close"
   },
   "history": {
     "title": "Application History",

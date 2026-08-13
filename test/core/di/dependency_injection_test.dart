@@ -14,7 +14,8 @@
 /// Note the containers are not idempotent — a second `init()` throws
 /// `already registered inside GetIt`. That is a real constraint on the frozen
 /// DI files (§ 4.1), so each test boots once and `tearDown` empties all
-/// **four**: B2a adds `serviceInjection`, and a container that `tearDown`
+/// **five**: B2a added `serviceInjection` and B2b adds `homeInjection`, and a
+/// container that `tearDown`
 /// forgets does not fail on the test that added it — it fails on the second
 /// test in the file, with a message naming `ApiClient`.
 library;
@@ -35,6 +36,7 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/request_otp.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
 import 'package:lcc_mobile_app/features/service/domain/repositories/service_repository.dart';
 import 'package:lcc_mobile_app/features/service/domain/usecases/get_service_categories.dart';
@@ -56,6 +58,10 @@ void main() {
     await sessionInjection.reset();
     await authInjection.reset();
     await serviceInjection.reset();
+    // B2b's container. A container `tearDown` forgets is a test that passes
+    // once and throws `already registered inside GetIt` on the next `init()` —
+    // which is exactly what happened when this line was missing.
+    await homeInjection.reset();
   });
 
   group('root container', () {

@@ -57,6 +57,14 @@ class ApiEndpoint {
   // ── The signed-in citizen ──────────────────────────────────────────────────
   static const String meProfile = '/me/profile';
 
+  // `endpoints.ts:113,120`'s `me.digitalID` / `me.homeSummary`. Both are
+  // authenticated — neither is `anonymous: true` in the source — and both are
+  // fired by `HomePage.tsx` with `enabled: Boolean(isAuthenticated)`, so a
+  // signed-out citizen never requests them (§ 6.6, manifest F-4). Additive
+  // only (SSD § 6.5) — nothing above changed.
+  static const String meHomeSummary = '/me/home-summary';
+  static const String meDigitalId = '/me/digital-id';
+
   // ── Service catalogue (public, anonymous) ─────────────────────────────────
   // `endpoints.ts:167-171`'s `catalog.categories` / `catalog.services`. Both
   // are `anonymous: true` in the source and stay so here: the catalogue is
@@ -64,4 +72,22 @@ class ApiEndpoint {
   // browse all 43 services. Additive only (SSD § 6.5) — nothing above changed.
   static const String serviceCategories = '/service-categories';
   static const String services = '/services';
+
+  // ── Content (public, anonymous, paged) ─────────────────────────────────────
+  // `endpoints.ts:368,374`'s `content.news` / `content.faqs`. Both are
+  // `anonymous: true` and both are **paged** — the envelope carries `meta`
+  // beside the rows, so callers go through `ApiClient.requestPaged`.
+  //
+  // These two are shared between B2b and B2c: § 2.2 Finding B's table records
+  // `/news` as `NewsPage.tsx:45` + `HomePage.tsx:173` and `/help/faqs` as
+  // `HelpCenterPage.tsx:109` + `HomePage.tsx:178`. § 3.1's B2b column names
+  // only the two `/me/*` paths and its B2c column claims all seven content
+  // paths, which leaves the two Home also calls unattributed to the batch that
+  // needs them first. Landed here by B2b because B2b cannot render without
+  // them; B2c's remaining five paths (`/news/categories`, `/news/:slug`,
+  // `/help/categories`, `/help/articles`, `/help/articles/:slug`, and the FAQ
+  // feedback POST) are still its own to append. Recorded as a spec gap, not
+  // resolved unilaterally.
+  static const String news = '/news';
+  static const String helpFaqs = '/help/faqs';
 }

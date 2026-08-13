@@ -202,6 +202,148 @@ abstract final class AppColors {
   /// `#C7D2FE` — Tailwind `indigo-200`. Informational notice outline.
   static const Color infoBorder = Color(0xFFC7D2FE);
 
+  // ── B2b additions — Home ───────────────────────────────────────────────────
+  //
+  // ## Why this block exists in a file B2b's § 3.1 column does not list
+  //
+  // B2-AC-11 admits **no** colour literal outside this directory and its
+  // grandfather list is closed. `HomePage`, `Hero` and `ServiceCard` draw
+  // fifteen values B2a had no reason to transcribe — an amber action banner,
+  // an emerald verified badge, a navy photo scrim, two gradient stops. There is
+  // no compliant place for them other than here, so the alternative to this
+  // block is not "a tidier diff", it is B2-AC-11 red. Recorded in the hand-back
+  // as a required deviation from § 3.1's B2b file list.
+  //
+  // ## Why the Tailwind-class values below differ in convention from those above
+  //
+  // **`lcc-app` is on `tailwindcss@4.1.12`** (`package.json:77`), whose default
+  // palette is defined in **OKLCH** (`node_modules/tailwindcss/theme.css`), not
+  // in the v3 sRGB hexes. The two are close for neutrals and far apart for
+  // saturated ramps — `red-600` is `oklch(57.7% 0.245 27.325)` = `#E7000B`,
+  // where v3's hex was `#DC2626`.
+  //
+  // The tokens above this block transcribe **v3** values for classes
+  // (`gray900` `#111827` where v4 renders `#101828`, `gray800` `#1F2937` where
+  // v4 renders `#1E2939`). Those are B2a's and this batch does not touch them —
+  // they are rendered by the frozen auth pages and by `ServicePage`, so
+  // changing them is a fidelity edit outside B2b's scope. **It is nonetheless a
+  // real disparity and it is reported**, because Tier 2 cannot catch it by
+  // construction: `derive_tier2.py` greps each hex out of the web file it is
+  // attributed to, and a Tailwind *class* never appears as a hex in the source,
+  // so no class-derived token is in the oracle at all.
+  //
+  // Everything below therefore carries the **v4 value the browser actually
+  // paints**, converted from the OKLCH triple, with that triple quoted so the
+  // conversion is checkable. Values that are *inline hex* in the source are
+  // marked as such and are exact by definition.
+
+  /// `#FFE2E2` — Tailwind v4 `red-100`, `oklch(93.6% 0.032 17.717)`.
+  /// The outline of every error notice on Home (`HomePage.tsx:326,466,630`,
+  /// `border-red-100`).
+  static const Color dangerOutlineSoft = Color(0xFFFFE2E2);
+
+  /// `#FB2C36` — Tailwind v4 `red-500`, `oklch(63.7% 0.237 25.331)`.
+  /// The `AlertCircle` glyph in those notices (`text-red-500`).
+  static const Color dangerGlyph = Color(0xFFFB2C36);
+
+  /// `#E7000B` — Tailwind v4 `red-600`, `oklch(57.7% 0.245 27.325)`.
+  /// Their message text (`text-red-600`).
+  static const Color dangerText = Color(0xFFE7000B);
+
+  /// `#FFFBEB` — Tailwind v4 `amber-50`, `oklch(98.7% 0.022 95.277)`.
+  /// The action banner's fill (`HomePage.tsx:394`, `bg-amber-50`).
+  static const Color warningSurface = Color(0xFFFFFBEB);
+
+  /// `#FEE685` — Tailwind v4 `amber-200`, `oklch(92.4% 0.12 95.746)`.
+  /// The action banner's outline (`border-amber-200`).
+  static const Color warningOutline = Color(0xFFFEE685);
+
+  /// `#FEF3C6` — Tailwind v4 `amber-100`, `oklch(96.2% 0.059 95.617)`.
+  /// The tile behind the banner's `AlertTriangle` (`HomePage.tsx:395`).
+  ///
+  /// Deliberately **not** [categoryTintTransport], which is the same family and
+  /// a different number (`#FEF3C7`, an inline hex in `ServicePage.tsx`'s seed
+  /// table). Two values one step apart, from two sources, for two unrelated
+  /// things — collapsing them would tie a banner's styling to a category's.
+  static const Color warningTint = Color(0xFFFEF3C6);
+
+  /// `#973C00` — Tailwind v4 `amber-800`, `oklch(47.3% 0.137 46.201)`.
+  /// The banner's title (`HomePage.tsx:399`, `text-amber-800`).
+  static const Color warningTitle = Color(0xFF973C00);
+
+  /// `#BB4D00` — Tailwind v4 `amber-700`, `oklch(55.5% 0.163 48.998)`.
+  /// The banner's reference-number line (`HomePage.tsx:404`).
+  ///
+  /// Not [warning] (`#B45309`), which is the *inline* hex of
+  /// `HelpCenterPage.tsx`'s `PALETTE[1]` and only coincidentally the v3 name
+  /// for this class.
+  static const Color warningReference = Color(0xFFBB4D00);
+
+  /// `#FFB900` — Tailwind v4 `amber-400`, `oklch(82.8% 0.189 84.429)`.
+  /// The banner's dismiss `X` at rest (`HomePage.tsx:418`).
+  static const Color warningDismiss = Color(0xFFFFB900);
+
+  /// `#D97706` — **inline hex**, `HomePage.tsx:412`
+  /// (`style={{ color: "#D97706" }}` on "Update document"). Written inline, so
+  /// it never reads the `--color-amber-600` custom property and is exactly this
+  /// value — the same mechanism that makes [gray400Inline] differ from
+  /// [gray400].
+  static const Color warningLink = Color(0xFFD97706);
+
+  /// `#ECFDF5` — Tailwind v4 `emerald-50`, `oklch(97.9% 0.021 166.113)`.
+  /// The ID card's "Verified" badge fill (`Hero.tsx:218`).
+  static const Color verifiedSurface = Color(0xFFECFDF5);
+
+  /// `#A4F4CF` — Tailwind v4 `emerald-200`, `oklch(90.5% 0.093 164.15)`.
+  /// That badge's outline.
+  static const Color verifiedOutline = Color(0xFFA4F4CF);
+
+  /// `#007A55` — Tailwind v4 `emerald-700`, `oklch(50.8% 0.118 165.612)`.
+  /// That badge's text and check glyph.
+  static const Color verifiedText = Color(0xFF007A55);
+
+  /// `#4A5565` — Tailwind v4 `gray-600`, `oklch(44.6% 0.03 256.802)`.
+  /// The dismiss dialog's "Keep it" label (`HomePage.tsx:815`).
+  static const Color gray600 = Color(0xFF4A5565);
+
+  /// `#F8FAFF` — **inline hex**, `HomePage.tsx:503`. The resting fill of the
+  /// "More" tile, which is a dashed-border tile rather than a card and so has
+  /// its own near-white rather than [white].
+  static const Color moreTileSurface = Color(0xFFF8FAFF);
+
+  /// `#17235C` — **inline hex**, `HomePage.tsx:561` and `:663`. The 100 % stop
+  /// of both photo-card gradients: the category slide
+  /// (`linear-gradient(155deg, ${cat.color} 0%, #17235c 100%)`) and the news
+  /// thumbnail (`135deg`). The 0 % stop is runtime data in both cases, which is
+  /// why only this end of the ramp is a token.
+  static const Color photoGradientEnd = Color(0xFF17235C);
+
+  /// `rgb(18,31,80)` — the navy the hero backdrop and the category slides are
+  /// washed with. Written in the source as three `rgba(18,31,80,α)` stops per
+  /// gradient (`Hero.tsx:79`, `HomePage.tsx:574`) with α the only thing that
+  /// varies, so the colour is the token and the alpha stays at the call site
+  /// via `withValues` — see [hexToRgbaNote].
+  static const Color scrimNavy = Color(0xFF121F50);
+
+  /// Opaque black, the base of every modal overlay on Home.
+  ///
+  /// The source writes `bg-black/40` (`HomePage.tsx:797`) and `bg-black/50`
+  /// (`:837`, `:923`, `Hero.tsx:319`) — one colour, three alphas — so the
+  /// colour is the token and the alpha stays at the call site via
+  /// `withValues`, exactly as [scrimNavy] does. It exists because
+  /// `Colors.black54` is a `Colors.<name>` literal and B2-AC-11 does not carve
+  /// out Material's palette for being convenient; it is also the wrong number
+  /// (0.54, not 0.40 or 0.50).
+  static const Color black = Color(0xFF000000);
+
+  /// `#6366F1` — **inline hex**, `Hero.tsx:242`. The 0 % stop of the initial
+  /// tile's gradient, shown when a card has no photo
+  /// (`linear-gradient(135deg, #6366F1 0%, #344EAD 100%)`); the 100 % stop is
+  /// [primary]. Numerically equal to `helpPalette[3].color` and kept separate
+  /// for the reason [categoryTintFallback] is: the two would be changed for
+  /// different reasons.
+  static const Color idInitialGradientStart = Color(0xFF6366F1);
+
   // ── Help-centre swatch palette ─────────────────────────────────────────────
 
   /// `HelpCenterPage.tsx:56`'s `PALETTE`, cycled over the help categories.

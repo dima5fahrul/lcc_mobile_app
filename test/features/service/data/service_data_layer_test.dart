@@ -170,7 +170,7 @@ void main() {
     });
 
     test('GETs /service-categories ANONYMOUSLY and parses every row', () async {
-      when(() => apiClient.get<List<dynamic>>(any(),
+      when(() => apiClient.get<dynamic>(any(),
               query: any(named: 'query'), anonymous: any(named: 'anonymous')))
           .thenAnswer((_) async => loadApi('service-categories'));
 
@@ -179,7 +179,7 @@ void main() {
       // The anonymity flag is the assertion a stub could not make: the
       // catalogue is public, and sending a stale bearer token would trigger a
       // refresh round trip on a page that never needed one.
-      verify(() => apiClient.get<List<dynamic>>(
+      verify(() => apiClient.get<dynamic>(
             ApiEndpoint.serviceCategories,
             anonymous: true,
           )).called(1);
@@ -187,7 +187,7 @@ void main() {
     });
 
     test('GETs /services with both filters, ANONYMOUSLY', () async {
-      when(() => apiClient.get<List<dynamic>>(any(),
+      when(() => apiClient.get<dynamic>(any(),
               query: any(named: 'query'), anonymous: any(named: 'anonymous')))
           .thenAnswer((_) async => loadApi('services'));
 
@@ -195,7 +195,7 @@ void main() {
           await datasource.getServices(search: 'cert', category: 'civil');
 
       final Map<String, dynamic> query = verify(
-        () => apiClient.get<List<dynamic>>(
+        () => apiClient.get<dynamic>(
           ApiEndpoint.services,
           query: captureAny(named: 'query'),
           anonymous: true,
@@ -210,14 +210,14 @@ void main() {
       // `ApiClient._buildQuery` skips nulls, so "no filter" sends no parameter
       // rather than `?search=`. Asserting the datasource passes the nulls
       // rather than pre-filtering keeps that one behaviour in one place.
-      when(() => apiClient.get<List<dynamic>>(any(),
+      when(() => apiClient.get<dynamic>(any(),
               query: any(named: 'query'), anonymous: any(named: 'anonymous')))
           .thenAnswer((_) async => <dynamic>[]);
 
       await datasource.getServices();
 
       final Map<String, dynamic> query = verify(
-        () => apiClient.get<List<dynamic>>(
+        () => apiClient.get<dynamic>(
           any(),
           query: captureAny(named: 'query'),
           anonymous: any(named: 'anonymous'),
@@ -228,7 +228,7 @@ void main() {
     });
 
     test('a non-map element in the array is skipped, not fatal', () async {
-      when(() => apiClient.get<List<dynamic>>(any(),
+      when(() => apiClient.get<dynamic>(any(),
               query: any(named: 'query'), anonymous: any(named: 'anonymous')))
           .thenAnswer((_) async => <dynamic>[
                 ...loadApi('services').take(2),
@@ -240,7 +240,7 @@ void main() {
     });
 
     test('an ApiException from the client propagates', () async {
-      when(() => apiClient.get<List<dynamic>>(any(),
+      when(() => apiClient.get<dynamic>(any(),
               query: any(named: 'query'), anonymous: any(named: 'anonymous')))
           .thenThrow(const ApiException(
         status: 500,

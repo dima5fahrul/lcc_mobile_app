@@ -31,6 +31,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/auth/di/auth_feature_injection.dart';
+import '../../features/home/di/home_feature_injection.dart';
 import '../../features/service/di/service_feature_injection.dart';
 import '../../features/session/di/session_feature_injection.dart';
 import '../../features/session/di/session_injection.dart';
@@ -143,5 +144,15 @@ class DependencyInjection {
     //    where a feature with no ordering constraint should sit: appending is
     //    the change that cannot break the four steps above.
     await ServiceFeatureInjection.init();
+
+    // 7. Home (DI-6, B2b). One line, as the rule requires.
+    //
+    //    Ordering: after step 2 for the shared `ApiClient`, and after step 4
+    //    in practice because the `/` route builder reads `SessionBloc` to tell
+    //    `HomeBloc` whether the two `me.*` reads are enabled. No registration
+    //    here resolves the session, so this is a navigation-time dependency
+    //    rather than a wiring one — appending keeps it satisfied without
+    //    making the six steps above depend on it.
+    await HomeFeatureInjection.init();
   }
 }

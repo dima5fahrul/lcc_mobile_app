@@ -65,6 +65,13 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/request_otp.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
+import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/home/data/repositories/home_repository_impl.dart';
+import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
+import 'package:lcc_mobile_app/features/home/domain/repositories/home_repository.dart';
+import 'package:lcc_mobile_app/features/home/domain/usecases/home_usecases.dart';
+import 'package:lcc_mobile_app/features/home/presentation/bloc/home_bloc.dart';
 import 'package:lcc_mobile_app/features/service/data/datasources/service_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/service/data/repositories/service_repository_impl.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
@@ -238,6 +245,29 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     ),
   );
 
+  // ── Home feature (mirrors HomeFeatureInjection.init) ──────────────────────
+  // `/` is `AppRoutes.initialLocation`, so unlike the service catalogue this
+  // one is resolved by **every** assembled-app test the moment the app mounts,
+  // not only by tests that navigate somewhere.
+  final HomeRepository homeRepository = HomeRepositoryImpl(
+    remote: HomeRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  homeInjection.registerSingleton<HomeRepository>(homeRepository);
+  // `registerFactory`, as production does: one HomeBloc per visit, because it
+  // holds a debounce timer and one citizen's summary.
+  homeInjection.registerFactory<HomeBloc>(
+    () => HomeBloc(
+      getHomeSummary: GetHomeSummary(repository: homeRepository),
+      getDigitalId: GetDigitalId(repository: homeRepository),
+      getPhase1Services: GetPhase1Services(repository: homeRepository),
+      searchServices: SearchServices(repository: homeRepository),
+      getFeaturedNews: GetFeaturedNews(repository: homeRepository),
+      getHomeFaqs: GetHomeFaqs(repository: homeRepository),
+    ),
+  );
+
+  stubHomeEndpoints(adapter);
+
   return AppHarness(
     store: store,
     storage: storage,
@@ -248,7 +278,65 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
   );
 }
 
-/// Empties all four GetIt containers. Without this the second test in a file
+/// Answers Home's five reads with empty successes.
+///
+/// **Not politeness — a precondition.** `/` mounts `HomePage`, which fires
+/// three anonymous requests on arrival and two more once the session resolves.
+/// `http_mock_adapter` throws on a route it was not told about, and that throw
+/// surfaces inside `pumpAndSettle` as an unrelated-looking failure in whatever
+/// test happened to boot the app. Every existing flow and shell test would
+/// break on a page they do not assert anything about.
+///
+/// Empty payloads rather than fixtures, deliberately: these tests are about
+/// routing, the auth gate and the shell, and giving Home real content would
+/// put three news headlines and five questions into `find.text` for suites
+/// that never asked for them. Home's own tests supply their own data. A test
+/// that *does* want content re-stubs the route — `DioAdapter` lets a later
+/// registration win.
+void stubHomeEndpoints(DioAdapter adapter) {
+  void ok(String path, Object data, {Map<String, dynamic>? meta}) {
+    adapter.onGet(
+      path,
+      (dynamic server) => server.reply(200, <String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': data,
+        if (meta != null) 'meta': meta,
+      }),
+    );
+  }
+
+  const Map<String, dynamic> emptyPage = <String, dynamic>{
+    'page': 1,
+    'per_page': 0,
+    'total': 0,
+    'total_pages': 1,
+    'has_next': false,
+    'has_prev': false,
+  };
+
+  ok(ApiEndpoint.services, const <dynamic>[]);
+  ok(ApiEndpoint.news, const <dynamic>[], meta: emptyPage);
+  ok(ApiEndpoint.helpFaqs, const <dynamic>[], meta: emptyPage);
+  ok(ApiEndpoint.meHomeSummary, const <String, dynamic>{
+    'name': '',
+    'verified': false,
+    'eid_verified': false,
+    'active_applications': 0,
+    'ready_documents': 0,
+    'unread_notifications': 0,
+    'wallet_balance_lak': 0,
+    'next_action': null,
+    'generated_at': '',
+  });
+  ok(ApiEndpoint.meDigitalId, const <String, dynamic>{
+    'uin': '',
+    'card_no': '',
+    'photo_url': '',
+  });
+}
+
+/// Empties all five GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
 Future<void> resetHarness() async {
@@ -256,6 +344,7 @@ Future<void> resetHarness() async {
   await sessionInjection.reset();
   await authInjection.reset();
   await serviceInjection.reset();
+  await homeInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

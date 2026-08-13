@@ -81,4 +81,61 @@ abstract final class AppSpacing {
 
   /// `w-5 h-5` — the language toggle's flag disc (`LanguageToggle.tsx:79`).
   static const double flagSize = 20;
+
+  // ── B2b additions — Home ───────────────────────────────────────────────────
+  //
+  // Same § 3.1 deviation as `app_colors.dart`'s B2b block, for a weaker reason:
+  // no gate forbids a raw number in a widget the way B2-AC-11 forbids a raw
+  // colour. They are named anyway because every B2a widget spaces itself from
+  // this class and a page that mixed `AppSpacing.gap16` with a bare `14` would
+  // read as if one of the two were significant. Each is a Tailwind step at the
+  // 16 px root, named for its pixel value like the rest of the file.
+
+  /// `py-3.5` / `px-3.5` — 14 px. The hero search field's vertical padding and
+  /// the "See service" chip's horizontal one.
+  static const double gap14 = 14;
+
+  /// `rounded-3xl` — 24 px. The ID card, the category slides and the dialogs.
+  static const double radius3xl = 24;
+
+  /// `w-9 h-9` — 36 px. The summary tile's icon tile and the banner's glyph
+  /// tile. Numerically [brandMarkSize]; named separately because the brand mark
+  /// and a content tile would be resized for different reasons.
+  static const double tile36 = 36;
+
+  /// `w-10 h-10` — 40 px. The two slider arrows.
+  static const double control40 = 40;
+
+  /// `w-11 h-11` — 44 px. The ID card's QR button.
+  static const double tile44 = 44;
+
+  /// `w-12 h-12` — 48 px. The service sheet's category tile.
+  static const double tile48 = 48;
+
+  /// `h-24` — 96 px. One summary-tile skeleton.
+  static const double skeletonSummary = 96;
+
+  /// `h-40` — 160 px. A news card's thumbnail, and its skeleton's.
+  static const double newsThumbHeight = 160;
+
+  /// `h-52` — 208 px. One service-card skeleton.
+  static const double skeletonServiceCard = 208;
+
+  /// `h-80` — 320 px. One news-card skeleton.
+  static const double skeletonNewsCard = 320;
+
+  /// `h-[360px]` — the category slide's fixed height (`HomePage.tsx:556`).
+  /// **Half of B2-AC-31's decode budget**: paired with [categorySlideWidth] it
+  /// is the box those eight 864×1152 photographs are painted into.
+  static const double categorySlideHeight = 360;
+
+  /// `w-[72%]` of a 390 px viewport — **281 px**, the width B1b § 6.3 measured
+  /// the category slide at and sized `civil-population` and its seven siblings
+  /// against ("Max render (CSS) 281×360"). It is a constant rather than a
+  /// fraction because it is the number the asset tier was derived from; the
+  /// widget still lays out at 72 % and uses this only as the decode target.
+  static const double categorySlideWidth = 281;
+
+  /// `w-48 h-48` — 192 px. The QR preview inside the verification dialog.
+  static const double qrPreview = 192;
 }
