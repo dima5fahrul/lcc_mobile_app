@@ -1,0 +1,121 @@
+{
+  "_capture": {
+    "artefact": "Tier 0 payload-equality fixture — B9b chat",
+    "endpoints": [
+      "POST /api/v1/me/chat/threads",
+      "POST /api/v1/me/chat/threads/{id}/messages",
+      "POST /api/v1/me/chat/threads/{id}/close"
+    ],
+    "captured_at": "2026-08-14T00:00:00.000Z",
+    "web_commit": "62f8a529aaa024a8b35b0af50a8fbd4850a63962",
+    "provenance": "SYNTHETIC — and unlike the /me/* GET fixtures this one could not be a recording even in principle: these are REQUEST bodies, and obtaining a real one means writing a thread and a message to a live staging account, which the slot 16-47 capture explicitly refused ('This capture performed ZERO writes to the account', manifest-authenticated.md). B2-AC-36's 'real recorded staging payloads' standard is therefore reported NOT EVALUATED with that reason and never PASS (specs.md § 2.2 Finding I, B9-AC-57). expected_body is DERIVED, not recorded: each one is what CustomerServiceChat.tsx:106/:109/:112 over client.ts:243's JSON.stringify produces for that input, computed by applying the source's own transform (body.trim() then .slice(0,80)) rather than transcribed by eye.",
+    "credential": "none — no host was contacted to build this file",
+    "why_lao": "The one real transform in B9 is subject = trim().slice(0,80), and slice operates on UTF-16 CODE UNITS. For ASCII, code units, code points and graphemes coincide, so an ASCII-only fixture passes for every plausible implementation — including the grapheme-based characters.take(80) a careful Dart developer reaches for first. The lao_over_80 case is chosen so the two provably differ (80 code units vs 99), and tier0_chat_payload_test.dart asserts the INEQUALITY as well as the equality: a fixture that stopped discriminating would fail the test rather than pass it. FACTORY-RULES' Capability Rule, applied to a one-line transform (B9-AC-21).",
+    "key_order": "expected_body is a STRING, not an object, because key order is part of the claim: {subject, topic, message} in that order at :106. Dart Map literals preserve insertion order and jsonEncode respects it, so asserting the encoded string gates the order for free (B9-AC-23, F0 § 6.2.3)."
+  },
+  "cases": [
+    {
+      "id": "lao_over_80",
+      "kind": "start",
+      "raw": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ",
+      "note": "129 UTF-16 code units of Lao with 14 combining marks in the first 80. THE DISCRIMINATING CASE: substring(0,80) and characters.take(80) reach different distances (80 vs 99 code units), so a grapheme-based port produces a visibly longer subject and the test fails instead of passing vacuously.",
+      "trimmed": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ",
+      "expected_body": "{\"subject\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງກາ\",\"topic\":\"general\",\"message\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ\"}",
+      "expected_subject_code_units": 80
+    },
+    {
+      "id": "lao_boundary_80",
+      "kind": "start",
+      "raw": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍທີ່ເກີດໃໝ່ໃນເດືອນນີ້ໆ",
+      "note": "EXACTLY 80 code units — slice(0,80) is the identity. An off-by-one that truncated at 79 or that used >= instead of > shows up only here.",
+      "trimmed": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍທີ່ເກີດໃໝ່ໃນເດືອນນີ້ໆ",
+      "expected_body": "{\"subject\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍທີ່ເກີດໃໝ່ໃນເດືອນນີ້ໆ\",\"topic\":\"general\",\"message\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍທີ່ເກີດໃໝ່ໃນເດືອນນີ້ໆ\"}",
+      "expected_subject_code_units": 80
+    },
+    {
+      "id": "lao_under_80",
+      "kind": "start",
+      "raw": "ຂ້ອຍຕ້ອງການຊ່ວຍເຫຼືອ",
+      "note": "20 code units — round-trips unchanged.",
+      "trimmed": "ຂ້ອຍຕ້ອງການຊ່ວຍເຫຼືອ",
+      "expected_body": "{\"subject\":\"ຂ້ອຍຕ້ອງການຊ່ວຍເຫຼືອ\",\"topic\":\"general\",\"message\":\"ຂ້ອຍຕ້ອງການຊ່ວຍເຫຼືອ\"}",
+      "expected_subject_code_units": 20
+    },
+    {
+      "id": "ascii_over_80",
+      "kind": "start",
+      "raw": "The quick brown fox jumps over the lazy dog while the lazy dog sleeps on and on forever",
+      "note": "The case that proves NOTHING on its own: for ASCII, code units, code points and graphemes coincide, so every plausible implementation passes it. Kept as a control, and the reason lao_over_80 exists.",
+      "trimmed": "The quick brown fox jumps over the lazy dog while the lazy dog sleeps on and on forever",
+      "expected_body": "{\"subject\":\"The quick brown fox jumps over the lazy dog while the lazy dog sleeps on and on \",\"topic\":\"general\",\"message\":\"The quick brown fox jumps over the lazy dog while the lazy dog sleeps on and on forever\"}",
+      "expected_subject_code_units": 80
+    },
+    {
+      "id": "ascii_exactly_80",
+      "kind": "start",
+      "raw": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "note": "80 ASCII code units — the boundary again, on the alphabet where the boundary is unambiguous.",
+      "trimmed": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expected_body": "{\"subject\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"topic\":\"general\",\"message\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\"}",
+      "expected_subject_code_units": 80
+    },
+    {
+      "id": "lao_padded",
+      "kind": "start",
+      "raw": "   ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ   \n\t",
+      "note": "B9-AC-25: the trim precedes the truncation (:130 then :140). The subject must be computed from the TRIMMED form, so this must produce the same subject as lao_over_80 — not one three characters shorter, and not one starting with spaces.",
+      "trimmed": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ",
+      "expected_body": "{\"subject\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງກາ\",\"topic\":\"general\",\"message\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ\"}",
+      "expected_subject_code_units": 80
+    },
+    {
+      "id": "send_plain",
+      "kind": "send",
+      "raw": "  ຂອບໃຈຫຼາຍໆ  ",
+      "expected_body": "{\"body\":\"ຂອບໃຈຫຼາຍໆ\"}",
+      "note": "POST /messages carries only {body}, and NO subject truncation applies to it — the whole message goes, however long."
+    },
+    {
+      "id": "send_over_80",
+      "kind": "send",
+      "raw": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ",
+      "expected_body": "{\"body\":\"ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບການສະໝັກໃບຢັ້ງຢືນການເກີດສຳລັບລູກຂອງຂ້ອຍ ແລະ ເອກະສານທີ່ຕ້ອງການມີຫຍັງແດ່ ກະລຸນາຊ່ວຍອະທິບາຍໃຫ້ແດ່ເດີ້ ຂອບໃຈຫຼາຍໆ\"}",
+      "note": "129 code units, sent whole. A port that reused the subject transform here would truncate a citizen's message."
+    },
+    {
+      "id": "close_1",
+      "kind": "close",
+      "rating": 1,
+      "expected_body": "{\"rating\":1}",
+      "note": "1-5 from the star row (:472-482). Never 0: 'Not now' dismisses without closing."
+    },
+    {
+      "id": "close_2",
+      "kind": "close",
+      "rating": 2,
+      "expected_body": "{\"rating\":2}",
+      "note": "1-5 from the star row (:472-482). Never 0: 'Not now' dismisses without closing."
+    },
+    {
+      "id": "close_3",
+      "kind": "close",
+      "rating": 3,
+      "expected_body": "{\"rating\":3}",
+      "note": "1-5 from the star row (:472-482). Never 0: 'Not now' dismisses without closing."
+    },
+    {
+      "id": "close_4",
+      "kind": "close",
+      "rating": 4,
+      "expected_body": "{\"rating\":4}",
+      "note": "1-5 from the star row (:472-482). Never 0: 'Not now' dismisses without closing."
+    },
+    {
+      "id": "close_5",
+      "kind": "close",
+      "rating": 5,
+      "expected_body": "{\"rating\":5}",
+      "note": "1-5 from the star row (:472-482). Never 0: 'Not now' dismisses without closing."
+    }
+  ]
+}

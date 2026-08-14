@@ -1,4 +1,4 @@
-# Guard fixtures — the negative control for G-L1 … G-L5
+# Guard fixtures — the negative control for G-L1 … G-L5 and G-L7
 
 specs.md § 6.7.7 / B2-AC-7.
 
@@ -13,7 +13,7 @@ exactly one violation of exactly one guard. `guard_selftest_test.dart` points
 
 1. the guard that owns it reports **exactly** that violation — the count and
    the cited `path:line -> uri`, not merely "non-empty"; and
-2. the other four guards report **nothing** — a guard that fires on the wrong
+2. every **other** guard reports **nothing** — a guard that fires on the wrong
    file is as broken as one that never fires.
 
 | Tree   | Guard | The violation |
@@ -23,6 +23,24 @@ exactly one violation of exactly one guard. `guard_selftest_test.dart` points
 | `g_l3` | G-L3  | `features/a/di/x.dart` imports `../../b/data/y.dart` |
 | `g_l4` | G-L4  | `core/thing.dart` imports `package:flutter/material.dart` |
 | `g_l5` | G-L5  | `presentation/page.dart` imports `../di/auth_injection.dart` and names `authInjection` |
+| `g_l7` | G-L7  | `presentation/shell/app_bar_fixture.dart` imports `../../features/notifications/presentation/bell.dart` |
+
+There is no `g_l6`, and the gap is deliberate — see `layering_rules.dart`'s
+library doc (B9-AC-9).
+
+## `g_l7` is the one that landed before its defect could exist (B9a)
+
+The other five were written after B2 had already put five features under rules
+of unknown efficacy. `g_l7` is different: `ssd.md`:255 forbade
+`lib/presentation/** → features/*/presentation/**` from the day the SSD landed
+and **nothing enforced it** — G-L1 checks only the `data/` half, and G-L3 opens
+with `if (file.feature == null) continue;`, which skips every file under
+`lib/presentation/` by construction.
+
+Measured at `f530d8e`: **zero** such edges in the tree. B9 is the first batch
+whose design could create one, so the guard and this fixture land in B9a,
+*before* the shell composes its first feature widget. A guard written after its
+first consumer is a guard written to match it (specs.md § 6.5, § 8.1).
 
 ## Why these are real, compiling, analyzer-clean Dart
 

@@ -65,6 +65,12 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/request_otp.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:lcc_mobile_app/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
+import 'package:lcc_mobile_app/features/chat/domain/repositories/chat_repository.dart';
+import 'package:lcc_mobile_app/features/chat/domain/usecases/chat_usecases.dart';
+import 'package:lcc_mobile_app/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
 import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/home/data/repositories/home_repository_impl.dart';
@@ -85,6 +91,12 @@ import 'package:lcc_mobile_app/features/news/domain/repositories/news_repository
 import 'package:lcc_mobile_app/features/news/domain/usecases/news_usecases.dart';
 import 'package:lcc_mobile_app/features/news/presentation/bloc/news_bloc.dart';
 import 'package:lcc_mobile_app/features/news/presentation/bloc/news_detail_bloc.dart';
+import 'package:lcc_mobile_app/features/notifications/data/datasources/notification_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/notifications/data/repositories/notification_repository_impl.dart';
+import 'package:lcc_mobile_app/features/notifications/di/notifications_injection.dart';
+import 'package:lcc_mobile_app/features/notifications/domain/repositories/notification_repository.dart';
+import 'package:lcc_mobile_app/features/notifications/domain/usecases/notification_usecases.dart';
+import 'package:lcc_mobile_app/features/notifications/presentation/bloc/notifications_bloc.dart';
 import 'package:lcc_mobile_app/features/service/data/datasources/service_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/service/data/repositories/service_repository_impl.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
@@ -310,6 +322,16 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     remote: HelpRemoteDatasourceImpl(apiClient: apiClient),
   );
   helpInjection.registerSingleton<HelpRepository>(helpRepository);
+  // B9b: production's `HelpUsecaseInjection` registers this as a lazy
+  // singleton (`help_usecase_injection.dart:23`) and this mirror did not,
+  // because nothing resolved it by type — `HelpBloc` is handed a freshly
+  // constructed one below. `ChatUsecaseInjection` re-exports it out of THIS
+  // container (specs.md § 6.6), so the omission is now load-bearing: without
+  // this line the first shell build in any assembled-app test throws a GetIt
+  // lookup naming `helpInjection` and not the cause.
+  helpInjection.registerLazySingleton<GetSupportChannels>(
+    () => GetSupportChannels(repository: helpRepository),
+  );
   helpInjection.registerFactory<HelpBloc>(
     () => HelpBloc(
       getHelpCategories: GetHelpCategories(repository: helpRepository),
@@ -318,6 +340,75 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
       getHelpGuide: GetHelpGuide(repository: helpRepository),
       getSupportChannels: GetSupportChannels(repository: helpRepository),
       sendFaqFeedback: SendFaqFeedback(repository: helpRepository),
+    ),
+  );
+
+  // ── Notification feature (mirrors NotificationsFeatureInjection.init) ─────
+  //
+  // REQUIRED, not optional, and it is why B9a had to touch a file its § 3.1
+  // scope table does not name. B9a composes the bell into the `ShellRoute`
+  // builder (`app_routes.dart`), so **every** assembled-app test now resolves
+  // `notificationsInjection<NotificationsBloc>()` while building the shell —
+  // `app_shell_test.dart`, both `language_toggle` files, `app_flow_test.dart`
+  // and the route tests. Without this block they all fail at the first pump
+  // with a GetIt lookup error that names the container and not the cause.
+  //
+  // Recorded as a required § 3.1 deviation in B9a's hand-back rather than
+  // slipped in: the table lists `test/presentation/shell/**` but not the
+  // harness those tests are built on, which is a gap in the table rather than
+  // a licence.
+  //
+  // `registerFactory`, as production does: the BLoC holds one citizen's unread
+  // count and their own notices, and a surviving instance would carry both
+  // across a sign-out.
+  final NotificationRepository notificationRepository =
+      NotificationRepositoryImpl(
+    remote: NotificationRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  notificationsInjection
+      .registerSingleton<NotificationRepository>(notificationRepository);
+  notificationsInjection.registerFactory<NotificationsBloc>(
+    () => NotificationsBloc(
+      getNotifications:
+          GetNotifications(repository: notificationRepository),
+      getUnreadCount: GetUnreadCount(repository: notificationRepository),
+      markNotificationRead:
+          MarkNotificationRead(repository: notificationRepository),
+      markAllNotificationsRead:
+          MarkAllNotificationsRead(repository: notificationRepository),
+    ),
+  );
+
+  // ── Chat feature (mirrors ChatFeatureInjection.init) ──────────────────────
+  //
+  // REQUIRED for the same reason the notification block above is, and it is why
+  // B9b had to touch a file its § 3.1 scope table does not name. B9b composes
+  // the launcher into the `ShellRoute` builder's `floatingAction` slot, so
+  // **every** assembled-app test now resolves `chatInjection<ChatBloc>()` while
+  // building the shell. Without this block they all fail at the first pump with
+  // a GetIt lookup error that names the container and not the cause.
+  //
+  // Recorded as a required § 3.1 deviation in B9b's hand-back rather than
+  // slipped in — the table lists `test/features/chat/**` but not the harness
+  // those shell tests are built on, which is a gap in the table rather than a
+  // licence.
+  //
+  // `registerFactory`, as production does: the BLoC holds one citizen's
+  // transcript and composer text, and `close()` is what cancels its poll timer.
+  final ChatRepository chatRepository = ChatRepositoryImpl(
+    remote: ChatRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  chatInjection.registerSingleton<ChatRepository>(chatRepository);
+  chatInjection.registerFactory<ChatBloc>(
+    () => ChatBloc(
+      getChatThreads: GetChatThreads(repository: chatRepository),
+      getChatMessages: GetChatMessages(repository: chatRepository),
+      startChatThread: StartChatThread(repository: chatRepository),
+      sendChatMessage: SendChatMessage(repository: chatRepository),
+      markThreadRead: MarkThreadRead(repository: chatRepository),
+      closeChatThread: CloseChatThread(repository: chatRepository),
+      // Out of `helpInjection`, exactly as production's re-export does.
+      getSupportChannels: helpInjection<GetSupportChannels>(),
     ),
   );
 
@@ -427,7 +518,7 @@ void stubContentEndpoints(DioAdapter adapter) {
   ok(ApiEndpoint.helpChannels, const <dynamic>[]);
 }
 
-/// Empties all seven GetIt containers. Without this the second test in a file
+/// Empties all nine GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
 ///
@@ -443,6 +534,8 @@ Future<void> resetHarness() async {
   await homeInjection.reset();
   await newsInjection.reset();
   await helpInjection.reset();
+  await notificationsInjection.reset();
+  await chatInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

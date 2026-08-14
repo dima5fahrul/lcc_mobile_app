@@ -1,11 +1,31 @@
-/// The **implementation** of G-L1 … G-L5 — the layering guards defined in
-/// SSD § 4.7 — as five pure functions over a scanned directory tree.
+/// The **implementation** of G-L1 … G-L5 and G-L7 — the layering guards defined
+/// in SSD § 4.7 — as pure functions over a scanned directory tree.
 ///
-/// `layering_test.dart` is the production run of these five over `lib/`.
+/// `layering_test.dart` is the production run of them over `lib/`.
 /// `guard_selftest_test.dart` (§ 6.7.7, B2-AC-7) is the negative control: it
-/// runs the *same five functions* over the deliberately-violating fixture trees
+/// runs the *same functions* over the deliberately-violating fixture trees
 /// under `fixtures/violations/` and asserts each one reports exactly its
 /// fixture's violation.
+///
+/// ## G-L6 is not here, and its absence is a decision (B9a, B9-AC-9)
+///
+/// `GOR-245-f0-form-kernel/specs.md` § 6.1.3 proposed a **G-L6** worded *"no
+/// file under `lib/features/**` or `lib/core/**` imports `lib/presentation/**`"*.
+/// Measured against this tree at `f530d8e`,
+/// `grep -rn "presentation/{theme,icons,common,shell}/" lib/features lib/core`
+/// returns **170 lines** — every B2 page importing `presentation/theme/`, which
+/// is what that directory is *for* (SSD § 4.4).
+///
+/// `ssd.md`:156-157's *"nothing → presentation"* is a Clean-Architecture
+/// **layer** rule — `data/` and `domain/` must not depend on `presentation/` —
+/// not a ban on a feature page using a shared widget. Read as F0 words it, it
+/// makes `lib/presentation/` unusable by construction and contradicts § 4.4 in
+/// the same document.
+///
+/// So B9a **refuses G-L6 by name** rather than re-wording it into something
+/// else that would then disagree with F0's document. The number is left unused;
+/// a gap in the sequence is cheaper than two specs disagreeing about what
+/// `G-L6` asserts. It goes back to F0 and the SSD as FU-2.
 ///
 /// ## Why the machinery moved out of `layering_test.dart`
 ///
@@ -485,6 +505,62 @@ List<String> glL5Violations(List<DartFile> files) {
       if (whole.hasMatch(file.code)) {
         violations.add('[locator `$locator`] ${file.path}');
       }
+    }
+  }
+
+  return violations;
+}
+
+/// **G-L7** — no file under `lib/presentation/**` imports
+/// `features/*/presentation/**`.
+///
+/// ## The hole this closes, measured
+///
+/// `ssd.md`:255 has said since the SSD landed: *"`presentation/**` may import
+/// `core/**`, `features/*/domain/**`, and other `presentation/**`. It may
+/// **not** import `features/*/data/**` or `features/*/presentation/**`."*
+/// **Nothing enforced the second half.**
+///
+/// - [glL1Violations] scans `isPresentation` files for `data/` targets. It
+///   catches the `data/` clause and never looks at `presentation/`.
+/// - [glL3Violations] opens with `final String? from = file.feature;
+///   if (from == null) continue;`, and [DartFile.feature] is non-null only for
+///   paths beginning `features/`. **Every file under `lib/presentation/` has
+///   `feature == null` and is skipped**, by construction.
+/// - G-L2, G-L4 and G-L5 are scoped elsewhere.
+///
+/// The rule was green at 0 edges purely because no batch had needed one. B9 is
+/// the first batch whose design could break it — a feature BLoC behind a shell
+/// widget is precisely the temptation — so the guard lands in **B9a, before its
+/// first consumer exists** (specs.md § 6.5, § 8.1). A guard written after the
+/// code it constrains is a guard written to match it, which is the vacuity
+/// B2-AC-7 exists to prevent and which `d22cd98`'s own commit message admitted
+/// to.
+///
+/// ## Two scoping choices
+///
+/// **1. `segments.first == 'presentation'`, not [DartFile.isPresentation].**
+/// The latter is true for `features/*/presentation/**` too, and one feature's
+/// widget importing another's is **G-L3's** rule, with its own citation format
+/// (`[a → b] …`). Widening this one to cover it would make two guards report
+/// the same edge and send a reader to whichever fired first.
+///
+/// **2. The target's feature layer must be exactly `presentation`**, rather
+/// than `_targetUnder(target, 'presentation')`. `ssd.md`:255 names
+/// `features/*/presentation/**` — the layer directly under the feature — and
+/// the segment test would also match a hypothetical
+/// `features/x/data/presentation/`, which is a different (and already
+/// G-L1-caught) mistake.
+List<String> glL7Violations(List<DartFile> files) {
+  final List<String> violations = <String>[];
+
+  for (final DartFile file
+      in files.where((DartFile f) => f.segments.first == 'presentation')) {
+    for (final DartImport import in file.localImports) {
+      final String target = import.target!;
+      if (_targetFeature(target) == null) continue;
+      if (_targetFeatureLayer(target) != 'presentation') continue;
+      violations.add(cite(file, import));
     }
   }
 

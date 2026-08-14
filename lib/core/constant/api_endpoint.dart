@@ -140,4 +140,89 @@ class ApiEndpoint {
   /// `anonymous: true`, and B2's only POST (§ 6.5.1, Tier 0 NOT APPLICABLE).
   static String helpFaqFeedback(String id) =>
       '/help/faqs/${Uri.encodeComponent(id)}/feedback';
+
+  // ── Notifications (authenticated) — B9a ────────────────────────────────────
+  //
+  // `endpoints.ts:136-139`'s four live `me.*` notification members. Additive
+  // only (SSD § 6.5, B9-AC-13): nothing above changed, `baseUrl` and the
+  // release HTTPS guard are byte-identical.
+  //
+  // **None carries `anonymous: true`** — they are `me.*` reads and writes, so
+  // they go out with whatever token the interceptor chain attaches, and a
+  // signed-out citizen never issues one (`enabled: isAuthenticated`,
+  // `Layout.tsx:115,119`).
+  //
+  // **`DELETE /me/notifications/{id}` is deliberately absent.**
+  // `endpoints.ts:140` defines `deleteNotification` and
+  // `grep -rn "deleteNotification" lcc-app/src` returns that definition and
+  // nothing else — no component calls it and the bell menu has no delete
+  // affordance (`Layout.tsx:253-281`). Under ADR-0001 an endpoint the shipped
+  // app never calls has an empty oracle in all four fidelity tiers, so it is
+  // out of B9's scope (specs.md § 2.2 Finding D, FU-1). Adding a constant for
+  // it here would be the first half of porting a behaviour the source does not
+  // have.
+
+  /// `endpoints.ts:136` — `me.notifications`. **Paged** (`api.paged`), called
+  /// with `per_page: 8` (`Layout.tsx:117`).
+  static const String meNotifications = '/me/notifications';
+
+  /// `endpoints.ts:137` — `me.unreadCount`. Answers the **object**
+  /// `{"unread": <int>}`, not an array; see `notification_wire.dart`.
+  static const String meNotificationsUnreadCount =
+      '/me/notifications/unread-count';
+
+  /// `endpoints.ts:139` — `me.readAllNotifications`. A POST with **no body**.
+  static const String meNotificationsReadAll = '/me/notifications/read-all';
+
+  /// `endpoints.ts:138` — `me.readNotification(id)`. A POST with **no body**.
+  ///
+  /// A function with the segment percent-encoded, per the convention
+  /// `newsArticle` / `helpArticle` establish above: the id is server-supplied
+  /// rather than route-supplied, so it is unlikely to need encoding — but one
+  /// rule for parameterised paths is cheaper than a documented exception.
+  static String meNotificationRead(String id) =>
+      '/me/notifications/${Uri.encodeComponent(id)}/read';
+
+  // ── Customer-service chat (authenticated) — B9b ────────────────────────────
+  //
+  // `endpoints.ts:155-161`'s six `me.*` chat members, over **four** paths:
+  // `/me/chat/threads` serves both the GET and the create POST (`:155,156`),
+  // and `/me/chat/threads/<id>/messages` serves both the paged GET and the send
+  // POST (`:157,158`). Additive only (SSD § 6.5, B9-AC-13): nothing above
+  // changed, `baseUrl` and the release HTTPS guard are byte-identical.
+  //
+  // **§ 3.1's B9b row says "5 chat paths"; § 5's table enumerates four, and the
+  // four are correct.** Recorded as a spec discrepancy rather than resolved by
+  // inventing a fifth — the same disposition the B2b/B2c comment above takes
+  // for its own "five that lists six".
+  //
+  // **None carries `anonymous: true`.** All six are `/me/*`, so they go out
+  // with whatever token the interceptor chain attaches, and a signed-out
+  // citizen never issues one (`enabled: isAuthenticated`,
+  // `CustomerServiceChat.tsx:56,84`).
+  //
+  // **`/help/channels` is deliberately absent from this block.** The chat reads
+  // it (`:47`) but B2c already landed `helpChannels` above, and B9b consumes it
+  // through `features/help/domain`'s `GetSupportChannels` rather than adding a
+  // second constant and a second wire mapping (specs.md § 6.6, B9-AC-43).
+
+  /// `endpoints.ts:155,156` — `me.chatThreads` (GET, a **plain array**, not
+  /// paged) and `me.startChatThread` (POST `{subject, topic, message}`).
+  static const String meChatThreads = '/me/chat/threads';
+
+  /// `endpoints.ts:157,158` — `me.chatMessages` (GET, **paged**, called with
+  /// `per_page: 100` at `:82`) and `me.sendChatMessage` (POST `{body}`).
+  ///
+  /// A function with the segment percent-encoded, per the convention
+  /// `newsArticle` / `helpArticle` establish above.
+  static String meChatMessages(String threadId) =>
+      '/me/chat/threads/${Uri.encodeComponent(threadId)}/messages';
+
+  /// `endpoints.ts:160` — `me.readChatThread`. A POST with **no body**.
+  static String meChatThreadRead(String threadId) =>
+      '/me/chat/threads/${Uri.encodeComponent(threadId)}/read';
+
+  /// `endpoints.ts:161` — `me.closeChatThread`. A POST with `{rating}`.
+  static String meChatThreadClose(String threadId) =>
+      '/me/chat/threads/${Uri.encodeComponent(threadId)}/close';
 }

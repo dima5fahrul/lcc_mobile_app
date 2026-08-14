@@ -109,6 +109,9 @@ import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
+import '../../features/chat/di/chat_injection.dart';
+import '../../features/chat/presentation/bloc/chat_bloc.dart';
+import '../../features/chat/presentation/widgets/chat_launcher.dart';
 import '../../features/help/di/help_injection.dart';
 import '../../features/help/presentation/bloc/help_bloc.dart';
 import '../../features/help/presentation/pages/help_page.dart';
@@ -121,6 +124,9 @@ import '../../features/news/presentation/bloc/news_bloc.dart';
 import '../../features/news/presentation/bloc/news_detail_bloc.dart';
 import '../../features/news/presentation/pages/news_detail_page.dart';
 import '../../features/news/presentation/pages/news_page.dart';
+import '../../features/notifications/di/notifications_injection.dart';
+import '../../features/notifications/presentation/bloc/notifications_bloc.dart';
+import '../../features/notifications/presentation/widgets/notification_bell.dart';
 import '../../features/service/di/service_injection.dart';
 import '../../features/service/presentation/bloc/service_bloc.dart';
 import '../../features/service/presentation/pages/service_page.dart';
@@ -256,10 +262,80 @@ class AppRoutes {
       // call returns the same instance — and hoisting would make the route
       // table capture a container reading taken before `resetHarness()` runs
       // between two tests.
+      //
+      // ── B9a: the composition seam (specs.md § 6.4) ────────────────────────
+      //
+      // `topBarActions` is where the notification bell is assembled. This
+      // builder is the ONLY place in the tree that names both
+      // `NotificationsBloc` and `NotificationBell`, and it is allowed to
+      // because it is a route builder: CR-1's seam is "route builders and
+      // `main.dart` may resolve from a locator; no widget may", and this file
+      // is not under `lib/presentation/**`.
+      //
+      // The point of doing it here rather than inside `AppTopBar` is that
+      // `ssd.md`:255 forbids `lib/presentation/** -> features/*/presentation/**`
+      // and the bar would need the BLoC *type* to provide it. **G-L7**
+      // (`test/architecture/layering_rules.dart`) fails the build if that edge
+      // ever appears; it is proved to fire against a planted fixture in
+      // `guard_selftest_test.dart`, so it is a guard rather than a comment.
+      //
+      // `create:` and not `.value`: `notificationsInjection` registers
+      // `NotificationsBloc` with `registerFactory`, so each shell build gets a
+      // fresh one and the provider closes it on the way out. Required rather
+      // than incidental — the BLoC holds one citizen's unread count and their
+      // own notices, and a surviving instance would carry both across a
+      // sign-out.
+      //
+      // **No `..add(...)` mount fetch here**, and the asymmetry with `/` and
+      // `/service` below is deliberate. Both of the bell's reads are
+      // `enabled: isAuthenticated` (`Layout.tsx:115,119`), so there is nothing
+      // to fetch until the session resolves; `NotificationBell` dispatches
+      // `NotificationsAuthChanged` from `initState` and from a `SessionBloc`
+      // listener. Dispatching a start event here would either fire a request
+      // for a signed-out citizen or force this builder to read a second BLoC.
+      //
+      // ── B9b: the second consumer of the same seam ────────────────────────
+      //
+      // `floatingAction` is the slot B9a added and left null. The chat launcher
+      // fills it, assembled here for exactly the reasons the bell is: this
+      // builder is the only place in the tree that names both `ChatBloc` and
+      // `ChatLauncher`, and it is allowed to because it is a route builder.
+      // `AppShell` still names neither, so **G-L7 stays green with two
+      // consumers rather than one** — which is what turns B9a's seam from a
+      // signature into a proven mechanism (§ 8.1(2)).
+      //
+      // **`floatingActionButtonLocation` is not set**, and that is the port:
+      // the default `endFloat` is bottom-right above the bottom bar, which is
+      // `fixed bottom-24 right-4` (`CustomerServiceChat.tsx:549`). The
+      // launcher's "main tabs only" rule needs no flag either — a sub-page is
+      // mounted outside this `ShellRoute` and simply never builds it
+      // (`Layout.tsx:385`, specs.md § 6.3, B9-AC-41).
+      //
+      // `create:` and not `.value`: `chatInjection` registers `ChatBloc` with
+      // `registerFactory`, so each shell build gets a fresh one and the
+      // provider **closes** it on the way out. Required rather than incidental
+      // twice over — the BLoC holds one citizen's transcript and composer text,
+      // and `close()` is what cancels the 4,000 ms poll timer (§ 6.9(1)).
+      //
+      // **No `..add(...)` mount fetch**, the same asymmetry the bell has: every
+      // chat read is gated on `isAuthenticated` and on the panel being open
+      // (`:48`, `:56`, `:84`), so there is nothing to fetch until both resolve.
+      // `ChatLauncher` dispatches `ChatAuthChanged` from `initState` and from a
+      // `SessionBloc` listener.
       builder: (BuildContext context, GoRouterState state, Widget child) =>
           AppShell(
         location: state.matchedLocation,
         storage: injection<StorageService>(),
+        topBarActions: <Widget>[
+          BlocProvider<NotificationsBloc>(
+            create: (_) => notificationsInjection<NotificationsBloc>(),
+            child: const NotificationBell(),
+          ),
+        ],
+        floatingAction: BlocProvider<ChatBloc>(
+          create: (_) => chatInjection<ChatBloc>(),
+          child: const ChatLauncher(),
+        ),
         child: child,
       ),
       routes: <RouteBase>[

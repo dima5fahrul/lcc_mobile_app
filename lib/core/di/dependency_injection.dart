@@ -31,9 +31,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../features/auth/di/auth_feature_injection.dart';
+import '../../features/chat/di/chat_feature_injection.dart';
 import '../../features/help/di/help_feature_injection.dart';
 import '../../features/home/di/home_feature_injection.dart';
 import '../../features/news/di/news_feature_injection.dart';
+import '../../features/notifications/di/notifications_feature_injection.dart';
 import '../../features/service/di/service_feature_injection.dart';
 import '../../features/session/di/session_feature_injection.dart';
 import '../../features/session/di/session_injection.dart';
@@ -175,5 +177,46 @@ class DependencyInjection {
     //    feature's registrations, and is satisfied by re-exporting the same
     //    `ApiClient` rather than by ordering against step 3.
     await HelpFeatureInjection.init();
+
+    // 10. Notifications (DI-6, B9a). One line, as the rule requires.
+    //
+    //     Ordering: after step 2 for the shared `ApiClient`. All four of its
+    //     endpoints are authenticated `/me/*` calls — none carries
+    //     `anonymous: true` — so, like Help, it needs the Auth/Refresh
+    //     interceptor chain that lives inside the root client. That is a
+    //     dependency on step 2's *instance*, satisfied by re-exporting the same
+    //     `ApiClient`, not on the session feature's registrations, so no
+    //     ordering against step 3 is required.
+    //
+    //     Appended for the reason step 6 gives: appending is the change that
+    //     cannot break the steps above. Alphabetical among the feature block
+    //     too, which DI-6 asks for and which happens to hold here — B9b's
+    //     `chat` is the one that will have to break it, because its container
+    //     reaches into `helpInjection` for `GetSupportChannels` (§ 6.6).
+    await NotificationsFeatureInjection.init();
+
+    // 11. Chat (DI-6, B9b). One line, as the rule requires — **and it is the
+    //     one line that is deliberately not alphabetical.**
+    //
+    //     Ordering: **after step 9 (Help), and that is a hard requirement, not
+    //     a preference.** `ChatUsecaseInjection` re-exports
+    //     `GetSupportChannels` out of `helpInjection` rather than
+    //     re-implementing `/help/channels` (specs.md § 6.6, B9-AC-43), so this
+    //     container's registrations close over another container's. DI-6's
+    //     "one alphabetical line" would put `chat` before `help` and break it.
+    //     **The alphabetical rule yields here and the deviation is stated at
+    //     the call site**, which is what § 6.6 requires and what steps 3-5
+    //     above already do for their own non-obvious ordering.
+    //
+    //     The registration is lazy, so a wrong order would not fail here — it
+    //     would fail at the first resolution, i.e. the first time a citizen
+    //     taps the launcher. `chat_injection_test.dart` asserts the order
+    //     rather than trusting the comment.
+    //
+    //     Like Help and Notifications, all six of its endpoints are
+    //     authenticated `/me/*` calls, so it needs step 2's *instance* of
+    //     `ApiClient` for the Auth/Refresh interceptor chain — satisfied by
+    //     re-exporting the same client, not by ordering against step 3.
+    await ChatFeatureInjection.init();
   }
 }

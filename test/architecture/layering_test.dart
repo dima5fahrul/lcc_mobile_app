@@ -12,6 +12,11 @@
 /// | G-L3 | no file under `features/A/**` imports `features/B/{data,presentation}/**`, A ≠ B | CFI (§ 4.3) |
 /// | G-L4 | no file under `lib/core/**` imports `package:flutter/{material,widgets}.dart` or `features/*/{data,presentation}/**` | § 4.4, § 4.5 |
 /// | G-L5 | no file under `lib/presentation/**` or `features/*/presentation/**` names `injection` / `authInjection` / `sessionInjection`, or imports a `**/di/**` path | CR-1 (§ 6.4) |
+/// | G-L7 | no file under `lib/presentation/**` imports `features/*/presentation/**` | § 4.4 second half (`ssd.md`:255) |
+///
+/// **G-L6 is deliberately absent and the number is deliberately unused** — see
+/// `layering_rules.dart`'s library doc for the 170 measured lines of today's
+/// tree that F0's wording would fail on (B9-AC-9, FU-2).
 ///
 /// **Why G-L5 exists at all.** CR-1 removed the two global-locator reads that
 /// lived inside widgets (`LanguageToggle`'s `storage ?? injection<...>()` and
@@ -142,6 +147,55 @@ void main() {
           'references inside widgets — and every violation below is one more '
           'widget that cannot be pumped in a test without standing a container '
           'up first.\nOffenders:\n  ${violations.join('\n  ')}',
+    );
+  });
+
+  test('G-L7 — no lib/presentation file imports a feature s presentation/',
+      () {
+    final List<String> violations = glL7Violations(files);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: '`ssd.md`:255 — `lib/presentation/**` may import `core/**`, '
+          '`features/*/domain/**` and other `presentation/**`. It may NOT '
+          "import a feature's `presentation/`. The shell is chrome every route "
+          'depends on; naming a feature widget there welds the whole app to '
+          "that feature's release cycle and makes the shell unpumpable without "
+          "the feature's BLoC in the tree.\n"
+          'The seam is `AppShell`/`AppTopBar`\'s composed-widget parameters '
+          '(specs.md § 6.4): the `ShellRoute` builder in '
+          '`lib/utils/routes/app_routes.dart` assembles '
+          '`BlocProvider<XBloc>(child: XWidget())` and passes it in. That '
+          'builder is not under `lib/presentation/**`, so it is allowed to '
+          'know both — and it is already the sanctioned place to resolve from '
+          'a container (CR-1).\nOffenders:\n  ${violations.join('\n  ')}',
+    );
+  });
+
+  test('G-L7 has something to say about — the scan really reaches '
+      'lib/presentation', () {
+    // The guard above is green over a tree with **zero** such edges, and a
+    // rule that inspects nothing is green for the wrong reason. `setUpAll`'s
+    // "the scan found files" check does not narrow that: it proves `lib/` is
+    // non-empty, not that any file G-L7 filters on survived the filter.
+    //
+    // `guard_selftest_test.dart` is the real control — it observes G-L7 firing
+    // against a planted fixture. This is the cheap companion: it asserts the
+    // production scan actually contains the file class the rule is about, so a
+    // future refactor that moved or renamed `lib/presentation/` would fail
+    // here instead of silently turning G-L7 into a no-op over `lib/`.
+    final Iterable<DartFile> shellFiles = files.where(
+      (DartFile f) => f.segments.first == 'presentation',
+    );
+
+    expect(
+      shellFiles,
+      isNotEmpty,
+      reason: 'G-L7 filters on `segments.first == "presentation"` and the scan '
+          'of `$kLibDir/` produced no such file. Either the directory moved or '
+          'the scanner stopped reaching it; in both cases G-L7 is now vacuous '
+          'over the production tree.',
     );
   });
 }

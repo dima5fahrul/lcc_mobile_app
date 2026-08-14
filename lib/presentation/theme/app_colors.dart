@@ -366,6 +366,153 @@ abstract final class AppColors {
   /// different reasons.
   static const Color idInitialGradientStart = Color(0xFF6366F1);
 
+  // ── B9a additions — the notification bell ──────────────────────────────────
+  //
+  // ## Why this block exists in a file B9a's § 3.1 column does not list
+  //
+  // The same required deviation the B2b block above records, for the same
+  // reason and with the same disposition. B9's § 3.1 table names
+  // `lib/features/notifications/**` and the two shell files; it does not name
+  // this one. But SSD § 10.1 — a binding architecture document, not a batch
+  // spec — makes this directory **the only place in `lib/**` allowed to hold a
+  // raw colour literal**, with one closed grandfather list
+  // (`features/auth/presentation/**`). Measured: `grep -rn 'Color(0x' lib`
+  // outside `presentation/theme/` returns 84 lines and **every one of them is
+  // in that grandfather list**. There is no compliant home for the five values
+  // below other than here, so the alternative to this block is not a tidier
+  // diff — it is `lib/features/notifications/presentation/` becoming the first
+  // non-grandfathered colour literal in the tree.
+  //
+  // B9-AC-48's automatic-FAIL list enumerates `sources/lcc-app/**`,
+  // `flutter-boilerplate/**`, `lib/core/network/**`, `lib/i18n/i18n.dart`,
+  // `assets/{images,fonts,icons}/**`, `android/**`, the baseline PNGs and
+  // F0a's parked paths. This file is in none of them, so this is a recorded
+  // scope deviation to be reviewed, not an automatic failure — and it is
+  // reported as one in the hand-back rather than left for a diff to find.
+  //
+  // Four of the five are `NOTIF_STYLE`'s announcement pair and the error
+  // glyph. The other three `NOTIF_STYLE` pairs are NOT re-declared: their
+  // values already exist above as exact tokens and `notif_style.dart` cites
+  // them, because a fifth name for `#344EAD` is what `categoryAccentFallback`'s
+  // own doc apologises for.
+
+  /// `#6366F1` — `Layout.tsx:67`, the `announcement` row's glyph tint and the
+  /// **fallback for every unrecognised category** (`NOTIF_FALLBACK`, `:70`).
+  ///
+  /// **Inline hex in the source**, so Tier 2 can see it and it is exact.
+  ///
+  /// Numerically equal to [idInitialGradientStart] and to `helpPalette[3]`'s
+  /// accent, and kept separate for the reason [categoryTintFallback] is: three
+  /// unrelated surfaces that would be changed for three different reasons.
+  static const Color notifAccentAnnouncement = Color(0xFF6366F1);
+
+  /// `#E0E7FF` — `Layout.tsx:67`, the tile behind that glyph. Inline hex.
+  /// Numerically equal to `helpPalette[3]`'s background; see
+  /// [notifAccentAnnouncement].
+  static const Color notifTintAnnouncement = Color(0xFFE0E7FF);
+
+  /// Fully transparent — the **absence** of a colour, not a colour.
+  ///
+  /// `MenuAnchor` draws a Material surface of its own around whatever it hosts:
+  /// a background, an elevation shadow and an M3 surface tint. The bell's panel
+  /// draws all three itself (`Layout.tsx:184`'s `bg-white rounded-2xl
+  /// shadow-2xl border`), so the anchor's have to be suppressed or the port
+  /// renders a card inside a card. Suppressing them means handing `MenuStyle`
+  /// three transparent `WidgetStatePropertyAll`s.
+  ///
+  /// It lives here rather than as `Colors.transparent` at the call site for the
+  /// reason [black]'s doc gives: `color_literal_test.dart` enforces B2-AC-11
+  /// over `Colors.<name>` as well as over `Color(0x…)`, and *"B2-AC-11 does not
+  /// carve out Material's palette for being convenient"*. Measured — the guard
+  /// caught exactly this, three times, before the value moved here.
+  static const Color transparent = Color(0x00000000);
+
+  /// `#FF6467` — Tailwind v4 `red-400`, `oklch(70.4% 0.191 22.216)`
+  /// (`lcc-app/node_modules/tailwindcss/theme.css:14`, the version this app
+  /// actually ships). The `AlertCircle` in the bell menu's error branch
+  /// (`Layout.tsx:231`, `text-red-400`).
+  ///
+  /// **Class-derived, so Tier 2 cannot see it** — `derive_tier2.py` greps hex
+  /// out of the web source and a Tailwind class never appears as one
+  /// (`roadmap.md:480-491`). Named here with its provenance and recorded as
+  /// not covered by Tier 2 (B9-AC-29) rather than quietly counted as covered.
+  ///
+  /// Deliberately **not** [dangerGlyph] (`#FB2C36`, v4 `red-500`), which is
+  /// `HomePage`'s notice glyph. One step apart on the same ramp, two different
+  /// classes in two different files; substituting one for the other would be a
+  /// divergence no tier could catch. The OKLCH → sRGB conversion was validated
+  /// by re-deriving `red-500` and getting [dangerGlyph] exactly.
+  static const Color dangerGlyphSoft = Color(0xFFFF6467);
+
+  // ── B9b additions — the customer-service chat ──────────────────────────────
+  //
+  // ## The same required deviation B9a's block above records
+  //
+  // B9's § 3.1 table names `lib/features/chat/**` and the two shell files; it
+  // does not name this one. SSD § 10.1 — a binding architecture document, not a
+  // batch spec — makes this directory **the only place in `lib/**` allowed to
+  // hold a raw colour literal**, and `color_literal_test.dart` enforces it with
+  // a closed grandfather list of ten `features/auth/presentation/**` files that
+  // `lib/features/chat/` is not on and cannot join. So the alternative to this
+  // block is not a tidier diff: it is a **failing green test**, because the
+  // three values below have no compliant home anywhere else.
+  //
+  // B9-AC-48's automatic-FAIL list enumerates `sources/lcc-app/**`,
+  // `flutter-boilerplate/**`, `lib/core/network/**`, `lib/i18n/i18n.dart`,
+  // `assets/{images,fonts,icons}/**`, `android/**`, the baseline PNGs and F0a's
+  // parked paths. This file is in none of them, so this is a recorded scope
+  // deviation to be reviewed, not an automatic failure — and it is reported as
+  // one in the hand-back rather than left for a diff to find.
+  //
+  // **Three, and only three.** Everything else the chat draws is an existing
+  // token, and each was checked by value rather than by name: `#344EAD` is
+  // [primary] (`:207`, `:344`, `:390`, `:550`), `#EEF2FF` is [primarySoft]
+  // (`:286`), `#1F2937` is [gray800] (`:353`, `:397`), `#E5E7EB` is [gray200]
+  // (`:374`, `:415`), and the launcher's `bg-red-500` unread circle (`:555`) is
+  // **[dangerGlyph]** — B9a's own doc records that `#FB2C36` is v4 `red-500`,
+  // and re-deriving it from `oklch(63.7% 0.237 25.331)` reproduces it exactly.
+  // A fourth `red-500` token would be the mistake [categoryAccentFallback]
+  // apologises for.
+
+  /// `#F5F7FF` — the chat panel's body wash. **Inline hex** in the source, at
+  /// `CustomerServiceChat.tsx:283` (`bg-[#F5F7FF]`, the signed-out prompt) and
+  /// `:316` (the transcript scroller), so Tier 2 can see it and it is exact.
+  ///
+  /// Deliberately **not** [surface] (`#F0F2F8`, the app page wash) or
+  /// [moreTileSurface] (`#F8FAFF`). Three near-identical off-whites on three
+  /// different surfaces, and the source really does write three values;
+  /// collapsing them would be a substitution, not a simplification.
+  static const Color chatSurface = Color(0xFFF5F7FF);
+
+  /// `#05DF72` — Tailwind v4 `green-400`, `oklch(79.2% 0.209 151.711)`
+  /// (`lcc-app/node_modules/tailwindcss/theme.css:74`, `tailwindcss@4.1.12`,
+  /// the version this app actually ships). The agent's presence dot on the chat
+  /// header avatar (`:214`, `bg-green-400`).
+  ///
+  /// **Class-derived, so Tier 2 cannot see it** — `derive_tier2.py` greps hex
+  /// out of the web source and a Tailwind class never appears as one
+  /// (`roadmap.md:480-491`). Named here with its provenance and recorded as not
+  /// covered by Tier 2 (B9-AC-29) rather than quietly counted as covered.
+  ///
+  /// Deliberately not [success] (`#15803D`, `green-700`) or
+  /// [categoryAccentFinance] (`#16A34A`, `green-600`): three steps apart on one
+  /// ramp, three different surfaces. The OKLCH → sRGB conversion used here was
+  /// validated by re-deriving `red-500` → [dangerGlyph] and `red-400` →
+  /// [dangerGlyphSoft] and getting both exactly.
+  static const Color presenceOnline = Color(0xFF05DF72);
+
+  /// `rgba(0, 0, 0, 0.07)` — the inbound chat bubble's drop shadow,
+  /// `boxShadow: "0 1px 4px rgba(0,0,0,0.07)"` (`:355`, `:398`).
+  ///
+  /// `0.07 × 255 = 17.85 → 0x12`. Deliberately not [cardShadow] (`0x0D`, i.e.
+  /// 0.05) or [cardShadowMedium] (`0x1A`, 0.10), both of which are already in
+  /// this file and neither of which is this value. Substituting the nearest one
+  /// would be a Tier-2-invisible divergence chosen for tidiness.
+  ///
+  /// An `rgba()` literal is **not** hex, so `derive_tier2.py` cannot see this
+  /// one either; recorded with the two class-derived colours above.
+  static const Color chatBubbleShadow = Color(0x12000000);
+
   // ── Help-centre swatch palette ─────────────────────────────────────────────
 
   /// `HelpCenterPage.tsx:56`'s `PALETTE`, cycled over the help categories.

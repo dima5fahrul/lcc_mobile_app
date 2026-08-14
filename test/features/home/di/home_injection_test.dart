@@ -12,11 +12,13 @@ import 'package:lcc_mobile_app/core/di/dependency_injection.dart';
 import 'package:lcc_mobile_app/core/network/api_client.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
+import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
 import 'package:lcc_mobile_app/features/news/di/news_injection.dart';
+import 'package:lcc_mobile_app/features/notifications/di/notifications_injection.dart';
 import 'package:lcc_mobile_app/features/home/domain/repositories/home_repository.dart';
 import 'package:lcc_mobile_app/features/home/domain/usecases/home_usecases.dart';
 import 'package:lcc_mobile_app/features/home/presentation/bloc/home_bloc.dart';
@@ -35,6 +37,19 @@ void main() {
     // B2c's containers — see `app_test_harness.dart`'s `resetHarness`.
     await newsInjection.reset();
     await helpInjection.reset();
+    // B9a's, and this file's own header predicted it: *"Adding a feature
+    // container without adding its reset here breaks this file first and
+    // loudly, which is the behaviour that caught it."* It did — 30 failures
+    // across three DI test files, every one of them
+    // `Type ApiClient is already registered inside GetIt`.
+    await notificationsInjection.reset();
+    // B9b's, and the prediction held a second time: without this line every
+    // test after the first in this file fails with
+    // `Type ApiClient is already registered inside GetIt`, thrown from
+    // `ChatDatasourceInjection.inject`. B9b's § 3.1 table names
+    // `test/features/chat/**` and not this file; the edit is a recorded scope
+    // deviation, and the alternative is leaving three DI test files red.
+    await chatInjection.reset();
   });
 
   test('DI-6: one line in init() populates the whole feature', () {

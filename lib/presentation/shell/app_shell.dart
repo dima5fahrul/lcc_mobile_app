@@ -43,13 +43,38 @@
 ///
 /// ## Session state
 ///
-/// This widget reads none. The only session-dependent chrome in the React
-/// header is the notification bell, which P0 defers (see `AppTopBar`). The
-/// per-tab affordances that *do* depend on the session — the home sign-in CTA
-/// and the account sign-out button — read it in their own pages via
-/// `BlocSelector`/`BlocProvider.of` against the app-wide `SessionBloc` that
-/// `main.dart` provides above the router. Keeping the shell session-agnostic
-/// means a session transition rebuilds one page, not the whole chrome.
+/// This widget reads none, and B9a did not change that. The only
+/// session-dependent chrome in the React header is the notification bell, and
+/// it is composed in through [topBarActions] as an already-built widget that
+/// reads `SessionBloc` for itself. The per-tab affordances that depend on the
+/// session — the home sign-in CTA, the account sign-out button — do the same in
+/// their own pages, via `BlocSelector`/`BlocProvider.of` against the app-wide
+/// `SessionBloc` that `main.dart` provides above the router. Keeping the shell
+/// session-agnostic means a session transition rebuilds one widget, not the
+/// whole chrome.
+///
+/// ## The two composition slots (B9a, specs.md § 6.4)
+///
+/// [topBarActions] and [floatingAction] are how the shell hosts a widget it
+/// **cannot name**. `ssd.md`:255 forbids `lib/presentation/**` from importing
+/// `features/*/presentation/**`; the `ShellRoute` builder in
+/// `lib/utils/routes/app_routes.dart` is not under `lib/presentation/**`, is
+/// already the sanctioned place to resolve from a container (CR-1), and is
+/// therefore where the `BlocProvider` + feature widget pair is assembled.
+///
+/// **G-L7** (`test/architecture/layering_rules.dart`, landed by B9a and proved
+/// to fire against a planted fixture) is what turns that from a convention into
+/// a build failure.
+///
+/// [floatingAction] was added by B9a and is filled by **B9b**, whose chat
+/// launcher is its only consumer. The slot landed with B9a rather than with its
+/// consumer because the two sub-batches would otherwise both edit this file,
+/// which is the merge conflict § 2.3 splits the batch to avoid — and the split
+/// worked: B9b changed nothing here but this sentence.
+///
+/// Two feature widgets now come through the two slots and this file still names
+/// neither of them, which is what makes G-L7 a proven mechanism rather than a
+/// signature nothing exercises (§ 8.1(2)).
 library;
 
 import 'package:flutter/material.dart';
@@ -64,6 +89,8 @@ class AppShell extends StatelessWidget {
     required this.location,
     required this.child,
     required this.storage,
+    this.topBarActions = const <Widget>[],
+    this.floatingAction,
   });
 
   /// `GoRouterState.matchedLocation` for the page currently in [child].
@@ -80,11 +107,26 @@ class AppShell extends StatelessWidget {
   /// it only forwards what it was handed.
   final StorageService storage;
 
+  /// Forwarded unchanged to `AppTopBar.trailingActions`. B9a supplies the
+  /// notification bell here; empty is a valid shell.
+  final List<Widget> topBarActions;
+
+  /// `Scaffold.floatingActionButton` — B9b's chat launcher.
+  ///
+  /// The launcher's "main tabs only" rule (`Layout.tsx:385`'s
+  /// `{!isSubPage && …}`) needs **no flag and no route list** in Flutter: the
+  /// five main tabs are the `ShellRoute`'s children and every other route is
+  /// mounted outside it, so a sub-page simply never builds this widget. That is
+  /// the same structural argument the bottom bar makes above, and it is why
+  /// specs.md § 6.3 rules that `isSubPage` must not appear anywhere in B9.
+  final Widget? floatingAction;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppTopBar(storage: storage),
+      appBar: AppTopBar(storage: storage, trailingActions: topBarActions),
       body: child,
+      floatingActionButton: floatingAction,
       bottomNavigationBar: AppBottomNav(location: location),
     );
   }

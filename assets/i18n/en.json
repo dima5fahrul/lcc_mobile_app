@@ -284,5 +284,29 @@
     "guidesError": "We could not load the guides.",
     "guideBodyError": "We could not load this guide.",
     "channelsError": "We could not load the support channels."
+  },
+  "chat": {
+    "agentName": "LCC Support",
+    "status": "Online · Replies instantly",
+    "placeholder": "Type your message...",
+    "send": "Send message",
+    "callUs": "Call us",
+    "emailUs": "Email us",
+    "minimize": "Minimize chat",
+    "close": "Close chat",
+    "openChat": "Open support chat",
+    "greeting": "Sabaidi! 👋 Welcome to Lao Citizen Center support. How can I help you today?",
+    "qrBirthCert": "How to apply for Birth Certificate?",
+    "qrTrack": "Track my application",
+    "qrDocuments": "Required documents",
+    "qrHours": "Office hours",
+    "endConversation": "End this conversation",
+    "signInTitle": "Sign in to chat with support",
+    "signInBody": "Your conversation is kept with your account so an officer can follow it up.",
+    "signIn": "Sign in",
+    "tryAgain": "Try again",
+    "ratePrompt": "How did we do?",
+    "rateStarLabel": "{} out of 5",
+    "rateNotNow": "Not now"
   }
 }

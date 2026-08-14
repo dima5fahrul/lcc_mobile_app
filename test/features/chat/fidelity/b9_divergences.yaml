@@ -1,0 +1,217 @@
+# B9b — measured divergences between the Flutter port and `lcc-app` at
+# `62f8a529aaa024a8b35b0af50a8fbd4850a63962`.
+#
+# specs.md § 6.8 requires the first entry below to exist "by name, with both
+# citations", and B9-AC-26 makes reporting Tier 0 equality **without** this
+# record a FAIL. The rest are here for the same reason: a divergence that is
+# recorded is a known cost, and one that is absorbed into a PASS is the failure
+# mode FACTORY-RULES' Capability Rule exists to catch.
+#
+# Most of this file is RECORDED, NOT FIXED, and each entry names who owns the fix
+# and what it would cost. B9B-DIV-7 is the exception: half of it was fixed
+# inside B9b's own scope, and the entry says which half and why.
+
+artefact: b9b-divergences
+batch: "B9b — Chat (roadmap.md § B9)"
+web_commit: 62f8a529aaa024a8b35b0af50a8fbd4850a63962
+recorded_by: mobile-frontend-developer-lead
+recorded_on: "2026-08-14"
+
+divergences:
+  - id: B9B-DIV-1
+    title: A bodyless POST carries a Content-Type header the web's does not
+    severity: low
+    tier_visibility: >-
+      NONE. Tier 0 compares the request BODY, Tier 1 compares text, Tier 2
+      compares colour, Tier 3 compares pixels. No tier in this programme can
+      observe a request header, which is exactly why this is written down.
+    web:
+      citation: "lcc-app/src/app/api/client.ts:234-248"
+      behaviour: >-
+        `const headers = { Accept: "application/json" }`, and
+        `headers["Content-Type"] = "application/json"` is set only inside
+        `else if (options.body !== undefined)`. `POST /me/chat/threads/{id}/read`
+        is `api.post<unknown>(path)` (endpoints.ts:160) with no second argument,
+        so it goes out with no body AND no Content-Type.
+    flutter:
+      citation: "lib/core/network/api_client.dart:257"
+      behaviour: >-
+        `_send` sets `contentType: 'application/json'` unconditionally for every
+        non-form request, so the same POST carries the header.
+    affected_calls:
+      - "POST /me/chat/threads/{id}/read   (B9b)"
+      - "POST /me/notifications/{id}/read  (B9a — recorded there too)"
+      - "POST /me/notifications/read-all   (B9a — recorded there too)"
+    bodies_match: true
+    headers_match: false
+    disposition: >-
+      RECORDED, NOT FIXED. `lib/core/network/**` is behaviour-frozen
+      (SSD § 6.6(c)): additive capability needs architect approval and changed
+      behaviour needs an ADR. Making Dio omit the header conditionally is
+      changed behaviour on the one file every request in the app goes through,
+      to remove a header no observed backend rejects. specs.md § 8.3 lists
+      "a Content-Type or other transport change to lib/core/network/** appears
+      necessary" as a BLOCKED condition, so touching it here would be out of
+      scope twice over.
+    owner: software-architect (an ADR), if it is ever worth fixing
+
+  - id: B9B-DIV-2
+    title: clockTime renders a fixed 24-hour HH:mm where the web reads the host locale
+    severity: low
+    tier_visibility: >-
+      Tier 1 WOULD see it, which is why the fixture pins zone-naive timestamps
+      and the oracle records the expected strings. What no tier can see is the
+      behaviour on a device whose locale is neither of the app's two.
+    web:
+      citation: "lcc-app/src/app/components/CustomerServiceChat.tsx:24"
+      behaviour: >-
+        `d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })`. The
+        empty locale list means the HOST locale, whatever the device is set to —
+        unlike `relativeTime`, which pins `lo-LA` / `en-GB` explicitly at
+        Layout.tsx:73.
+    flutter:
+      citation: "lib/features/chat/presentation/widgets/clock_time.dart"
+      behaviour: >-
+        Zero-padded 24-hour `HH:mm`, unconditionally. That is what BOTH of the
+        app's locales resolve to for that option set — `en-GB` and `lo-LA` are
+        both 24-hour — so the two agree for every citizen the app is built for.
+        A device set to `en-US` would read `02:05 PM` on the web and `14:05`
+        here.
+    disposition: >-
+      RECORDED, NOT FIXED. Reproducing the host-locale read would make the
+      Tier 1 oracle a function of the machine running the test, which is a worse
+      trade than a bounded, stated divergence. `DateFormat.Hm(locale)` was
+      rejected for a separate reason: `intl`'s date symbols are not initialised
+      for `lo` in this app, so it would silently fall back to `en_US`'s pattern
+      for the Lao locale — a locale-dependent format bug hiding behind a
+      locale-aware API.
+    owner: B9b, revisit if a third locale is ever added
+
+  - id: B9B-DIV-3
+    title: A date-ONLY sent_at would be read as UTC on the web and local here
+    severity: informational
+    tier_visibility: NONE — no observed payload reaches this path.
+    web:
+      behaviour: >-
+        ECMAScript parses the date-only form `2026-08-13` as UTC.
+    flutter:
+      behaviour: >-
+        `DateTime.parse('2026-08-13')` is local.
+    disposition: >-
+      RECORDED, NOT FIXED. `types.ts:744` types `sent_at` as a full ISO
+      timestamp and every observed value is one, so nothing reaches this branch.
+      Stated because a reader checking `chatClockTime`'s guard should know which
+      input it does not cover. Date-TIME forms agree in both languages: no zone
+      marker means local on both sides, and an explicit `Z` is honoured on both.
+    owner: nobody — reclassify if the wire format ever changes
+
+  - id: B9B-DIV-4
+    title: The tel:/mailto: header shortcuts render but do not open anything
+    severity: medium
+    tier_visibility: >-
+      NONE. Tiers 1-3 see the button; none of them taps it. The VISIBILITY rule
+      — hidden until the channel is published (:239, :249) — is ported and
+      gated by B9-AC-43; only the action is missing.
+    web:
+      citation: "lcc-app/src/app/components/CustomerServiceChat.tsx:239-258"
+      behaviour: >-
+        `<a href={`tel:${supportPhone.replace(/\\s/g, "")}`}>` and
+        `<a href={`mailto:${supportEmail}`}>`.
+    flutter:
+      citation: "lib/features/chat/presentation/widgets/chat_panel.dart"
+      behaviour: >-
+        The buttons render and hide identically, `chatTelTarget` /
+        `chatMailtoTarget` compute the same strings (asserted, including the
+        whitespace strip), and the tap is a no-op.
+    disposition: >-
+      RECORDED, NOT FIXED. Opening a platform URI needs `url_launcher`, which
+      this app does not declare, and specs.md § 4.3 is categorical: "B9 adds
+      none. Zero." B2c took the same disposition for the same two channel kinds
+      in `support_channel_tile.dart`.
+    worse_than_b2c_and_here_is_why: >-
+      In the help centre the channel value is on screen verbatim, so a citizen
+      can still dial it by hand. In the chat header it is only in the button's
+      tooltip. This is therefore a strictly larger gap than the one B2c
+      accepted, and it is reported as such rather than as an equivalent.
+    owner: >-
+      a later batch whose scope permits a dependency — one `url_launcher` entry
+      plus two launcher calls closes it for both features at once
+
+  - id: B9B-DIV-5
+    title: The transcript's error branch renders no message line
+    severity: low
+    tier_visibility: >-
+      Tier 1, and it is recorded in the oracle's own `not_evaluated` rather than
+      gated as if it were absent.
+    web:
+      citation: "lcc-app/src/app/components/CustomerServiceChat.tsx:328"
+      behaviour: "`<p>{transcript.error.message}</p>` — the backend's own sentence."
+    flutter:
+      behaviour: "The retry control only."
+    disposition: >-
+      RECORDED, NOT FIXED, and the alternatives are both worse.
+      `ChatRepositoryImpl` builds `Failure.message` with `e.toString()`, so
+      rendering it would put `ApiException: ...` in front of a citizen. A fixed
+      bilingual line needs a 23rd `chat` key, where specs.md § 6.12 rules
+      **exactly 22** and B9-AC-46 asserts the count. B9a reached the same
+      disposition for the notification menu's error branch.
+    owner: >-
+      whichever batch is allowed to widen the `chat` namespace, or an
+      envelope-message surface on `Failure`
+
+  - id: B9B-DIV-6
+    title: The typing indicator and the send-button hover are static
+    severity: informational
+    tier_visibility: NONE in any tier B9 can evaluate.
+    web:
+      citation: "CustomerServiceChat.tsx:449-455, :500-508, :478"
+      behaviour: >-
+        Three dots with a staggered `animate-bounce`; chips and the amber star
+        hover use `onMouseEnter`/`onMouseLeave` and `hover:` classes.
+    flutter:
+      behaviour: >-
+        The three dots are static and the hover states are not ported.
+    disposition: >-
+      RECORDED, NOT FIXED. Hover has no mobile equivalent at all. The bounce is
+      ungated in every tier — Tier 1 compares text (the dots contribute none),
+      Tier 2 compares colour (they are `#344EAD` at 60 %, which IS asserted),
+      and Tier 3 has no reference for any open state (§ 6.10). An indefinitely
+      repeating animation additionally makes `pumpAndSettle` time out, which is
+      a real cost paid for a gate that does not exist.
+    owner: nobody unless a Tier 3 reference for the open panel is ever captured
+
+  - id: B9B-DIV-7
+    title: >-
+      Dart's ISO parser accepts legacy/loose formats JS accepts, and rejects
+      some JS accepts — the residue after the rollover guard
+    severity: informational
+    tier_visibility: NONE — no observed payload reaches either branch.
+    found_by: measurement, and it CORRECTED A PREMISE IN specs.md § 6.13
+    the_premise_that_was_wrong: >-
+      § 6.13 frames the whole `clockTime` difficulty as "a Dart `DateTime.parse`
+      on a malformed string THROWS where JS yields NaN", which makes `tryParse`
+      look like the complete answer. Measured, it is not: Dart's parser ROLLS
+      OUT-OF-RANGE COMPONENTS OVER rather than rejecting them, so
+      `2026-02-30T10:00:00Z` becomes March 2nd and `2026-13-45T99:99:99` becomes
+      February 2027 — both of which are `Invalid Date` in ECMAScript and render
+      `""` in the source. A tryParse-only port prints a plausible, WRONG time
+      where the web prints nothing, which is quieter than a crash and harder to
+      notice.
+    fixed_not_recorded: >-
+      This half IS fixed, inside B9b's own scope:
+      `clock_time.dart`'s `_componentsSurvivedParsing` compares the calendar
+      fields written in the string against the ones the parser returned, so the
+      port now renders `""` for both. Asserted in `clock_time_test.dart`,
+      including the 2024-02-29 / 2026-02-29 leap-year pair, which is the sharpest
+      evidence the check reads the parser's output rather than the string.
+    what_remains_open: >-
+      The OTHER direction. ECMAScript falls back to implementation-defined
+      parsing for non-ISO forms, so `new Date("Aug 13 2026")` is a real date in
+      a browser and `DateTime.tryParse` returns null for it — the web would
+      render a time and the port renders `""`. Implementing JS's legacy date
+      parser is plainly out of scope, and `types.ts:744` types `sent_at` as an
+      ISO timestamp, so nothing on the wire reaches it.
+    owner: >-
+      nobody, unless the backend ever sends a non-ISO timestamp — at which point
+      the correct fix is on the wire, not in a formatter
+

@@ -42,8 +42,17 @@ import 'layering_rules.dart';
 
 const String _root = 'test/architecture/fixtures/violations';
 
-/// The five rule functions, by name, so a self-test can assert on "every guard
-/// other than mine". Keyed exactly as the guard IDs in SSD § 4.7.
+/// The rule functions, by name, so a self-test can assert on "every guard other
+/// than mine". Keyed exactly as the guard IDs in SSD § 4.7.
+///
+/// **G-L7 joins the map, not just the file** (B9a, B9-AC-8). Adding a guard
+/// without adding it here would leave the other six unproven against *its*
+/// fixture and it unproven against theirs — which is half the control, and the
+/// half that catches a rule firing on somebody else's defect.
+///
+/// There is no `G-L6`. See `layering_rules.dart`'s library doc: F0's wording
+/// would fail on 170 measured lines of today's tree, so B9a refuses it by name
+/// rather than landing a broken pair (B9-AC-9, FU-2).
 final Map<String, List<String> Function(List<DartFile>)> _guards =
     <String, List<String> Function(List<DartFile>)>{
   'G-L1': glL1Violations,
@@ -51,6 +60,7 @@ final Map<String, List<String> Function(List<DartFile>)> _guards =
   'G-L3': glL3Violations,
   'G-L4': glL4Violations,
   'G-L5': glL5Violations,
+  'G-L7': glL7Violations,
 };
 
 /// Asserts every guard except [owner] reports nothing over [files].
@@ -145,6 +155,60 @@ void main() {
       ],
     );
     _othersStaySilent('G-L5', files);
+  });
+
+  test('G-L7 fires on a lib/presentation file importing a feature s '
+      'presentation/', () {
+    final List<DartFile> files = scanTree('$_root/g_l7');
+
+    // The fixture tree is two files: the offender and the target it reaches
+    // for. Asserted here rather than taken on trust, because a G-L7 that
+    // reported nothing because the scan found nothing would look identical to
+    // a G-L7 that reported nothing because it works.
+    expect(
+      files.map((DartFile f) => f.path).toList(),
+      <String>[
+        'features/notifications/presentation/bell.dart',
+        'presentation/shell/app_bar_fixture.dart',
+      ],
+    );
+
+    expect(
+      glL7Violations(files),
+      <String>[
+        'presentation/shell/app_bar_fixture.dart:20 -> '
+            '../../features/notifications/presentation/bell.dart',
+      ],
+    );
+    _othersStaySilent('G-L7', files);
+  });
+
+  test('G-L7 is not G-L3 wearing a different name', () {
+    // The two rules describe adjacent edges and the distinction is the whole
+    // reason G-L7 had to be written: G-L3 opens with
+    // `if (file.feature == null) continue;`, which skips every file under
+    // `lib/presentation/` by construction (`layering_rules.dart:364`). That is
+    // the hole, and this asserts it is still exactly where G-L7 was aimed —
+    // if a future change taught G-L3 to see this edge, the two would both fire
+    // on it and the citations would disagree about which rule was broken.
+    final List<DartFile> files = scanTree('$_root/g_l7');
+
+    expect(
+      glL3Violations(files),
+      isEmpty,
+      reason: 'G-L3 is expected to be BLIND to this edge. It reporting the '
+          'violation would mean the hole G-L7 was written for has been closed '
+          'somewhere else, and one of the two rules is now redundant.',
+    );
+
+    final DartFile offender = files.firstWhere(
+      (DartFile f) => f.path == 'presentation/shell/app_bar_fixture.dart',
+    );
+    expect(
+      offender.feature,
+      isNull,
+      reason: 'the specific reason G-L3 cannot see it',
+    );
   });
 
   group('the two behaviours the guards are quietly built on', () {
