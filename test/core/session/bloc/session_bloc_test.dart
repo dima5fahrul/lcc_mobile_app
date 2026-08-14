@@ -29,6 +29,7 @@ void main() {
   late StorageService storage;
   late MockGetProfile getProfile;
   late MockSessionRepository repository;
+  late MockUpdateProfile updateProfile;
 
   setUpAll(() {
     registerFallbackValue(NoParams());
@@ -39,12 +40,19 @@ void main() {
     storage = inMemoryStorageService(store);
     getProfile = MockGetProfile();
     repository = MockSessionRepository();
+    updateProfile = MockUpdateProfile();
   });
 
   SessionBloc build() => SessionBloc(
         storage: storage,
         getProfile: getProfile,
         repository: repository,
+        // B8a. Unstubbed here on purpose: none of the tests in this file
+        // dispatches `SessionMirrorLanguage`, so any call to it would be an
+        // unexpected one and `mocktail` would fail loudly rather than quietly
+        // returning null. R-25's own coverage lives in
+        // `test/core/session/bloc/session_language_mirror_test.dart`.
+        updateProfile: updateProfile,
       );
 
   /// The intermediate `loading` emission every profile-loading path produces.

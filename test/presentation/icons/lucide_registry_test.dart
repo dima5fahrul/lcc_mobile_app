@@ -18,7 +18,16 @@ import 'package:lcc_mobile_app/presentation/shell/language_toggle.dart';
 
 /// § 2.2 Finding C: distinct `lucide-react` components imported across B2's
 /// nine source files.
-const int kLucideUnionSize = 86;
+///
+/// **86 → 89 at B8a.** `AccountPage.tsx` imports three glyphs no earlier batch
+/// rendered — `Globe` (the Language row, `:606`), `CreditCard` (Payment
+/// methods, `:639`) and `LogOut` (Sign out, `:723`) — so the union grew by
+/// exactly three and `lucide_registry.g.dart` was regenerated. Verified against
+/// `HEAD` as the only three added; total `assets/icons/**` is 33,009 bytes,
+/// well inside [kIconByteCeiling]. B8's § 3.1 table does not name this file —
+/// a recorded scope deviation, on the same grounds as the DI tearDowns: the
+/// page cannot render its own rows without its own glyphs.
+const int kLucideUnionSize = 89;
 
 /// § 6.3.3's ceiling for `assets/icons/**` in total.
 const int kIconByteCeiling = 120000;
@@ -27,7 +36,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('B2-AC-13 assets resolve through rootBundle', () {
-    test('the registry holds the 86-name union', () {
+    test('the registry holds the 89-name union', () {
       expect(lucideRegistry, hasLength(kLucideUnionSize));
       expect(lucideRegistry.values.toSet(), hasLength(kLucideUnionSize),
           reason: 'two names sharing one asset path would make the byte '

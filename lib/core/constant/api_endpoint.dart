@@ -225,4 +225,183 @@ class ApiEndpoint {
   /// `endpoints.ts:161` — `me.closeChatThread`. A POST with `{rating}`.
   static String meChatThreadClose(String threadId) =>
       '/me/chat/threads/${Uri.encodeComponent(threadId)}/close';
+
+  // ── Account & profile (authenticated) — B8a ────────────────────────────────
+  //
+  // `endpoints.ts:122-123`'s `me.preferences` / `me.savePreferences` and
+  // `:115`'s `me.documents`. Additive only (SSD § 6.5, B8-AC-63): nothing above
+  // changed, `baseUrl` and the release HTTPS guard are byte-identical.
+  //
+  // **`meProfile` (`:58`) and `authChangePassword` (`:54`) already exist** and
+  // are NOT re-declared — specs.md § 2.2 Finding I measured that and it holds.
+  //
+  // **`DELETE /me/account` is deliberately absent, and this is the load-bearing
+  // omission of the batch.** `endpoints.ts:125` defines `me.deactivate` and
+  // `grep -rn "deactivate" lcc-app/src` returns that definition and nothing
+  // else — no component, no route, no button, no confirmation dialog, because
+  // there is no feature. Under ADR-0001 an endpoint the shipped app never calls
+  // has an empty oracle in all four fidelity tiers; adding a constant for it
+  // here would be the first half of porting an **irreversible account
+  // deletion** that exists only in the port, into an application whose APK is
+  // unrecallable under ADR-0002 (specs.md § 6.1, FU-4). Re-adding it is a
+  // product decision against the *web app* first, never an implementer's.
+  //
+  // **`GET /me/documents/{id}` is also absent, and that is a deviation from
+  // § 3.1 rather than an oversight.** § 3.1's B8a row asks for `meDocument(id)`
+  // alongside the two below, but `me.document(id)` (`endpoints.ts:116`) has
+  // exactly one call site in the whole web tree — `DocumentViewer.tsx:45` — and
+  // § 6.6 defers `DocumentViewer` to FU-2. A constant whose only consumer is
+  // deferred is a constant nothing calls, which is the same shape B9a refused
+  // for `deleteNotification`. It lands with FU-2's owner.
+
+  /// `endpoints.ts:122,123` — `me.preferences` (GET) and `me.savePreferences`
+  /// (**PUT**, not PATCH: the body is the whole `CitizenPreferences` object,
+  /// see specs.md § 6.9 leaf 2 and `account_wire.dart`).
+  static const String mePreferences = '/me/preferences';
+
+  /// `endpoints.ts:115` — `me.documents`. A **plain array**, not paged.
+  static const String meDocuments = '/me/documents';
+
+  // ── Reference lists and locations (public, anonymous) — F0b ────────────────
+  //
+  // `endpoints.ts:185-186`'s `catalog.referenceList` and `:215-252`'s three
+  // `locations.*` reads. Additive only (SSD § 6.5, `F0-AC-12`): nothing above
+  // changed, `baseUrl` and the release HTTPS guard are byte-identical.
+  //
+  // **All four carry `anonymous: true` in the source** and are read anonymously
+  // here. That is the security posture the reference layer is scoped to, and
+  // `F0-AC-70` clause (1) re-confirms it: the lookup layer sends no bearer and
+  // logs no PII.
+  //
+  // **`/reference-lists` (the bare index at `endpoints.ts:189`) is deliberately
+  // absent.** It answers `Array<{type, count}>` — a catalogue of which lists
+  // exist — and `grep -rn "referenceTypes" lcc-app/src` returns its definition
+  // and nothing else. Under `ADR-0001` an endpoint the shipped app never calls
+  // has an empty oracle in all four tiers; adding a constant for it is the
+  // first half of porting a behaviour the source does not have. Same
+  // disposition B9a took for `deleteNotification` and B8a for `me.deactivate`.
+  //
+  // **`/locations/districts` and `/locations/villages` (the FLAT forms at
+  // `:236` and `:264`) are also absent, and for a different reason:** they are
+  // real, but `formFields.tsx` uses only the nested forms — `locations.districts`
+  // at `:416` and `villagesInDistrict` at `:439`. The flat forms exist for a
+  // search not scoped to a parent, which no certificate form performs.
+  //
+  // **`/prerequisite-records` is not part of this feature** (`ssd.md` § 11.4).
+  // `betrothal` / `mediation` / the two `*_certificate_ref` keys are the FR-11
+  // record-picker sub-flow that only Marriage and Divorce have — a different
+  // endpoint, a different interaction and a different owner. F3's.
+
+  /// `endpoints.ts:185-186` — `catalog.referenceList(type)`. The `type` is the
+  /// field's `lookup_key` from the form schema.
+  ///
+  /// A function, per the convention `newsArticle` / `helpArticle` establish:
+  /// the segment is a runtime value and is percent-encoded, so a `lookup_key`
+  /// carrying a `/` cannot silently retarget the request.
+  ///
+  /// Answers `{type, count, items}` on the live API; the datasource also
+  /// tolerates a bare array, because `formFields.tsx:237` does (FR-LOOK-2).
+  static String referenceList(String type) =>
+      '/reference-lists/${Uri.encodeComponent(type)}';
+
+  /// `endpoints.ts:216` — `locations.provinces`. A **plain array**, not paged.
+  static const String locationProvinces = '/locations/provinces';
+
+  /// `endpoints.ts:223` — `locations.districts(provinceId)`. A **plain array**.
+  static String locationDistricts(String provinceId) =>
+      '/locations/provinces/${Uri.encodeComponent(provinceId)}/districts';
+
+  /// `endpoints.ts:248` — `locations.villages(districtId)`. **Paged**, and the
+  /// API's own default page size is 200 (`:204`).
+  ///
+  /// The kernel path follows `meta.total_pages` to the end (L-7,
+  /// `endpoints.ts:284-292`) — see `LocationRemoteDatasource.villages`.
+  static String locationVillages(String districtId) =>
+      '/locations/districts/${Uri.encodeComponent(districtId)}/villages';
+
+  // ── The citizen's money (B6a) ──────────────────────────────────────────────
+  //
+  // `endpoints.ts:142-151`'s four `me.*` money members plus `:362`'s public
+  // `payments.methods`. Additive only (SSD § 6.5, `B6-AC-13`): nothing above
+  // changed, `baseUrl` and the release HTTPS guard are byte-identical.
+  //
+  // **Five of the six are authenticated `/me/*` reads and one write; the sixth
+  // is the batch's only `anonymous: true` endpoint.** `/payment-methods` is
+  // marked anonymous at `endpoints.ts:362` and was verified against live
+  // staging for specs.md § 2.2 Finding H with a plain unauthenticated `curl` —
+  // 200, seven rows. That matters beyond tidiness: the top-up sheet's method
+  // list must populate for a citizen whose token has expired, and sending a
+  // stale bearer to a public catalogue triggers a refresh round trip on a
+  // request that never needed one.
+  //
+  // **`/applications` and `/applications/{id}/pay` are deliberately absent.**
+  // They are B6b's two paths (specs.md § 5.1), and B6b is gated on B7a's
+  // `features/application/` read slice. Adding them here would be the first
+  // half of porting the pay path into a batch that § 2.3 rules does not own it.
+
+  /// `endpoints.ts:147` — `me.wallet`. One object (`WalletOverview`), not paged.
+  static const String meWallet = '/me/wallet';
+
+  /// `endpoints.ts:148-149` — `me.walletEntries`. **Paged** (`api.paged`),
+  /// called with `{page: N, per_page: 10}` (`WalletPage.tsx:117`).
+  static const String meWalletEntries = '/me/wallet/entries';
+
+  /// `endpoints.ts:150-151` — `me.topUpWallet`. A POST with the body
+  /// `{amount_lak, method_code}` — **exactly two keys** (`B6-AC-33`).
+  ///
+  /// **This endpoint credits a real staging balance.** specs.md § 4.4 forbids
+  /// executing it against any host, with no "small test amount" exemption. It
+  /// is exercised only against a mock transport (`B6-AC-33`, `B6-AC-34`).
+  static const String meWalletTopUp = '/me/wallet/topup';
+
+  /// `endpoints.ts:142-143` — `me.transactions`. **Paged**, called with
+  /// `{page: 1, per_page: 10}` (`WalletPage.tsx:111`).
+  static const String meTransactions = '/me/transactions';
+
+  /// `endpoints.ts:362` — `payments.methods`. **`anonymous: true`**, and a
+  /// **plain array**, not paged.
+  static const String paymentMethods = '/payment-methods';
+
+  /// `endpoints.ts:144-145` — `me.transaction(receiptNo)`.
+  ///
+  /// **Transport only: no UI, no usecase, no BLoC event, no route**
+  /// (specs.md § 6.4, `B6-AC-15`). `grep -rn "me.transaction\b" lcc-app/src/app`
+  /// finds the definition and no consumer, so the shipped web app never calls
+  /// it — the same measurement that removed `deleteNotification` (B9a) and
+  /// `me.deactivate` (B8a) from their batches.
+  ///
+  /// B6 rules the other way *for the transport layer only*, on three grounds
+  /// § 6.4 states: roadmap § B6 enumerates the endpoint by name, a receipt
+  /// lookup by number has exactly one possible semantic so nothing is being
+  /// invented, and B7 is its likely first consumer. What B9a refused was
+  /// porting *UI* that does not exist; there is none here to refuse.
+  ///
+  /// A function with the segment percent-encoded, per the convention
+  /// `newsArticle` / `helpArticle` establish above.
+  static String meTransaction(String receiptNo) =>
+      '/me/transactions/${Uri.encodeComponent(receiptNo)}';
+
+  // ── Applications, the read half (B7a) ──────────────────────────────────────
+
+  /// `endpoints.ts:321` — `applications.list`. **Paged**, Bearer.
+  ///
+  /// **No trailing slash.** `roadmap.md:378` and B7's dispatch both write
+  /// `/applications/`; the source is
+  /// `api.paged<ApplicationRow>("/applications", …)`. Both forms answer `401`
+  /// unauthenticated, so the difference is not observable from outside — which
+  /// is exactly why it has to be taken from `endpoints.ts` rather than probed
+  /// (specs.md § 5.1).
+  ///
+  /// Two consumers with different parameters: `HistoryPage.tsx:85` (`per_page`
+  /// 10, plus `status`/`search`) and `:103` (`per_page` 1, four count queries),
+  /// and later `WalletPage.tsx:105` (`per_page` 50) — B6b.
+  static const String applications = '/applications';
+
+  /// `endpoints.ts:192` — `catalog.statusCatalogue`. **`anonymous: true`**.
+  ///
+  /// The one B7 endpoint fully exercisable without credentials, and therefore
+  /// the one B7 fixture that is a real recording rather than a declared
+  /// synthetic (specs.md § 6.12). Only `pipeline_order` is read; the nine-entry
+  /// `statuses[]` is written and never consumed on the web (§ 6.9).
+  static const String statusCatalogue = '/status-catalogue';
 }

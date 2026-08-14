@@ -88,16 +88,43 @@ const RESTORE_COMMAND = 'cd projects/lcc-mobile-app/sources/lcc-app && pnpm inst
  * only appears in chrome today is still a name a page renders.
  *
  * Sorted, so the emitted registry has a stable, reviewable order.
+ *
+ * ── B8a: +3 = 89 ────────────────────────────────────────────────────────────
+ *
+ * `AccountPage.tsx:2-21` imports 18 lucide components. Measured against the
+ * 86 above, **three are not bundled**: `CreditCard` (`:16`, the Payment
+ * Methods row), `Globe` (`:5`, the Language row) and `LogOut` (`:8`, the
+ * sign-out button). `Camera` (`:19`) is B8b's and is deliberately NOT added
+ * here — a bundled glyph with no renderer is the shape B9a refused for
+ * `deleteNotification`.
+ *
+ * **`Globe` is NOT `Globe2`.** `Globe2` is already in the list above and is
+ * lucide's alias for `icons/earth.js`; `Globe` is `icons/globe.js`, a
+ * different drawing. Reusing the bundled one because the name looks close is
+ * precisely the invisible fidelity divergence this file's own NAME RESOLUTION
+ * note is about.
+ *
+ * **Recorded scope deviation.** specs.md § 3.1's B8a table does not name
+ * `tool/`, `assets/icons/lucide/` or `lib/presentation/icons/`. The
+ * alternative was rendering three wrong glyphs on a government identity
+ * screen — a divergence no fidelity tier in this project can see (Tier 1 reads
+ * text, Tier 2 reads colour tokens, Tier 3 has no reference for this page at
+ * all, § 2.2 Finding C). The change is additive, generated and deterministic,
+ * the bundle grows from 31,264 B against a 120,000 B ceiling, and neither
+ * resolver scope in `app_icons.dart` changes (still 54 and 12). Reported in
+ * the hand-back rather than left for a diff to find.
  */
 const NAMES = [
   'Accessibility', 'AlertCircle', 'AlertOctagon', 'AlertTriangle', 'ArrowRight',
   'Award', 'Baby', 'BadgeCheck', 'Bell', 'BookOpen', 'Building', 'Building2',
   'Bus', 'Calendar', 'CalendarCheck', 'Car', 'CarFront', 'Check', 'CheckCircle',
   'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ClipboardList', 'Clock',
-  'Coins', 'Download', 'Eye', 'EyeOff', 'FileCheck2', 'FileClock', 'FileText',
-  'Gavel', 'Globe2', 'GraduationCap', 'Hammer', 'HandCoins', 'HandHeart',
+  'Coins', 'CreditCard', 'Download', 'Eye', 'EyeOff', 'FileCheck2',
+  'FileClock', 'FileText',
+  'Gavel', 'Globe', 'Globe2', 'GraduationCap', 'Hammer', 'HandCoins', 'HandHeart',
   'Hash', 'Heart', 'HeartCrack', 'HeartHandshake', 'HeartPulse', 'HelpCircle',
-  'Home', 'IdCard', 'Landmark', 'LayoutGrid', 'LifeBuoy', 'Mail', 'Map',
+  'Home', 'IdCard', 'Landmark', 'LayoutGrid', 'LifeBuoy', 'LogOut', 'Mail',
+  'Map',
   'MapPin', 'MapPinned', 'Megaphone', 'MessageCircle', 'Phone', 'PiggyBank',
   'Plane', 'QrCode', 'Receipt', 'RefreshCw', 'Rocket', 'Route', 'School',
   'ScrollText', 'Search', 'Settings2', 'Share2', 'Shield', 'ShieldCheck',
@@ -106,7 +133,7 @@ const NAMES = [
   'Wallet', 'X', 'Zap',
 ];
 
-const EXPECTED_NAME_COUNT = 86;
+const EXPECTED_NAME_COUNT = 89; // 86 (B2a) + 3 (B8a: CreditCard, Globe, LogOut)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers

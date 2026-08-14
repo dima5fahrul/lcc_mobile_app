@@ -71,4 +71,51 @@ class StorageService {
   /// Reads the UI language code. Defaults to `"lo"` when unset.
   Future<String> getLang() async =>
       (await _storage.read(key: StorageKeys.lang)) ?? 'lo';
+
+  // ── First-run gates (B10 § 6.11) ──────────────────────────────────────────
+  //
+  // Two booleans, `"1"` or absent, mirroring the web's `localStorage` values.
+  //
+  // **The failure mode is ported, not just the happy path.**
+  // `SplashScreens.tsx:35-41` wraps its read in `try/catch` and returns
+  // `false` on any throw — *"private mode / storage blocked — show it, it's
+  // harmless"* — and `:43-49` swallows the write error entirely. Both are
+  // reproduced below, because this is precisely the branch that ships untested
+  // and turns a keychain hiccup into an onboarding loop that a citizen cannot
+  // get out of. `FlutterSecureStorage` throws on a locked or unavailable
+  // keychain, which is the same class of condition as a blocked
+  // `localStorage`.
+  //
+  // A read failure means **not seen** (show the surface — showing it twice is
+  // harmless, hiding it forever is not). A write failure is ignored: the only
+  // consequence is that the surface shows again next launch.
+
+  /// `hasSeenOnboarding()` — `SplashScreens.tsx:35-41`. False on any read
+  /// failure.
+  Future<bool> hasSeenOnboarding() => _readFlag(StorageKeys.onboardingSeen);
+
+  /// `markOnboardingSeen()` — `SplashScreens.tsx:43-49`. Never throws.
+  Future<void> markOnboardingSeen() => _writeFlag(StorageKeys.onboardingSeen);
+
+  /// `localStorage.getItem("lcc_tutorial_seen")` — `HomePage.tsx:212`.
+  Future<bool> hasSeenTutorial() => _readFlag(StorageKeys.tutorialSeen);
+
+  /// `localStorage.setItem("lcc_tutorial_seen", "1")` — `HomePage.tsx:229`.
+  Future<void> markTutorialSeen() => _writeFlag(StorageKeys.tutorialSeen);
+
+  Future<bool> _readFlag(String key) async {
+    try {
+      return (await _storage.read(key: key)) == '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<void> _writeFlag(String key) async {
+    try {
+      await _storage.write(key: key, value: '1');
+    } catch (_) {
+      /* ignore — see the note above */
+    }
+  }
 }

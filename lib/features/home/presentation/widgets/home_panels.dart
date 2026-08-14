@@ -28,6 +28,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../presentation/common/app_button.dart';
 import '../../../../presentation/icons/lucide_icon.dart';
 import '../../../../presentation/theme/app_colors.dart';
 import '../../../../presentation/theme/app_spacing.dart';
@@ -113,30 +114,26 @@ class HomeErrorNotice extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.gap12),
-          // `<Button size="sm" variant="secondary">`. `Button.tsx` is B10's
-          // (§ 6.3.4 pulled `presentation/common/` forward for `GlassIcon`
-          // only), so this is Material's `OutlinedButton` styled to the
-          // source's secondary: white fill, grey hairline, grey-700 label.
-          OutlinedButton(
+          // `<Button size="sm" variant="secondary" onClick={…refetch}>` —
+          // `HomePage.tsx`:331, :471, :635. **These three are the Flutter home
+          // of the source's three retry buttons**, and B10 § 6.5 requires
+          // `AppButton` to ship wired into them rather than as speculative
+          // infrastructure (`B10-AC-43`).
+          //
+          // B2b wrote this as a hand-styled `OutlinedButton` because
+          // `Button.tsx` was B10's to port and did not exist yet. Its comment
+          // said *"white fill, grey hairline, grey-700 label"* — and that was
+          // a **divergence from the source it was describing**: `Button.tsx`'s
+          // `secondary` row (:45) is `{ bg: "#FFFFFF", fg: "#344EAD",
+          // border: "#C7D0EA" }`, i.e. a *primary-blue* label over a
+          // *periwinkle* hairline, not grey over grey. Routing through
+          // `AppButton` corrects both to the measured values; that colour
+          // change is the visible half of this wiring and is stated in the
+          // batch report rather than left for Tier 2 to discover.
+          AppButton(
             onPressed: onRetry,
-            style: OutlinedButton.styleFrom(
-              backgroundColor: AppColors.white,
-              foregroundColor: AppColors.gray700,
-              side: const BorderSide(color: AppColors.gray200),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.gap12,
-                vertical: AppSpacing.gap8,
-              ),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-              ),
-              textStyle: const TextStyle(
-                fontSize: AppTypography.size12,
-                fontWeight: AppTypography.medium,
-              ),
-            ),
+            variant: AppButtonVariant.secondary,
+            size: AppButtonSize.sm,
             child: Text(retryLabel),
           ),
         ],

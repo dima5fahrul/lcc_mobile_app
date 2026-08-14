@@ -34,8 +34,10 @@ import '../../storage/storage_service.dart';
 import '../../usecase/usecase.dart';
 import '../../../features/session/domain/entities/citizen_profile.dart';
 import '../../../features/session/domain/entities/citizen_session.dart';
+import '../../../features/session/domain/entities/profile_update.dart';
 import '../../../features/session/domain/repositories/session_repository.dart';
 import '../../../features/session/domain/usecases/get_profile.dart';
+import '../../../features/session/domain/usecases/update_profile.dart';
 
 part 'session_bloc.freezed.dart';
 
@@ -53,6 +55,17 @@ sealed class SessionEvent with _$SessionEvent {
 
   /// Re-read the profile after an edit (TS `refresh`).
   const factory SessionEvent.refreshProfile() = SessionRefreshProfile;
+
+  /// **R-25** — mirror the chosen language onto the citizen's account so it
+  /// follows them to another device. `PATCH /me/profile {preferred_lang}`,
+  /// ported from `LanguageToggle.tsx:71` (B8a).
+  ///
+  /// Dispatched by `lib/presentation/shell/language_toggle.dart` *after* the
+  /// local switch has already happened. See [SessionBloc] for why this is an
+  /// event on the app-wide session rather than a dependency threaded down
+  /// through `AppShell` → `AppTopBar` → `LanguageToggle`.
+  const factory SessionEvent.mirrorLanguage(String languageCode) =
+      SessionMirrorLanguage;
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -84,15 +97,23 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     required this.storage,
     required this.getProfile,
     required this.repository,
+    required this.updateProfile,
   }) : super(const SessionState()) {
     on<SessionStarted>(_onStarted);
     on<SessionSignIn>(_onSignIn);
     on<SessionSignOut>(_onSignOut);
     on<SessionRefreshProfile>(_onRefreshProfile);
+    on<SessionMirrorLanguage>(_onMirrorLanguage);
   }
 
   final StorageService storage;
   final GetProfile getProfile;
+
+  /// **R-25** — `PATCH /me/profile`. Reached through
+  /// `features/session/domain/usecases/`, which is the single whitelisted
+  /// `core → features` edge (`ssd.md` § 4.5, G-L4) and already the shape
+  /// [getProfile] arrives by.
+  final UpdateProfile updateProfile;
 
   /// Direct repository handle for `logout` (sign-out revokes the refresh
   /// token server-side). Kept separate from [getProfile] so the usecase
@@ -170,6 +191,61 @@ class SessionBloc extends Bloc<SessionEvent, SessionState> {
     }
     emit(state.copyWith(status: SessionStatus.loading));
     await _loadProfile(emit);
+  }
+
+  // ── SessionMirrorLanguage (R-25) ─────────────────────────────────────────
+  /// `LanguageToggle.tsx:69-72`, ported property for property (B8a):
+  ///
+  /// ```tsx
+  /// function switchLanguage() {
+  ///   const next = lang === "en" ? "lo" : "en";
+  ///   toggle();                                    // local first
+  ///   if (isAuthenticated) void me.updateProfile({ preferred_lang: next })
+  ///                              .catch(() => undefined);
+  /// }
+  /// ```
+  ///
+  /// 1. **Local first, always.** The locale change and the `lcc.lang` write
+  ///    have already happened by the time this event is dispatched — the
+  ///    toggle awaits them before adding it. *"The UI must never wait on the
+  ///    network to change language."* B8-AC-19.
+  /// 2. **Only when authenticated.** `if (isAuthenticated)`. The gate is here
+  ///    rather than in the widget because the widget has no session — that is
+  ///    § 6.4's whole design — and because a spy on this use case is what
+  ///    B8-AC-20 asserts zero calls against.
+  /// 3. **Failure is swallowed.** `.catch(() => undefined)` — no toast, no
+  ///    retry, no error state, **no `emit`**. The source explains why: *"the
+  ///    app is already in the right language, and the Account screen can set
+  ///    it again."* Adding error surfacing would be an R-25-class invisible
+  ///    divergence introduced while fixing R-25. B8-AC-21.
+  ///
+  /// The body is `{"preferred_lang": "<next>"}` and **nothing else** —
+  /// B8-AC-16. `ProfileUpdate` has no `phone` field at all, so B8-AC-32 holds
+  /// by construction.
+  ///
+  /// This is R-25's **first** mirror. The second is the Account page's Language
+  /// row, which writes `language` via `PUT /me/preferences` — a different
+  /// endpoint and a different field name (specs.md § 2.2 Finding H). Both ship;
+  /// B8-AC-18 asserts they stay distinct.
+  Future<void> _onMirrorLanguage(
+    SessionMirrorLanguage event,
+    Emitter<SessionState> emit,
+  ) async {
+    if (state.status != SessionStatus.authenticated) return;
+
+    try {
+      // The `Either` is discarded, not folded: a `Left` here must be as silent
+      // as a throw, and branching on it would be the first step towards
+      // surfacing it.
+      await updateProfile(
+        UpdateProfileParams(ProfileUpdate(preferredLang: event.languageCode)),
+      );
+    } catch (_) {
+      // `.catch(() => undefined)`. Deliberately empty, deliberately catching
+      // everything including `ApiException` — which
+      // `SessionRepositoryImpl.updateProfile` rethrows for the benefit of the
+      // *other* caller. A 401 here must not sign the citizen out mid-toggle.
+    }
   }
 
   // ── Shared profile loader (TS `loadProfile` port) ────────────────────────

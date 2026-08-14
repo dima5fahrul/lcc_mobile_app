@@ -154,6 +154,7 @@ class TierAImage extends StatelessWidget {
     required this.asset,
     required this.paintWidth,
     this.fit = BoxFit.cover,
+    this.alignment = Alignment.center,
   });
 
   final TierAAsset asset;
@@ -163,6 +164,23 @@ class TierAImage extends StatelessWidget {
   final double paintWidth;
 
   final BoxFit fit;
+
+  /// CSS `object-position`, added by B10 § 6.9.
+  ///
+  /// **Additive, and the default is the pre-B10 behaviour** —
+  /// [Image.alignment] already defaults to [Alignment.center], so every
+  /// existing call site renders byte-identically. The parameter exists because
+  /// `SplashScreens.tsx` frames the *same* `hero-bg` photograph three
+  /// different ways (`50% 42%`, `22% 55%`, `78% 48%`) to keep three slides
+  /// from looking like one screen repeated, and `object-position` is the only
+  /// thing that differs between them.
+  ///
+  /// It is added here rather than worked around because the alternatives are
+  /// worse: this is the **only** sanctioned way to put a Tier A asset on
+  /// screen (`tier_a_asset_test.dart` fails the build on any other), so a
+  /// splash that could not express the framing would either duplicate the
+  /// decode arithmetic outside the guard or drop the framing silently.
+  final Alignment alignment;
 
   /// The decode width, in device pixels, for [paintWidth] at [devicePixelRatio].
   ///
@@ -189,6 +207,7 @@ class TierAImage extends StatelessWidget {
     return Image.asset(
       asset.path,
       fit: fit,
+      alignment: alignment,
       cacheWidth: cacheWidth,
       cacheHeight: cacheHeight,
       // `excludeFromSemantics`, because every Tier A surface in this port is

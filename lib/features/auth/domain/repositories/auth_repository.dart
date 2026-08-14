@@ -53,4 +53,21 @@ abstract class AuthRepository {
     required String code,
     required String newPassword,
   });
+
+  /// `POST /auth/change-password` — B8a's credential-changing surface.
+  ///
+  /// **Auth's and not account's** (specs.md § 6.3): it is an `/auth/*` path,
+  /// its constant already sits in the auth block at `api_endpoint.dart:54`, and
+  /// credential handling belongs in the feature that carries the security
+  /// review history for credentials. `features/account/` consumes it through
+  /// `features/auth/domain/**`.
+  ///
+  /// Answers `Right(unit)`; the source discards the response body
+  /// (`api.post<unknown>`). A failure carries the **server's own message**,
+  /// which `AccountPage.tsx:284` renders verbatim — recorded as a property of
+  /// the oracle (specs.md § 6.8 item 3), ported rather than sanitised.
+  Future<Either<Failure, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }

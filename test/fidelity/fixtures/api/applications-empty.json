@@ -1,0 +1,15 @@
+{
+  "_provenance": "REAL IN SHAPE, SECOND-HAND IN CONTENT. specs.md § 6.12. The envelope and `meta` key set are the live API's — verified 2026-08-14 against `GET /news?page=1&per_page=1`, the closest anonymous paged endpoint, whose meta is exactly {page, per_page, total, total_pages, has_next, has_prev}. The `total: 0, rows: []` CONTENT is inherited from the dispatch's report that the only test citizen's account is empty and could NOT be independently re-verified: `GET /applications` answers 401 (\"a bearer token is required\") without a bearer, no token is recorded anywhere in this repository (manifest-authenticated.md § Session), and re-running sign-in burns a real SMS OTP behind a randomised captcha (manifest.md F-2). Treat every criterion discharged against this file as evidence about the PORT, not about what staging sends (§ 6.4).",
+  "success": true,
+  "message": "applications retrieved",
+  "data": [],
+  "meta": {
+    "page": 1,
+    "per_page": 10,
+    "total": 0,
+    "total_pages": 1,
+    "has_next": false,
+    "has_prev": false
+  },
+  "request_id": "b7a-applications-empty"
+}

@@ -12,10 +12,15 @@ import 'package:lcc_mobile_app/core/di/dependency_injection.dart';
 import 'package:lcc_mobile_app/core/network/api_client.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
+import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
+import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
+import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
+import 'package:lcc_mobile_app/features/reference/di/reference_injection.dart';
+import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
 import 'package:lcc_mobile_app/features/news/di/news_injection.dart';
 import 'package:lcc_mobile_app/features/notifications/di/notifications_injection.dart';
@@ -50,6 +55,21 @@ void main() {
     // `test/features/chat/**` and not this file; the edit is a recorded scope
     // deviation, and the alternative is leaving three DI test files red.
     await chatInjection.reset();
+    // B8a's — same failure, third occurrence. See
+    // `dependency_injection_test.dart`'s note for the measured counts.
+    await accountInjection.reset();
+    await referenceInjection.reset();
+    // B6a's, sixth occurrence — see `dependency_injection_test.dart`'s
+    // tearDown for the full note. Recorded scope deviation: B6's § 3.1 names
+    // `test/features/wallet/**`, not this file.
+    await walletInjection.reset();
+    // B7a's two — see `dependency_injection_test.dart`'s tearDown for the full
+    // note. `features/application/` is page-less (specs.md § 6.2) and
+    // `features/history/` holds the BLoC, so the scan discovers two containers,
+    // not one. Recorded scope deviation: B7's § 3.1 names
+    // `test/features/{application,history}/**`, not this file.
+    await applicationInjection.reset();
+    await historyInjection.reset();
   });
 
   test('DI-6: one line in init() populates the whole feature', () {

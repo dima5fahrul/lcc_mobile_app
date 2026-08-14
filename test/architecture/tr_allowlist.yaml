@@ -1,0 +1,1289 @@
+# tr_allowlist.yaml — G-L8's shrinking allowlist (B10 § 6.7.4).
+#
+# Every entry is one `.tr()` call in `lib/**` that does NOT pass
+# `context:` and therefore reads `Localization.instance`, a global,
+# registering no `InheritedWidget` dependency. That is D-3.
+#
+# ── THE ONE RULE ─────────────────────────────────────────────────
+#
+# **ADDING AN ENTRY TO MAKE A BUILD PASS IS FORBIDDEN.**
+#
+# This list is a CEILING, not a registry. It exists because B10 could
+# not migrate ~300 pre-existing sites across four concurrently-authored
+# batches without becoming unmergeable (§ 6.7.3), and a guard that
+# failed on all of them would have been switched off within a day
+# (§ 6.7.4). It converts an unbounded backlog into a countable one.
+#
+# If G-L8 fails on your new code, the fix is `.tr(context: context)`.
+# If your widget has no context — a BLoC, a mapper, a `static final` —
+# then the string is being resolved outside the widget tree and that is
+# its own defect (GG-3); raise it, do not list it.
+#
+# Every batch after B10 leaves this file SHORTER than it found it.
+# `tr_allowlist_test.dart` asserts the count never grows.
+#
+# ── HOW ENTRIES MATCH ────────────────────────────────────────────
+#
+# `file` + `key`, as a multiset — N bare calls on the same key in the
+# same file need N entries. `line` is recorded for navigation and is
+# NOT the match key: this tree has concurrent writers, and a
+# line-keyed list goes stale the moment somebody adds a comment above
+# a listed call. See `glL8Violations`' DECLARED DEVIATION note.
+#
+# Regenerate (to SHRINK only): dart run tool/generate_tr_allowlist.dart
+
+entries:
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 212
+    key: "account.profileError"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 243
+    key: "account.retry"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 294
+    key: "account.groupAccount"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 298
+    key: "account.personalInfo"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 299
+    key: "account.personalInfoDesc"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 331
+    key: "account.phoneNumber"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 345
+    key: "account.emailAddress"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 374
+    key: "account.groupSettings"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 378
+    key: "account.notifications"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 379
+    key: "account.notificationsDesc"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 398
+    key: "account.language"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 404
+    key: "account.languageValue"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 418
+    key: "account.paymentMethods"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 419
+    key: "account.paymentMethodsDesc"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 439
+    key: "account.groupSecurity"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 443
+    key: "account.privacySecurity"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 444
+    key: "account.privacySecurityDesc"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 490
+    key: "account.helpSupport"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 491
+    key: "account.helpSupportDesc"
+    batch: "B8"
+  - file: "features/account/presentation/pages/account_page.dart"
+    line: 550
+    key: "account.signOut"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/account_header.dart"
+    line: 146
+    key: "account.uin"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/account_header.dart"
+    line: 336
+    key: "account.verifiedCitizen"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 82
+    key: "account.myDocuments"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 165
+    key: "account.docsError"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 182
+    key: "account.retry"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 203
+    key: "account.docsEmpty"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 312
+    key: "account.notReady"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 353
+    key: "account.validUntil"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 354
+    key: "account.issued"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/documents_card.dart"
+    line: 466
+    key: "labelKey"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 107
+    key: "account.changePassword"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 123
+    key: "account.currentPassword"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 130
+    key: "account.newPassword"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 137
+    key: "account.confirmPassword"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 149
+    key: "<expr>"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 162
+    key: "account.passwordChanged"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/password_form.dart"
+    line: 177
+    key: "account.changePassword"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/preferences_panel.dart"
+    line: 81
+    key: "account.retry"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/preferences_panel.dart"
+    line: 94
+    key: "account.inApp"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/preferences_panel.dart"
+    line: 101
+    key: "account.emailNotif"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/preferences_panel.dart"
+    line: 108
+    key: "account.smsNotif"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/preferences_panel.dart"
+    line: 151
+    key: "account.biometric"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/profile_editor.dart"
+    line: 109
+    key: "account.fullName"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/profile_editor.dart"
+    line: 114
+    key: "account.emailLabel"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/profile_editor.dart"
+    line: 122
+    key: "account.addressLabel"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/profile_editor.dart"
+    line: 150
+    key: "<expr>"
+    batch: "B8"
+  - file: "features/account/presentation/widgets/profile_editor.dart"
+    line: 164
+    key: "common.save"
+    batch: "B8"
+  - file: "features/auth/presentation/pages/auth_page.dart"
+    line: 233
+    key: "auth.brand"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/auth_page.dart"
+    line: 264
+    key: "auth.trustLine"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/auth_page.dart"
+    line: 273
+    key: "auth.trustSub"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 80
+    key: "auth.errLoginIdRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 81
+    key: "auth.errEmailInvalid"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 82
+    key: "auth.errPhoneInvalid"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 90
+    key: "auth.errPasswordRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 94
+    key: "auth.errSecurityRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 96
+    key: "auth.errSecurityIncorrect"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 127
+    key: "auth.errLoginIdRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 128
+    key: "auth.phoneNeeded"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 150
+    key: "auth.errLoginIdRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 151
+    key: "auth.phoneNeeded"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 181
+    key: "auth.welcomeBack"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 190
+    key: "auth.welcomeBackSub"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 198
+    key: "auth.loginIdLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 204
+    key: "auth.loginIdPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 217
+    key: "auth.passwordLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 223
+    key: "auth.passwordPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 237
+    key: "auth.hidePassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 238
+    key: "auth.showPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 245
+    key: "auth.securityCheckLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 272
+    key: "auth.answerPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 287
+    key: "auth.newQuestion"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 300
+    key: "auth.signIn"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 311
+    key: "auth.otpSignIn"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 327
+    key: "auth.forgotPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 336
+    key: "auth.noAccount"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 349
+    key: "auth.noAccount"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/login_form.dart"
+    line: 354
+    key: "auth.register"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 135
+    key: "auth.errOtpIncomplete"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 206
+    key: "auth.otpVerification"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 215
+    key: "auth.otpSentTo"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 230
+    key: "auth.otpResent"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 297
+    key: "common.loading"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 297
+    key: "auth.verifyCode"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 304
+    key: "auth.resendIn"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 317
+    key: "auth.resendOtp"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/otp_form.dart"
+    line: 331
+    key: "auth.back"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 68
+    key: "auth.errFullNameRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 72
+    key: "auth.errPhoneRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 74
+    key: "auth.errPhoneInvalid"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 78
+    key: "auth.errEmailInvalid"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 82
+    key: "auth.errPasswordRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 84
+    key: "auth.errPasswordMin"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 88
+    key: "auth.errConfirmRequired"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 90
+    key: "auth.errPasswordMismatch"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 93
+    key: "auth.errMustAgree"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 149
+    key: "auth.createAccount"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 158
+    key: "auth.createAccountSub"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 166
+    key: "auth.fullNameLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 170
+    key: "auth.fullNamePlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 176
+    key: "auth.phoneLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 181
+    key: "auth.phonePlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 187
+    key: "auth.emailLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 187
+    key: "auth.optional"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 192
+    key: "auth.emailPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 198
+    key: "auth.passwordLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 204
+    key: "auth.registerPasswordPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 218
+    key: "auth.hidePassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 219
+    key: "auth.showPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 226
+    key: "auth.confirmPasswordLabel"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 232
+    key: "auth.confirmPasswordPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 246
+    key: "auth.hidePassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 247
+    key: "auth.showPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 274
+    key: "auth.agreePrefix"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 276
+    key: "auth.termsOfService"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 282
+    key: "auth.and"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 284
+    key: "auth.privacyPolicy"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 290
+    key: "auth.agreeSuffix"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 301
+    key: "auth.createAccount"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 313
+    key: "auth.haveAccount"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/register_form.dart"
+    line: 318
+    key: "auth.login"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 107
+    key: "auth.errOtpIncomplete"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 113
+    key: "auth.errPasswordMin"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 119
+    key: "auth.errPasswordMismatch"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 135
+    key: "auth.resetDone"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 177
+    key: "auth.resetTitle"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 186
+    key: "auth.resetSub"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 251
+    key: "auth.newPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 257
+    key: "auth.registerPasswordPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 270
+    key: "auth.hidePassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 271
+    key: "auth.showPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 288
+    key: "auth.confirmNewPassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 294
+    key: "auth.confirmPasswordPlaceholder"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 316
+    key: "auth.savePassword"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 324
+    key: "auth.resendIn"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 339
+    key: "auth.resendOtp"
+    batch: "P0"
+  - file: "features/auth/presentation/pages/reset_form.dart"
+    line: 353
+    key: "auth.back"
+    batch: "P0"
+  - file: "features/auth/presentation/widgets/password_strength.dart"
+    line: 89
+    key: "labelKey"
+    batch: "P0"
+  - file: "features/chat/presentation/widgets/chat_launcher.dart"
+    line: 124
+    key: "chat.openChat"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 259
+    key: "chat.agentName"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 270
+    key: "chat.status"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 286
+    key: "chat.endConversation"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 295
+    key: "chat.callUs"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 297
+    key: "chat.callUs"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 304
+    key: "chat.emailUs"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 305
+    key: "chat.emailUs"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 313
+    key: "chat.minimize"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 318
+    key: "chat.close"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 450
+    key: "chat.signInTitle"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 460
+    key: "chat.signInBody"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 493
+    key: "chat.signIn"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 553
+    key: "chat.greeting"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 656
+    key: "chat.tryAgain"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 894
+    key: "chat.ratePrompt"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 914
+    key: "chat.rateStarLabel"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 947
+    key: "chat.rateNotNow"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 977
+    key: "key"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 1104
+    key: "chat.placeholder"
+    batch: "B9b"
+  - file: "features/chat/presentation/widgets/chat_panel.dart"
+    line: 1126
+    key: "chat.send"
+    batch: "B9b"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 112
+    key: "help.title"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 113
+    key: "help.subtitle"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 115
+    key: "common.back"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 119
+    key: "help.searchLabel"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 120
+    key: "help.searchPlaceholder"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 121
+    key: "help.clearSearch"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 150
+    key: "help.previousPage"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 151
+    key: "help.nextPage"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 206
+    key: "help.allTopics"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 212
+    key: "help.topicsError"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 213
+    key: "help.retry"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 229
+    key: "help.resultsOne"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 230
+    key: "help.resultsMany"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 259
+    key: "help.faqsError"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 260
+    key: "help.retry"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 272
+    key: "help.noResults"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 282
+    key: "help.noResultsDesc"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 314
+    key: "help.popular"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 315
+    key: "help.relatedService"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 317
+    key: "help.helpfulPrompt"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 318
+    key: "help.feedbackThanks"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 319
+    key: "help.voteYes"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 320
+    key: "help.voteNo"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 339
+    key: "help.guidesTitle"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 356
+    key: "help.guidesError"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 357
+    key: "help.retry"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 362
+    key: "help.guidesEmpty"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 381
+    key: "help.guideBodyError"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 382
+    key: "help.retry"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 408
+    key: "help.stillStuck"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 418
+    key: "help.stillStuckDesc"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 460
+    key: "help.channelsError"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 461
+    key: "help.retry"
+    batch: "B2c"
+  - file: "features/help/presentation/pages/help_page.dart"
+    line: 469
+    key: "help.contactSupport"
+    batch: "B2c"
+  # B7a deleted two `batch: "stub"` entries here — `history.title` (line 25) and
+  # `history.subtitle` (line 26). They covered the 29-line P0-5 `TabPlaceholder`
+  # that B7a replaced; the real page carries `context:` on all 22 of its `.tr()`
+  # sites, so G-L8 needs no cover for this file at all. SHRINK ONLY, by
+  # deletion, which is the remedy `tr_allowlist_test.dart`'s own message names.
+  # Recorded scope deviation: B7's § 3.1 table does not list this file.
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 254
+    key: "home.categoriesTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 255
+    key: "home.categoriesSubtitle"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 294
+    key: "home.summaryError"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 295
+    key: "home.retry"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 372
+    key: "home.whatDoYouNeed"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 383
+    key: "home.whatDoYouNeedSub"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 398
+    key: "home.customize"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 402
+    key: "home.howItWorks"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 460
+    key: "home.servicesError"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 461
+    key: "home.retry"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 476
+    key: "home.noServicesFound"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 477
+    key: "home.servicesEmpty"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 540
+    key: "home.latestUpdates"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 541
+    key: "home.latestUpdatesSub"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 549
+    key: "home.newsViewAll"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 575
+    key: "home.newsError"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 576
+    key: "home.retry"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 580
+    key: "home.newsEmpty"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 597
+    key: "home.faqTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 598
+    key: "home.faqSubtitle"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 606
+    key: "home.faqBrowseAll"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 631
+    key: "home.faqError"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 632
+    key: "home.retry"
+    batch: "B2b"
+  - file: "features/home/presentation/pages/home_page.dart"
+    line: 636
+    key: "home.faqEmpty"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 53
+    key: "home.actionRequiredTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 115
+    key: "home.updateDocument"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 136
+    key: "home.dismissTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 147
+    key: "home.dismissTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 187
+    key: "home.dismissTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 197
+    key: "home.dismissDesc"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 222
+    key: "home.keepIt"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/action_banner.dart"
+    line: 243
+    key: "home.yesDismiss"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/category_slider.dart"
+    line: 326
+    key: "home.seeService"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/home_service_card.dart"
+    line: 214
+    key: "home.applyNow"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/home_service_card.dart"
+    line: 290
+    key: "home.more"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/home_service_card.dart"
+    line: 302
+    key: "home.browseAll"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 162
+    key: "hero.idSignIn"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 258
+    key: "hero.idCardBrand"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 269
+    key: "hero.idCardSub"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 302
+    key: "hero.idVerified"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 408
+    key: "hero.idName"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 436
+    key: "hero.idUin"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 463
+    key: "hero.idHide"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 463
+    key: "hero.idShow"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 476
+    key: "hero.idHide"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 476
+    key: "hero.idShow"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 489
+    key: "hero.idNationality"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 497
+    key: "hero.idNationalityValue"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 534
+    key: "hero.idTapVerify"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 573
+    key: "hero.idVerifyClose"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 578
+    key: "hero.idVerifyClose"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 604
+    key: "hero.idVerifyTitle"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/lao_id_card.dart"
+    line: 614
+    key: "hero.idVerifyDesc"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/news_slider.dart"
+    line: 230
+    key: "home.readMore"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 127
+    key: "home.processingTime"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 138
+    key: "home.requiredDocs"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 151
+    key: "home.serviceFee"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 181
+    key: "home.applyNow"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 229
+    key: "common.close"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/service_detail_sheet.dart"
+    line: 235
+    key: "common.close"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/summary_tiles.dart"
+    line: 66
+    key: "home.activeApplications"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/summary_tiles.dart"
+    line: 72
+    key: "home.readyDocuments"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/summary_tiles.dart"
+    line: 83
+    key: "home.walletBalance"
+    batch: "B2b"
+  - file: "features/home/presentation/widgets/summary_tiles.dart"
+    line: 89
+    key: "home.unreadNotifications"
+    batch: "B2b"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 107
+    key: "news.title"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 108
+    key: "news.backToNews"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 158
+    key: "news.detailError"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 159
+    key: "news.retry"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 181
+    key: "news.empty"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 201
+    key: "news.title"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 202
+    key: "news.backToNews"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 265
+    key: "news.moreNews"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 321
+    key: "news.readMinutes"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 360
+    key: "news.relatedTitle"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 370
+    key: "news.relatedDesc"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 380
+    key: "news.openService"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_detail_page.dart"
+    line: 449
+    key: "news.backToNews"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 75
+    key: "news.title"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 76
+    key: "news.subtitle"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 77
+    key: "news.back"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 103
+    key: "news.previousPage"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 104
+    key: "news.nextPage"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 154
+    key: "news.allCategories"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 161
+    key: "news.categoriesError"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 162
+    key: "news.retry"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 187
+    key: "news.listError"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 188
+    key: "news.retry"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 194
+    key: "news.empty"
+    batch: "B2c"
+  - file: "features/news/presentation/pages/news_page.dart"
+    line: 206
+    key: "news.readMore"
+    batch: "B2c"
+  - file: "features/notifications/presentation/widgets/notification_bell.dart"
+    line: 194
+    key: "layout.notifOpen"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 151
+    key: "layout.notifications"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 166
+    key: "layout.notifMarkAllRead"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 217
+    key: "layout.notifSignInTitle"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 227
+    key: "layout.notifSignInDesc"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 249
+    key: "layout.notifSignIn"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 327
+    key: "layout.notifViewAll"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 355
+    key: "layout.notifEmpty"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 365
+    key: "layout.notifEmptyDesc"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 523
+    key: "layout.notifJustNow"
+    batch: "B9a"
+  - file: "features/notifications/presentation/widgets/notification_menu_sheet.dart"
+    line: 573
+    key: "layout.notifViewAll"
+    batch: "B9a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 85
+    key: "service.categoriesError"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 86
+    key: "service.servicesError"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 87
+    key: "service.errorHint"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 88
+    key: "service.retry"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 89
+    key: "service.noCategories"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 152
+    key: "service.allServices"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 157
+    key: "service.subtitle"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 204
+    key: "service.categories"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 278
+    key: "service.resultsFor"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 313
+    key: "service.emptyTitle"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 314
+    key: "service.emptyDesc"
+    batch: "B2a"
+  - file: "features/service/presentation/pages/service_page.dart"
+    line: 318
+    key: "service.browseOther"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/catalogue_header.dart"
+    line: 148
+    key: "service.allCategories"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/catalogue_header.dart"
+    line: 212
+    key: "service.searchPlaceholder"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/catalogue_header.dart"
+    line: 236
+    key: "service.clear"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/category_card.dart"
+    line: 141
+    key: "service.serviceCount"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/category_card.dart"
+    line: 144
+    key: "service.comingSoon"
+    batch: "B2a"
+  - file: "features/service/presentation/widgets/service_card.dart"
+    line: 215
+    key: "home.applyNow"
+    batch: "B2a"
+  - file: "presentation/shell/language_toggle.dart"
+    line: 206
+    key: "<expr>"
+    batch: "P0"
+  - file: "presentation/shell/tab_placeholder.dart"
+    line: 97
+    key: "common.comingSoon"
+    batch: "P0"

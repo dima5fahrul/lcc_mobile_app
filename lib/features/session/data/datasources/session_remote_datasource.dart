@@ -12,12 +12,21 @@ library;
 
 import '../../../../core/constant/api_endpoint.dart';
 import '../../../../core/network/api_client.dart';
+import '../../domain/entities/profile_update.dart';
 import '../models/auth_tokens_model.dart';
 import '../models/citizen_profile_model.dart';
+import '../models/profile_update_body.dart';
 
 abstract class SessionRemoteDatasource {
   /// `GET /me/profile` — the signed-in citizen's full profile (authenticated).
   Future<CitizenProfileModel> getProfile();
+
+  /// `PATCH /me/profile` — the dirty-field diff (authenticated).
+  ///
+  /// Sits beside the `GET` it shares a path with, per specs.md § 6.3. The body
+  /// is built by [profileUpdateBody], which is the only place that knows the
+  /// snake_case field names.
+  Future<CitizenProfileModel> updateProfile(ProfileUpdate update);
 
   /// `POST /auth/logout` — revoke the refresh token (authenticated).
   Future<void> logout(String refreshToken);
@@ -35,6 +44,15 @@ class SessionRemoteDatasourceImpl implements SessionRemoteDatasource {
   Future<CitizenProfileModel> getProfile() async {
     final data = await apiClient.get<Map<String, dynamic>>(
       ApiEndpoint.meProfile,
+    );
+    return CitizenProfileModel.fromJson(data);
+  }
+
+  @override
+  Future<CitizenProfileModel> updateProfile(ProfileUpdate update) async {
+    final data = await apiClient.patch<Map<String, dynamic>>(
+      ApiEndpoint.meProfile,
+      body: profileUpdateBody(update),
     );
     return CitizenProfileModel.fromJson(data);
   }

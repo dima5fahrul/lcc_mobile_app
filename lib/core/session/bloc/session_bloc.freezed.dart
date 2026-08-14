@@ -61,14 +61,15 @@ extension SessionEventPatterns on SessionEvent {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionStarted value)?  started,TResult Function( SessionSignIn value)?  signIn,TResult Function( SessionSignOut value)?  signOut,TResult Function( SessionRefreshProfile value)?  refreshProfile,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( SessionStarted value)?  started,TResult Function( SessionSignIn value)?  signIn,TResult Function( SessionSignOut value)?  signOut,TResult Function( SessionRefreshProfile value)?  refreshProfile,TResult Function( SessionMirrorLanguage value)?  mirrorLanguage,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case SessionStarted() when started != null:
 return started(_that);case SessionSignIn() when signIn != null:
 return signIn(_that);case SessionSignOut() when signOut != null:
 return signOut(_that);case SessionRefreshProfile() when refreshProfile != null:
-return refreshProfile(_that);case _:
+return refreshProfile(_that);case SessionMirrorLanguage() when mirrorLanguage != null:
+return mirrorLanguage(_that);case _:
   return orElse();
 
 }
@@ -86,14 +87,15 @@ return refreshProfile(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionStarted value)  started,required TResult Function( SessionSignIn value)  signIn,required TResult Function( SessionSignOut value)  signOut,required TResult Function( SessionRefreshProfile value)  refreshProfile,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( SessionStarted value)  started,required TResult Function( SessionSignIn value)  signIn,required TResult Function( SessionSignOut value)  signOut,required TResult Function( SessionRefreshProfile value)  refreshProfile,required TResult Function( SessionMirrorLanguage value)  mirrorLanguage,}){
 final _that = this;
 switch (_that) {
 case SessionStarted():
 return started(_that);case SessionSignIn():
 return signIn(_that);case SessionSignOut():
 return signOut(_that);case SessionRefreshProfile():
-return refreshProfile(_that);}
+return refreshProfile(_that);case SessionMirrorLanguage():
+return mirrorLanguage(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -107,14 +109,15 @@ return refreshProfile(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionStarted value)?  started,TResult? Function( SessionSignIn value)?  signIn,TResult? Function( SessionSignOut value)?  signOut,TResult? Function( SessionRefreshProfile value)?  refreshProfile,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( SessionStarted value)?  started,TResult? Function( SessionSignIn value)?  signIn,TResult? Function( SessionSignOut value)?  signOut,TResult? Function( SessionRefreshProfile value)?  refreshProfile,TResult? Function( SessionMirrorLanguage value)?  mirrorLanguage,}){
 final _that = this;
 switch (_that) {
 case SessionStarted() when started != null:
 return started(_that);case SessionSignIn() when signIn != null:
 return signIn(_that);case SessionSignOut() when signOut != null:
 return signOut(_that);case SessionRefreshProfile() when refreshProfile != null:
-return refreshProfile(_that);case _:
+return refreshProfile(_that);case SessionMirrorLanguage() when mirrorLanguage != null:
+return mirrorLanguage(_that);case _:
   return null;
 
 }
@@ -131,13 +134,14 @@ return refreshProfile(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( CitizenSession session)?  signIn,TResult Function()?  signOut,TResult Function()?  refreshProfile,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  started,TResult Function( CitizenSession session)?  signIn,TResult Function()?  signOut,TResult Function()?  refreshProfile,TResult Function( String languageCode)?  mirrorLanguage,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case SessionStarted() when started != null:
 return started();case SessionSignIn() when signIn != null:
 return signIn(_that.session);case SessionSignOut() when signOut != null:
 return signOut();case SessionRefreshProfile() when refreshProfile != null:
-return refreshProfile();case _:
+return refreshProfile();case SessionMirrorLanguage() when mirrorLanguage != null:
+return mirrorLanguage(_that.languageCode);case _:
   return orElse();
 
 }
@@ -155,13 +159,14 @@ return refreshProfile();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( CitizenSession session)  signIn,required TResult Function()  signOut,required TResult Function()  refreshProfile,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  started,required TResult Function( CitizenSession session)  signIn,required TResult Function()  signOut,required TResult Function()  refreshProfile,required TResult Function( String languageCode)  mirrorLanguage,}) {final _that = this;
 switch (_that) {
 case SessionStarted():
 return started();case SessionSignIn():
 return signIn(_that.session);case SessionSignOut():
 return signOut();case SessionRefreshProfile():
-return refreshProfile();}
+return refreshProfile();case SessionMirrorLanguage():
+return mirrorLanguage(_that.languageCode);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -175,13 +180,14 @@ return refreshProfile();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( CitizenSession session)?  signIn,TResult? Function()?  signOut,TResult? Function()?  refreshProfile,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  started,TResult? Function( CitizenSession session)?  signIn,TResult? Function()?  signOut,TResult? Function()?  refreshProfile,TResult? Function( String languageCode)?  mirrorLanguage,}) {final _that = this;
 switch (_that) {
 case SessionStarted() when started != null:
 return started();case SessionSignIn() when signIn != null:
 return signIn(_that.session);case SessionSignOut() when signOut != null:
 return signOut();case SessionRefreshProfile() when refreshProfile != null:
-return refreshProfile();case _:
+return refreshProfile();case SessionMirrorLanguage() when mirrorLanguage != null:
+return mirrorLanguage(_that.languageCode);case _:
   return null;
 
 }
@@ -383,6 +389,78 @@ String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
 
 
 
+
+/// @nodoc
+
+
+class SessionMirrorLanguage with DiagnosticableTreeMixin implements SessionEvent {
+  const SessionMirrorLanguage(this.languageCode);
+  
+
+ final  String languageCode;
+
+/// Create a copy of SessionEvent
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$SessionMirrorLanguageCopyWith<SessionMirrorLanguage> get copyWith => _$SessionMirrorLanguageCopyWithImpl<SessionMirrorLanguage>(this, _$identity);
+
+
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'SessionEvent.mirrorLanguage'))
+    ..add(DiagnosticsProperty('languageCode', languageCode));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SessionMirrorLanguage&&(identical(other.languageCode, languageCode) || other.languageCode == languageCode));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,languageCode);
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'SessionEvent.mirrorLanguage(languageCode: $languageCode)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $SessionMirrorLanguageCopyWith<$Res> implements $SessionEventCopyWith<$Res> {
+  factory $SessionMirrorLanguageCopyWith(SessionMirrorLanguage value, $Res Function(SessionMirrorLanguage) _then) = _$SessionMirrorLanguageCopyWithImpl;
+@useResult
+$Res call({
+ String languageCode
+});
+
+
+
+
+}
+/// @nodoc
+class _$SessionMirrorLanguageCopyWithImpl<$Res>
+    implements $SessionMirrorLanguageCopyWith<$Res> {
+  _$SessionMirrorLanguageCopyWithImpl(this._self, this._then);
+
+  final SessionMirrorLanguage _self;
+  final $Res Function(SessionMirrorLanguage) _then;
+
+/// Create a copy of SessionEvent
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? languageCode = null,}) {
+  return _then(SessionMirrorLanguage(
+null == languageCode ? _self.languageCode : languageCode // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$SessionState implements DiagnosticableTreeMixin {

@@ -1,0 +1,74 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/wallet",
+    "status": 200,
+    "captured_at": "2026-08-14T22:47:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). No recording exists and none can be made: the only available test citizen is EMPTY (`balance_lak 0`, `recent_entries []`, `entry_count 0`, measured 2026-08-14), and § 4.4 forbids the writes — `POST /me/wallet/topup` above all — that would populate it. A populated overview is therefore unobtainable without violating the money-path prohibition, which is a constraint to record, not a problem to solve.",
+    "credential": "none — no citizen token was obtained or seeded (§ 4.4; security-review.md item 6)",
+    "field_discipline": "Shaped against `types.ts:542-548` (`Wallet`) and `:564-571` (`WalletOverview`) only. `settlement` and `sort_order` are deliberately ABSENT — § 6.14(3) forbids a synthetic fixture inventing a field that `types.ts` does not justify; they appear only in the real `payment-methods.json` recording because the server sends them there.",
+    "synthetic_values": "`account_no` is an obviously-synthetic all-zero-prefixed string and the ids are the reserved `0000…` UUID shape. No real account number, receipt number, UIN or name appears (§ 7.9 item 4/5)."
+  },
+  "data": {
+    "wallet": {
+      "id": "00000000-0000-4000-8000-00000000w001",
+      "account_no": "LCC-0000-0000-0001",
+      "balance_lak": 1250000,
+      "currency": "LAK",
+      "status": "active"
+    },
+    "recent_entries": [
+      {
+        "id": "00000000-0000-4000-8000-00000000e001",
+        "direction": "credit",
+        "kind": "topup",
+        "amount_lak": 500000,
+        "balance_after_lak": 1250000,
+        "description": {
+          "en": "Top-up via LCC Wallet",
+          "lo": "ຕື່ມເງິນຜ່ານ ກະເປົາເງິນ LCC"
+        },
+        "reference_no": "TOPUP-TEST-0001",
+        "method_code": "wallet",
+        "status": "completed",
+        "date": "2026-08-12",
+        "occurred_at": "2026-08-12T03:15:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000e002",
+        "direction": "debit",
+        "kind": "payment",
+        "amount_lak": 150000,
+        "balance_after_lak": 750000,
+        "description": {
+          "en": "Residence certificate fee",
+          "lo": "ຄ່າທຳນຽມໃບຢັ້ງຢືນທີ່ຢູ່"
+        },
+        "reference_no": "PAY-TEST-0002",
+        "method_code": "bcel-one",
+        "status": "completed",
+        "date": "2026-08-10",
+        "occurred_at": "2026-08-10T08:40:00.000Z"
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000e003",
+        "direction": "credit",
+        "kind": "refund",
+        "amount_lak": 150000,
+        "balance_after_lak": 900000,
+        "description": {
+          "en": "Refund — cancelled request",
+          "lo": "ຄືນເງິນ — ຄຳຮ້ອງຖືກຍົກເລີກ"
+        },
+        "reference_no": null,
+        "method_code": null,
+        "status": "completed",
+        "date": "2026-08-08",
+        "occurred_at": "2026-08-08T01:05:00.000Z"
+      }
+    ],
+    "entry_count": 3,
+    "can_top_up": true,
+    "min_top_up_lak": 10000,
+    "max_top_up_lak": 50000000
+  }
+}

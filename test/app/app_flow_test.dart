@@ -270,12 +270,33 @@ void main() {
     await goTo(tester, AppNameRoutes.account);
     expect(find.byType(AccountPage), findsOneWidget);
 
+    // **`ensureVisible` is B8a's, and it is not cosmetic.** At P0 `/account`
+    // was a 53-line stub and Sign Out sat near the top of the viewport, so a
+    // bare `tap` hit it. B8a's page is the real one — header, My Documents,
+    // and three settings groups above the button — so the button is below the
+    // fold inside the page's `SingleChildScrollView`. `tap` on an off-screen
+    // widget does not throw: it warps to a coordinate that hit-tests something
+    // else, the sign-out never fires, and the failure surfaces as
+    // `Expected: unauthenticated / Actual: authenticated` two lines down,
+    // which reads as a broken sign-out rather than a missed tap.
+    await tester.ensureVisible(find.text('Sign Out'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sign Out'));
     await tester.pumpAndSettle();
 
     expect(harness.sessionBloc.state.status, SessionStatus.unauthenticated);
     expect(harness.sessionBloc.state.profile, isNull);
-    expect(harness.store, isEmpty, reason: 'both tokens cleared');
+    // **B10 narrowed this from "the store is empty" to "no token remains".**
+    // `clearTokens()` deletes the two token keys and nothing else, which is
+    // correct: a sign-out must not forget that the citizen has already seen
+    // the onboarding splash. The harness now seeds `lcc.onboarding_seen` and
+    // `lcc.tutorial_seen` the way `e2e/smoke.mjs`:91-96 seeds their
+    // `localStorage` twins, so `isEmpty` was asserting a property sign-out
+    // never had — and would have failed the day any batch persisted anything.
+    expect(harness.store[StorageKeys.accessToken], isNull,
+        reason: 'access token cleared');
+    expect(harness.store[StorageKeys.refreshToken], isNull,
+        reason: 'refresh token cleared');
     // Nothing in AccountPage navigates by hand: the router's refreshListenable
     // re-ran `redirect`, found /account protected and the citizen signed out.
     expect(locationOf(tester), '/signin?from=%2Faccount');
@@ -303,12 +324,16 @@ void main() {
     await pumpAssembledApp(tester, harness);
     await goTo(tester, AppNameRoutes.account);
 
+    // See test 5 for why this scroll is required at B8a.
+    await tester.ensureVisible(find.text('Sign Out'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sign Out'));
     await tester.pumpAndSettle();
 
     expect(harness.sessionBloc.state.status, SessionStatus.unauthenticated,
         reason: 'a failed revoke must never trap the citizen in the session');
-    expect(harness.store, isEmpty);
+    expect(harness.store[StorageKeys.accessToken], isNull);
+    expect(harness.store[StorageKeys.refreshToken], isNull);
   });
 
   // ── Cross-cutting ─────────────────────────────────────────────────────────

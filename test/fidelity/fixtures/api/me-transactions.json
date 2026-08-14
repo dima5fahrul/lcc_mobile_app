@@ -1,0 +1,128 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/transactions?page=1&per_page=10",
+    "status": 200,
+    "captured_at": "2026-08-14T22:47:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). No recording exists and none can be made: the only available test citizen has no paid transactions (`applications total 0`, `balance_lak 0`, measured 2026-08-14), and § 4.4 forbids `POST /applications/:id/pay` and `POST /applications/` against ANY host — manufacturing a case so there is something to pay for is the specific loophole that rule exists to close.",
+    "credential": "none — no citizen token was obtained or seeded (§ 4.4; security-review.md item 6)",
+    "field_discipline": "Rows shaped against `types.ts:524-540` (`Transaction`) only. `service_name` and `method_label` are `Bilingual`; `note` is a plain `String` per § 5.2 ruling 1 (Finding J) — a row here parsed as `Bilingual` would throw, so this fixture is also what proves that ruling was implemented rather than asserted.",
+    "synthetic_values": "Receipt numbers carry an explicit `-TEST-` infix and the payer is the reserved `Test Citizen`; no real receipt number, account number, UIN or name appears (§ 7.9 item 4/5)."
+  },
+  "data": [
+    {
+      "id": "00000000-0000-4000-8000-00000000t001",
+      "receipt_no": "RCPT-TEST-0001",
+      "application_id": "00000000-0000-4000-8000-00000000a001",
+      "reference_no": "PAY-TEST-0002",
+      "payer_name": "Test Citizen",
+      "service_code": "residence-certificate",
+      "service_name": {
+        "en": "Residence certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່"
+      },
+      "kind": "payment",
+      "method_code": "bcel-one",
+      "method_label": {
+        "en": "BCEL One",
+        "lo": "ບີຊີອີແອວ ວັນ"
+      },
+      "amount_lak": 150000,
+      "status": "paid",
+      "paid_at": "2026-08-10T08:40:00.000Z",
+      "date": "2026-08-10",
+      "note": "Settled next business day."
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000t002",
+      "receipt_no": "RCPT-TEST-0002",
+      "application_id": "00000000-0000-4000-8000-00000000a002",
+      "reference_no": "PAY-TEST-0004",
+      "payer_name": "Test Citizen",
+      "service_code": "birth-certificate",
+      "service_name": {
+        "en": "Birth certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "kind": "payment",
+      "method_code": "laoqr",
+      "method_label": {
+        "en": "LaoQR",
+        "lo": "ລາວ ຄິວອາ"
+      },
+      "amount_lak": 20000,
+      "status": "paid",
+      "paid_at": "2026-08-05T09:20:00.000Z",
+      "date": "2026-08-05",
+      "note": "Interoperable QR accepted by all local banks."
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000t003",
+      "receipt_no": "RCPT-TEST-0003",
+      "application_id": null,
+      "reference_no": null,
+      "payer_name": "Test Citizen",
+      "service_code": "wallet-topup",
+      "service_name": null,
+      "kind": "topup",
+      "method_code": "wallet",
+      "method_label": null,
+      "amount_lak": 500000,
+      "status": "paid",
+      "paid_at": "2026-08-12T03:15:00.000Z",
+      "date": "2026-08-12",
+      "note": null
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000t004",
+      "receipt_no": "RCPT-TEST-0004",
+      "application_id": "00000000-0000-4000-8000-00000000a004",
+      "reference_no": "FEE-TEST-0005",
+      "payer_name": "Test Citizen",
+      "service_code": "marriage-certificate",
+      "service_name": {
+        "en": "Marriage certificate",
+        "lo": "ໃບຢັ້ງຢືນການແຕ່ງງານ"
+      },
+      "kind": "payment",
+      "method_code": "bcel-one",
+      "method_label": {
+        "en": "BCEL One",
+        "lo": "ບີຊີອີແອວ ວັນ"
+      },
+      "amount_lak": 2400,
+      "status": "pending",
+      "paid_at": null,
+      "date": "2026-08-04",
+      "note": "Awaiting settlement."
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000t005",
+      "receipt_no": "RCPT-TEST-0005",
+      "application_id": "00000000-0000-4000-8000-00000000a005",
+      "reference_no": null,
+      "payer_name": "Test Citizen",
+      "service_code": "death-certificate",
+      "service_name": {
+        "en": "Death certificate",
+        "lo": "ໃບຢັ້ງຢືນການເສຍຊີວິດ"
+      },
+      "kind": "payment",
+      "method_code": "cash",
+      "method_label": {
+        "en": "Cash at office",
+        "lo": "ເງິນສົດຢູ່ຫ້ອງການ"
+      },
+      "amount_lak": 30000,
+      "status": "refunded",
+      "paid_at": "2026-08-01T04:00:00.000Z",
+      "date": "2026-08-01",
+      "note": "Receipt issued at the counter; banked daily."
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 10,
+    "total": 5,
+    "total_pages": 1
+  }
+}

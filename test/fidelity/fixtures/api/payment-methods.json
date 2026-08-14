@@ -2,19 +2,124 @@
   "_capture": {
     "endpoint": "/api/v1/payment-methods",
     "status": 200,
-    "captured_at": "2026-08-13T19:00:00.000Z",
-    "provenance": "synthetic — no recording of this endpoint exists in the baseline and this programme has no account that could make one (manifest-authenticated.md). The values are the ones the tier0 fixture matrix selects from, so a mis-driven select cannot silently resolve to a default.",
-    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+    "captured_at": "2026-08-14T22:47:00.000Z",
+    "provenance": "recorded — live staging, unauthenticated GET https://api.staging.linkit360.la/api/v1/payment-methods, 2026-08-14T22:47:00Z. Full 7-row, 11-field body stored verbatim. This is the ONE live call GOR-245 specs.md § 4.4 permits (`anonymous: true`, read-only, no account, no quota); every other B6 fixture is synthetic and says so.",
+    "credential": "none — endpoints.ts:362 marks this endpoint anonymous: true",
+    "omitted_from_body": "`request_id` (a per-response correlation UUID) is NOT stored. It identifies the recording call, not a session, but § 7.9 item 5 requires confirming no session-identifying value is committed, and a correlation id has no value to any consumer of this fixture. Nothing else was removed: all 7 rows and all 11 fields per row are verbatim.",
+    "settlement_disclosure_decision": "The `settlement` strings name real bank accounts (e.g. `BCEL · 010-12-00-0045821`, `National Treasury · 001-00-11-9000`). Recorded as PUBLIC CATALOGUE DATA, not a disclosure: the endpoint is unauthenticated, so the server publishes these to any anonymous caller on the open internet, and committing them discloses nothing that a `curl` does not already return without credentials. This is a decision, not an assumption — see security-review.md item 5."
   },
   "data": [
     {
+      "id": "9d329ce9-a063-417e-903f-2dda2f13b647",
+      "code": "wallet",
+      "label": {
+        "en": "LCC Wallet",
+        "lo": "ກະເປົາເງິນ LCC"
+      },
+      "kind": "wallet",
+      "enabled": true,
+      "fee_percent": 0,
+      "settlement": "Platform float account",
+      "note": "Stored value inside the citizen app.",
+      "logo_url": "",
+      "color": "#0F766E",
+      "sort_order": 0
+    },
+    {
+      "id": "5424baee-d71b-4c48-be56-58552955cbfc",
+      "code": "bcel-one",
+      "label": {
+        "en": "BCEL One",
+        "lo": "ບີຊີອີແອວ ວັນ"
+      },
+      "kind": "wallet",
+      "enabled": true,
+      "fee_percent": 1.2,
+      "settlement": "BCEL · 010-12-00-0045821",
+      "note": "Most used wallet; settles next business day.",
+      "logo_url": "",
+      "color": "#3752AE",
+      "sort_order": 1
+    },
+    {
+      "id": "f2263a74-1076-4b07-9bb1-55d3a7f8ada6",
+      "code": "ldb-onepay",
+      "label": {
+        "en": "LDB OnePay",
+        "lo": "ແອວດີບີ ວັນເປ"
+      },
+      "kind": "wallet",
+      "enabled": true,
+      "fee_percent": 1.5,
+      "settlement": "LDB · 220-88-00-0011204",
+      "note": "Wallet payment via the citizen app.",
+      "logo_url": "",
+      "color": "#10B981",
+      "sort_order": 2
+    },
+    {
+      "id": "78faaf11-3c82-44e0-9611-ccb17f05f259",
       "code": "laoqr",
+      "label": {
+        "en": "LaoQR",
+        "lo": "ລາວ ຄິວອາ"
+      },
       "kind": "qr",
       "enabled": true,
+      "fee_percent": 0.8,
+      "settlement": "BCEL · 010-12-00-0045821",
+      "note": "Interoperable QR accepted by all local banks.",
+      "logo_url": "",
+      "color": "#F59E0B",
+      "sort_order": 3
+    },
+    {
+      "id": "5dc9c302-7618-4830-adc4-9fd2fe60af5f",
+      "code": "unitel-money",
       "label": {
-        "en": "Lao QR",
-        "lo": "ລາວ ຄິວອາ"
-      }
+        "en": "U-Money (Unitel)",
+        "lo": "ຢູມັນນີ"
+      },
+      "kind": "wallet",
+      "enabled": true,
+      "fee_percent": 1.8,
+      "settlement": "Unitel · MM-4471902",
+      "note": "Mobile money, popular outside the capital.",
+      "logo_url": "",
+      "color": "#EC4899",
+      "sort_order": 4
+    },
+    {
+      "id": "762dc8db-6f5e-43a6-9ba8-221529c8fd9b",
+      "code": "bank-transfer",
+      "label": {
+        "en": "Bank transfer",
+        "lo": "ໂອນຜ່ານທະນາຄານ"
+      },
+      "kind": "bank",
+      "enabled": true,
+      "fee_percent": 0,
+      "settlement": "National Treasury · 001-00-11-9000",
+      "note": "Manual reconciliation; proof of transfer required.",
+      "logo_url": "",
+      "color": "#0EA5E9",
+      "sort_order": 5
+    },
+    {
+      "id": "ecbb5c60-4457-4c92-8edb-09083479864e",
+      "code": "cash",
+      "label": {
+        "en": "Cash at office",
+        "lo": "ເງິນສົດຢູ່ຫ້ອງການ"
+      },
+      "kind": "cash",
+      "enabled": true,
+      "fee_percent": 0,
+      "settlement": "District cash book",
+      "note": "Receipt issued at the counter; banked daily.",
+      "logo_url": "",
+      "color": "#8B5CF6",
+      "sort_order": 6
     }
   ]
 }

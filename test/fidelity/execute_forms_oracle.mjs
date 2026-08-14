@@ -241,6 +241,19 @@ const REFERENCE_LISTS = {
       "Informant Ethnic Group", "ຊົນເຜົ່າຂອງຜູ້ແຈ້ງ", 3),
     refItem("ethnic-group", "Deceased Ethnic Group",
       "Deceased Ethnic Group", "ຊົນເຜົ່າຂອງຜູ້ເສຍຊີວິດ", 4),
+    // Marriage's two, added for the same reason as Death's six above and
+    // MEASURED the same way: `driveMarriage`'s first run stopped at
+    // `locator('select').nth(4)` — `SpouseSection`'s `ethnicGroup`
+    // (`MarriageCertificatePage.tsx:601`) — with "did not find some options",
+    // because the marriage fixture matrix's values were in no list here. That
+    // is the correct failure: a `ReferenceSelectView` can only hold a CODE the
+    // list carries, so an absent code must stop the run rather than leave the
+    // page's blank default in `spouses.spouse_a.ethnic_group` and have it
+    // captured as an executed byte.
+    refItem("ethnic-group", "Alpha Ethnic Group",
+      "Alpha Ethnic Group", "ຊົນເຜົ່າອານຟາ", 5),
+    refItem("ethnic-group", "Beta Ethnic Group",
+      "Beta Ethnic Group", "ຊົນເຜົ່າເບຕາ", 6),
   ],
   religion: [
     refItem("religion", "buddhist", "Buddhist", "ພຸດ", 1),
@@ -791,6 +804,7 @@ const DRIVERS = {
   birth: { plan: birthSteps, drive: driveBirth },
   death: { plan: deathSteps, drive: driveDeath },
   divorce: { plan: divorceSteps, drive: driveDivorce },
+  marriage: { plan: marriageSteps, drive: driveMarriage },
 };
 
 const PNG_1PX = Buffer.from(
@@ -863,15 +877,26 @@ async function driveResident(page, fixture) {
   }
 }
 
-/** The step counter the wizard renders, used to prove the CTA advanced. */
-async function stepIndicator(page) {
+/**
+ * The step counter the wizard renders, used to prove the CTA advanced.
+ *
+ * `total` is a PARAMETER because Marriage is the one page in the six with
+ * seven steps, not six (`MarriageCertificatePage.tsx:123-131`, and
+ * `StepHeader` at `:670` renders `t("stepOf", { n: step, m: STEPS.length })`).
+ * A hard-coded `6` does not merely mis-read Marriage's number — it falls
+ * through to the 80-character body slice, which still differs between steps,
+ * so the advance check keeps passing while `opened !== "1"` can never hold.
+ * The default is 6 so the four existing drivers read exactly as before.
+ */
+async function stepIndicator(page, total = 6) {
   const text = await page.locator("body").innerText();
   // MEASURED: `StepHeader` renders `t("stepOf")` under Tailwind `uppercase`
   // (`BirthDeclarationPage.tsx:641`), and `innerText` returns the TRANSFORMED
   // text — "STEP 1 OF 6". Without `i` this falls through to the 80-character
   // slice, which still differs between steps (so the advance check kept
   // working) but can never be read as a step NUMBER.
-  const m = /(\d+)\s*\/\s*6|\b(\d+)\s+(?:of|ຈາກ)\s+6/i.exec(text);
+  const m = new RegExp(`(\\d+)\\s*/\\s*${total}|\\b(\\d+)\\s+(?:of|ຈາກ)\\s+${
+    total}`, "i").exec(text);
   return m ? (m[1] ?? m[2]) : text.slice(0, 80);
 }
 
@@ -1323,8 +1348,23 @@ function divorceSteps(fx) {
     { probe: true },
   ];
   if (voluntary) {
+    // RULING 13 part 2 — the mediation mode is READ OFF THE FIXTURE, never
+    // inferred here. `{ chooser: 1 }` was hard-coded, which made "create new"
+    // a property of this driver rather than of the declared state: a fixture
+    // could say `existing` and still be driven down the `new` arm without
+    // anything going red. `:1064` is the select-existing card, `:1078` the
+    // create-new one, in that DOM order.
+    const MODE_CARD = { existing: 0, new: 1 };
+    const mode = fx.mediationMode;
+    if (!(mode in MODE_CARD)) {
+      throw new Error(`DIVORCE_MEDIATION_MODE_UNDECLARED mediationMode=${
+        JSON.stringify(mode)} — § 6.5.3 item 7 requires the fixture to name `
+        + `the branch arm it drives, and \`DivorceCertificatePage.tsx:753-761\` `
+        + `makes "existing" and "new" behave differently at step 1. The driver `
+        + `will not choose on the fixture's behalf.`);
+    }
     step1.push(
-      { chooser: 1 },
+      { chooser: MODE_CARD[mode] },
       { combos: headerCombos },
       { childrenToggle: Boolean(fx.hasChildren) },
       { dates: [[0, m.dateMarriageBegan]],
@@ -1521,6 +1561,273 @@ async function driveDivorce(page, fixture) {
 
     if (plan.step < 6) {
       const after = await stepIndicator(page);
+      if (after === before) {
+        throw new Error(`STEP_${plan.step}_DID_NOT_ADVANCE — canProceed() is `
+          + `false, so a mandatory control on this step was not set. The run `
+          + `stops here rather than pressing on and capturing the page's `
+          + `defaults (${plan.src}).`);
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Marriage's field driver
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `SearchableSelect`'s trigger on Marriage.
+ *
+ * Marriage's own (§ 6.4 item 6), equal to `DIVORCE_COMBO` today. The
+ * narrowing that matters here is `gap-2`: `ToggleRow`
+ * (`MarriageCertificatePage.tsx:421-455`) is also a
+ * `button[type=button].rounded-2xl.justify-between`, it renders on steps 2, 3
+ * and 4, and without `gap-2` every combo ordinal on the two spouse steps
+ * shifts. The trigger carries `gap-2` (`formFields.tsx:158`), the toggle
+ * `gap-3`.
+ */
+const MARRIAGE_COMBO = 'button[type="button"].rounded-2xl.justify-between.gap-2';
+
+/** The prev-married / has-children toggles (`:549`, `:1441`), gap-3. */
+const marriageToggle = (page) =>
+  page.locator('button[type="button"].rounded-2xl.justify-between.gap-3');
+
+/**
+ * The two betrothal-mode cards (`:1146` select-existing, `:1161` create-new).
+ * They render only while `betrothalMode === ""`, which is also the only state
+ * in which step 1 has no `ToggleRow`, so `gap-3 p-4 rounded-2xl` without
+ * `justify-between` selects exactly this pair, in DOM order. `DocUpload`'s
+ * empty-state button (`:396`) shares `gap-3 rounded-2xl` but is `p-3.5`.
+ */
+const marriageBetrothalChooser = (page) =>
+  page.locator('button[type="button"].rounded-2xl.gap-3.p-4');
+
+/**
+ * Step 1's branch, MEASURED before anything is typed — the marriage analogue
+ * of `probeDivorceBranch`, and it exists for the same reason.
+ *
+ * RULING 13's closing paragraph binds § 6.5.3 item 7 to Marriage BEFORE this
+ * driver is written rather than after it fails. `canProceed()` (`:851-857`)
+ * makes step 1 `Boolean(linkedRecord && headerOk)` under `existing`, and
+ * `linkedRecord` is written only by `selectExisting` (`:808-811`) from a
+ * `/prerequisite-records` row — the endpoint measured at `data: []` for all
+ * three `kind` values on every account this programme has. So `existing` is
+ * not a mode this driver failed to reach; it is a mode no click sequence
+ * reaches, and the two must not report as the same thing.
+ */
+async function probeMarriageBranch(page, fx) {
+  const mode = fx.betrothalMode;
+  const inventory = {
+    choosers: await marriageBetrothalChooser(page).count(),
+    combos: await page.locator(MARRIAGE_COMBO).count(),
+    texts: await page.locator('input[type="text"]').count(),
+    files: await page.locator('input[type="file"]').count(),
+  };
+  const seen = JSON.stringify(inventory);
+
+  if (mode === "existing") {
+    throw new Error(`MARRIAGE_BETROTHAL_MODE_UNREACHABLE betrothalMode=`
+      + `"existing" — MEASURED at step 1 before typing: ${seen}. `
+      + `\`MarriageCertificatePage.tsx:854\` makes step 1 `
+      + `\`Boolean(linkedRecord && headerOk)\` in this mode, and `
+      + `\`linkedRecord\` is written ONLY by \`selectExisting\` (\`:808-811\`) `
+      + `from a \`GET /prerequisite-records\` row. That endpoint answers `
+      + `\`data: []\` for all three valid \`kind\` values on every account `
+      + `available to this programme (manifest-authenticated.md:230-232), so `
+      + `the record list renders its empty state, there is nothing to click, `
+      + `and the step cannot advance. This is NOT a missed control: the arm is `
+      + `structurally unexecutable and is registered as such in `
+      + `oracle_coverage.yaml (F0-AC-81 clause iii, F0-AC-109 clause ii). The `
+      + `rig could fulfil a synthetic row and make it "work" — that row would `
+      + `be the harness's invention, and an oracle whose value came from the `
+      + `test harness is not an oracle.`);
+  }
+  if (mode !== "new") {
+    throw new Error(`MARRIAGE_BETROTHAL_MODE_UNDECLARED betrothalMode=${
+      JSON.stringify(mode)} — MEASURED: ${seen}. \`:851-857\` returns false `
+      + `for any third value ("must pick existing or create new"), so step 1 `
+      + `never advances. § 6.5.3 item 7(a) requires the fixture to name the `
+      + `arm it drives; this driver will not choose on its behalf.`);
+  }
+  if (inventory.choosers !== 2) {
+    throw new Error(`MARRIAGE_BETROTHAL_CHOOSER_NOT_RENDERED — expected the `
+      + `two cards at :1146/:1161, found ${inventory.choosers}. Clicking blind `
+      + `here would leave betrothalMode "" and capture the page's defaults.`);
+  }
+}
+
+/**
+ * Marriage's SEVEN steps, in render order, read from
+ * `MarriageCertificatePage.tsx:1136-1608`. Marriage is the only page in the
+ * six with seven (`STEPS`, `:123-131`) — hence `stepIndicator(page, 7)`.
+ *
+ * Three things make this page unlike Divorce's, and each one is a fixture
+ * value deciding the CONTROL COUNT rather than only a leaf value:
+ *
+ *  1. **`isForeign` renders an extra upload.** `SpouseSection` (`:566-583`)
+ *     shows `foreignDocs` when `nationality` is set and is not `"lao"`, and
+ *     `spouseValid` (`:846`) then REQUIRES it. So the fixture's nationality
+ *     decides whether that step has one file input or two — which is why the
+ *     selects are set in their own pass and the DOM is re-read after.
+ *  2. **`prevMarried` is a page toggle with no fixture key.** It starts false
+ *     (`:731-732`), nothing in `buildFormData` reads it, and leaving it alone
+ *     keeps `priorMaritalProof` un-rendered. It is deliberately NOT driven:
+ *     § 6.5.3 item 7 forbids the fixture declaring what it cannot observe, and
+ *     a toggle that feeds no leaf would only shift upload ordinals.
+ *  3. **`hasChildren` on step 4 is the same shape** (`:1441`, `:730`), and
+ *     `canProceed()` (`:861`) demands a third upload once it is on. Untouched.
+ *
+ * `spousePass` is Marriage's own. `SpouseSection` (`:464-623`) is a
+ * thirteen-control section against Divorce's eight, and its `spousePayload`
+ * carries `gender`, `ethnicity`, `ethnic_group`, `religion` and `occupation`
+ * that Divorce's has no counterpart for (`F0-AC-82`).
+ */
+function marriageSteps(fx) {
+  const b = fx.betrothal ?? {};
+
+  const headerCombos = [[0, fx.header.provinceId], [1, fx.header.districtId],
+    [2, fx.header.villageId]];
+
+  const spousePasses = (s) => {
+    // The selects come FIRST and alone, because `nationality` decides whether
+    // this step renders one file input or two (`:566`). Filling in one pass
+    // would read the upload ordinals off the pre-nationality DOM.
+    const foreign = Boolean(s.nationality) && s.nationality !== "lao";
+    return [
+      { natives: [[0, s.gender], [1, s.nationality], [2, s.ethnicity],
+        [3, s.religion], [4, s.ethnicGroup]] },
+      { combos: [[0, s.address.provinceId], [1, s.address.districtId],
+        [2, s.address.villageId]],
+        texts: [[0, s.fullName], [1, s.idOrPassport], [2, s.addrHouseNo],
+          [3, s.residenceCertRef], [4, s.occupation]],
+        dates: [[0, s.dob]],
+        // 0 is `singleStatusCert` (`:544`); 1 is `foreignDocs` (`:577`) when
+        // it renders. `prevMarried` is off, so `priorMaritalProof` (`:558`)
+        // does not sit between them.
+        uploads: foreign ? 2 : 1 },
+    ];
+  };
+
+  return [
+    // Pass 1 measures the branch and refuses to guess; pass 2 picks the card;
+    // pass 3 fills what that card rendered.
+    { step: 1, src: "MarriageCertificatePage.tsx:1136-1377",
+      passes: [
+        { probe: true },
+        { chooser: 1 },
+        { combos: headerCombos,
+          texts: [[0, b.householdHead], [1, b.bridePriceCash],
+            [2, b.bridePriceGold], [3, b.housing], [4, b.w1Name],
+            [5, b.w2Name]] },
+      ] },
+
+    { step: 2, src: "MarriageCertificatePage.tsx:1379-1396",
+      passes: spousePasses(fx.spouseA) },
+    { step: 3, src: "MarriageCertificatePage.tsx:1399-1416",
+      passes: spousePasses(fx.spouseB) },
+
+    // `householdBook` (`:1426`) and `photos` (`:1432`); the `hasChildren`
+    // toggle at `:1441` stays off, so `birthRecord` (`:1449`) never renders.
+    { step: 4, src: "MarriageCertificatePage.tsx:1419-1457",
+      passes: [{ uploads: 2 }] },
+
+    { step: 5, src: "MarriageCertificatePage.tsx:1459-1521",
+      passes: [{
+        dates: [[0, fx.reg.dateOfMarriage]],
+        texts: [[0, fx.reg.placeOfRegistration], [1, fx.reg.w1Name],
+          [2, fx.reg.w1Id], [3, fx.reg.w2Name], [4, fx.reg.w2Id],
+          [5, fx.reg.w3Name], [6, fx.reg.w3Id]],
+      }] },
+
+    // Step 6 is a read-only review (`:1523-1595`); `canProceed()` falls
+    // through to its default `true` (`:871`). No controls, so no pass.
+    { step: 6, src: "MarriageCertificatePage.tsx:1523-1595", passes: [] },
+    // Pressing the CTA here runs `submitCase` (`:952-990`): create ->
+    // attachments -> update -> submit, then `pay` behind the same two-part
+    // guard the other nested page uses (`:986`), reading `fee_lak` off the
+    // SUBMIT response. The synthetic case sets `fee_lak: 0`, so Marriage's
+    // `pay` is not issued. It carries no `form_data` either way.
+    { step: 7, src: "MarriageCertificatePage.tsx:1597-1606", passes: [] },
+  ];
+}
+
+/** One pass over the controls Marriage currently renders. */
+async function applyMarriagePass(page, pass) {
+  for (const [i, value] of pass.combos ?? []) {
+    await pickCombo(page, i, String(value ?? ""), MARRIAGE_COMBO);
+    await page.waitForTimeout(350);
+  }
+  for (const [i, value] of pass.texts ?? []) {
+    await page.locator('input[type="text"]').nth(i)
+      .fill(String(value ?? ""), { timeout: 5000 });
+  }
+  for (const [i, value] of pass.dates ?? []) {
+    await page.locator('input[type="date"]').nth(i)
+      .fill(String(value ?? ""), { timeout: 5000 });
+  }
+  for (const [i, value] of pass.natives ?? []) {
+    // THROWS when the code is not among the <option> values. On Marriage that
+    // is load-bearing twice over: `gender`'s options are the page's own
+    // hard-coded `GENDERS` (`:129-132`), not reference data, so a fixture
+    // value outside {female, male} stops the run rather than leaving the
+    // blank default in `spouses.gender` — a leaf the `both()` mirror reads.
+    await page.locator("select").nth(i)
+      .selectOption(String(value ?? ""), { timeout: 5000 });
+  }
+}
+
+async function driveMarriage(page, fixture) {
+  const opened = await stepIndicator(page, 7);
+  if (opened !== "1") {
+    throw new Error(`FORM_NOT_REACHED — the hash route did not open the `
+      + `Marriage wizard at step 1 (step indicator read `
+      + `${JSON.stringify(opened)}). A driver that carried on from here would `
+      + `fill whatever controls happened to be on screen and capture the `
+      + `page's DEFAULTS as executed bytes.`);
+  }
+
+  for (const plan of marriageSteps(fixture)) {
+    await page.waitForTimeout(250);
+
+    for (const pass of plan.passes ?? []) {
+      if (pass.probe) {
+        await probeMarriageBranch(page, fixture);
+        continue;
+      }
+      if (pass.chooser !== undefined) {
+        const cards = marriageBetrothalChooser(page);
+        const n = await cards.count();
+        if (n !== 2) {
+          throw new Error(`MARRIAGE_BETROTHAL_CHOOSER_NOT_RENDERED — expected `
+            + `the two cards at :1146/:1161, found ${n}.`);
+        }
+        await cards.nth(pass.chooser).click({ timeout: 8000 });
+        await page.waitForTimeout(600);
+        continue;
+      }
+      // Selects before uploads within a pass is not enough — see
+      // `spousePasses`, where they are separate passes so the DOM is re-read.
+      await applyMarriagePass(page, pass);
+      for (let i = 0; i < (pass.uploads ?? 0); i++) {
+        await page.locator('input[type="file"]').nth(i).setInputFiles({
+          name: `synthetic-${plan.step}-${i}.png`,
+          mimeType: "image/png",
+          buffer: PNG_1PX,
+        });
+        // `DocUpload` sets state straight from the change event (`:379-383`),
+        // but React's commit is still a tick away.
+        await page.waitForTimeout(400);
+      }
+      await page.waitForTimeout(250);
+    }
+
+    await page.waitForTimeout(200);
+    const before = await stepIndicator(page, 7);
+    await cta(page).click({ timeout: 8000 });
+    await page.waitForTimeout(plan.step === 7 ? 3000 : 800);
+
+    if (plan.step < 7) {
+      const after = await stepIndicator(page, 7);
       if (after === before) {
         throw new Error(`STEP_${plan.step}_DID_NOT_ADVANCE — canProceed() is `
           + `false, so a mandatory control on this step was not set. The run `

@@ -33,7 +33,7 @@
 /// tooltip, and an [ExcludeSemantics] makes that structural rather than
 /// incidental.
 ///
-/// ## Deliberate omissions from the React source
+/// ## Deliberate omissions from the React source — R-25, now CLOSED by B8a
 ///
 /// - **`me.updateProfile({preferred_lang})`.** The React toggle also mirrors
 ///   the choice onto the citizen's account so it follows them to another
@@ -43,6 +43,50 @@
 ///   writes. The React source already treats the network write as best-effort
 ///   ("the UI must never wait on the network to change language"), so P0
 ///   behaviour is the local-first half of the same design, not a regression.
+///
+///   **— omitted at P0, SHIPPED at B8a. B8a is that batch and the omission is
+///   closed**: see [_toggle] below and `SessionMirrorLanguage` in
+///   `lib/core/session/bloc/session_bloc.dart`. The paragraph above is left
+///   **verbatim** rather than rewritten in place, because `B2-AC-25` asserts
+///   its opening sentence by string and because the P0 rationale is worth
+///   keeping legible next to the thing that superseded it.
+///
+///   This section is kept rather than deleted (B2-AC-25 made keeping it a
+///   requirement, B8-AC-22 makes rewriting-not-deleting one) because it is the
+///   only in-code record of *why* the write exists and of the fact that P0
+///   shipped without it. A future faithful-port dispatch that finds no note
+///   here has no way to tell a deliberate omission from a missed line.
+///
+///   The port keeps the source's best-effort posture exactly: local first,
+///   authenticated only, failure swallowed.
+///
+///   **Nothing else is omitted.** This heading is now a list of one closed
+///   item; the next batch to omit something adds to it.
+///
+/// ## R-25's mechanism, and why it is an event rather than a parameter
+///
+/// This widget lives in `lib/presentation/shell/`, where it may not resolve
+/// from a locator (G-L5), may not import `features/*/data/**` (G-L1) and may
+/// not import `features/*/presentation/**` (G-L7). The established way to give
+/// it a dependency is constructor threading — `app_routes.dart` →
+/// `AppShell(storage:)` → `AppTopBar(storage:)` → `LanguageToggle(storage:)`,
+/// which is how [storage] arrives.
+///
+/// **B8a deliberately does not extend that chain.** Adding a second parameter
+/// means editing `app_shell.dart:76`'s `const AppTopBar()` — the exact line
+/// B10's concurrent D-3 work must change — so instead the toggle dispatches an
+/// event on the app-wide `SessionBloc`, which is already provided above
+/// `MaterialApp.router` and reachable from any widget by context.
+/// `BlocProvider.of<SessionBloc>(context)` is a **context read, not a locator
+/// read**, which is the distinction G-L5 draws (`account_page.dart` has done
+/// the same since P0).
+///
+/// Three further reasons, from specs.md § 6.4: `SessionBloc` already owns the
+/// profile, so routing the write through it is the closer analogue of the
+/// web's `useSession`; it adds no second `lib/core/` BLoC (`ssd.md` § 4.5's
+/// closed list of one is unchanged, this modifies the existing entry); and
+/// `core/session/bloc/**` → `features/session/domain/**` is the single
+/// whitelisted `core → features` edge, so the use case is legally reachable.
 ///
 /// ## Persistence
 ///
@@ -56,8 +100,10 @@ library;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/session/bloc/session_bloc.dart';
 import '../../core/storage/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -113,11 +159,49 @@ class LanguageToggle extends StatelessWidget {
     // provider type that cannot be named from here.
     final localization = EasyLocalization.of(context);
 
+    // R-25's sink, resolved here for the same reason: after the awaits below
+    // this method must not touch `context`. `maybeOf`, not `of`, because a
+    // widget test may pump the top bar without a session in the tree — the
+    // shell is session-agnostic by design (`app_shell.dart`'s own note) and a
+    // hard `of` would turn that into a crash.
+    final SessionBloc? session = _sessionOf(context);
+
     // Null only when there is no EasyLocalization ancestor — impossible in the
     // running app (see `main.dart`), and harmless in a test that only wants to
     // assert the persistence side.
     await localization?.setLocale(next);
     await storage.saveLang(next.languageCode);
+
+    // ── R-25 ────────────────────────────────────────────────────────────────
+    //
+    // **Strictly after the two awaits above**, which is the ported ordering:
+    // `toggle()` runs unconditionally at `LanguageToggle.tsx:70`, and only then
+    // does `:71` fire the mirror. The locale has changed and `lcc.lang` is
+    // written before a single byte goes out, so a dead network cannot stop a
+    // citizen changing language (B8-AC-19).
+    //
+    // No `await`, no `.then`, no error handling **here**: the authenticated
+    // gate and the swallowed failure both live in the handler, which is where a
+    // spy can see them (B8-AC-20, B8-AC-21). `add` is fire-and-forget by
+    // construction, which is `void me.updateProfile(…).catch(…)` exactly.
+    session?.add(SessionEvent.mirrorLanguage(next.languageCode));
+  }
+
+  /// `BlocProvider.of<SessionBloc>(context)` with the not-in-tree case answered
+  /// rather than thrown.
+  ///
+  /// A **context read**, not a locator read — the distinction G-L5 draws, and
+  /// the reason this compiles under a guard that forbids `injection<T>()` in
+  /// any `presentation/` file.
+  static SessionBloc? _sessionOf(BuildContext context) {
+    try {
+      return BlocProvider.of<SessionBloc>(context);
+    } on FlutterError {
+      // `BlocProvider.of` throws a `FlutterError` when no provider is found.
+      // Swallowed so the toggle keeps working in a tree without a session —
+      // which is also the signed-out shell before boot completes.
+      return null;
+    }
   }
 
   @override

@@ -1,0 +1,186 @@
+{
+  "_capture": {
+    "artefact": "Tier 0 payload-equality fixture — B8a account & profile",
+    "endpoints": [
+      "PATCH /api/v1/me/profile",
+      "PUT /api/v1/me/preferences",
+      "POST /api/v1/auth/change-password"
+    ],
+    "captured_at": "2026-08-14T00:00:00.000Z",
+    "web_commit": "62f8a529aaa024a8b35b0af50a8fbd4850a63962",
+    "provenance": "SYNTHETIC — and, like B9b's chat fixture, this one could not be a recording even in principle: these are REQUEST bodies, and obtaining a real one means writing to a live citizen's profile, preferences or PASSWORD on staging, which the slot 16-47 capture session explicitly refused ('This capture performed ZERO writes to the account', manifest-authenticated.md). B2-AC-36's 'real recorded staging payloads' standard is therefore reported NOT EVALUATED with that reason and never PASS. expected_body is DERIVED, not recorded: each one is what AccountPage.tsx:212-215 / :252-256 / :280 over client.ts's JSON.stringify produces for that input, computed by applying the source's own transform rather than transcribed by eye. NO REAL CITIZEN DATA: every name, email, address, UIN and password below is invented for this file (B8-AC-35). The passwords are not credentials for any system.",
+    "credential": "none — no host was contacted to build this file, and no password here is or has ever been a real one",
+    "why_asymmetric": "The one real transform in B8a is handleSaveProfile's dirty-field diff, and its three branches are NOT symmetric: `name` is guarded by truthiness AND difference (AccountPage.tsx:213), while `email` and `address` are guarded by difference alone (:214, :215). So clearing the name sends NOTHING for it, and clearing the email sends `email: \"\"`. A fixture set in which every case changes all three fields passes for EVERY plausible implementation, including the tidy one-loop rewrite a careful developer reaches for first. The cases below are chosen so the two provably differ, and tier0_account_payload_test.dart asserts the INEQUALITY against that naive implementation as well as the equality against the real one: a fixture that stopped discriminating fails the test rather than passing it. FACTORY-RULES' Capability Rule, applied to a five-line transform (B8-AC-31).",
+    "why_whole_object": "PUT /me/preferences is a PUT, not a PATCH (endpoints.ts:123), and updatePrefs merges the nested `notifications` object SEPARATELY from the outer one (AccountPage.tsx:255). So toggling one switch transmits all five fields. A shallow-spread port silently resets the two untouched booleans server-side and the UI still looks correct, because it refetches. The prefs_* cases below assert the whole object and the INEQUALITY against a shallow-spread implementation (B8-AC-33).",
+    "key_order": "expected_body is a STRING, not an object, because key order is part of the claim. Dart Map literals preserve insertion order and jsonEncode respects it, so asserting the encoded string gates the ORDER as well as the names and values (F0 § 6.2.3, followed by B9b)."
+  },
+
+  "account": {
+    "_note": "The diff's left-hand side. SYNTHETIC. Only the four fields the diff and the editor read are meaningful; the rest satisfy CitizenAccount's required fields.",
+    "id": "acc_synthetic_b8_0001",
+    "uin": "0000-0000-0000-0000",
+    "name": "Somchai Vongsa",
+    "phone": "+85620000000",
+    "email": "somchai.vongsa@example.test",
+    "national_id_no": "ID-SYNTHETIC-0001",
+    "date_of_birth": "1990-01-01",
+    "gender": "male",
+    "preferred_lang": "lo",
+    "jurisdiction": "synthetic",
+    "household_no": "HH-SYNTHETIC-0001",
+    "address": "Ban Synthetic, Sisattanak, Vientiane",
+    "verified": true,
+    "eid_verified": false,
+    "active": true,
+    "created_at": "2020-01-01T00:00:00Z"
+  },
+
+  "cases": [
+    {
+      "id": "name_cleared_email_changed",
+      "kind": "profile_diff",
+      "note": "THE DISCRIMINATING CASE. The citizen empties the name field and edits the email. `name` is falsy after trim, so :213's truthiness guard omits it entirely; `email` differs, so :214 includes it. The naive symmetric implementation sends `name: \"\"` and is a DIFFERENT REQUEST — asserted as an inequality.",
+      "form": { "name": "   ", "email": "new.address@example.test", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{\"email\":\"new.address@example.test\"}",
+      "expected_keys": ["email"],
+      "naive_symmetric_body": "{\"name\":\"\",\"email\":\"new.address@example.test\"}"
+    },
+    {
+      "id": "name_cleared_only",
+      "kind": "profile_diff",
+      "note": "The sharpest form of the same asymmetry: clearing ONLY the name produces an EMPTY body, so the source issues NO REQUEST AT ALL and shows `nothingChanged` (:216-219). The naive implementation issues a PATCH that blanks the citizen's name. B8-AC-31 case (i) + (iv) at once.",
+      "form": { "name": "", "email": "somchai.vongsa@example.test", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{}",
+      "expected_keys": [],
+      "naive_symmetric_body": "{\"name\":\"\"}"
+    },
+    {
+      "id": "email_cleared",
+      "kind": "profile_diff",
+      "note": "B8-AC-31 case (ii). `email` is guarded by difference ALONE, so an empty email IS transmitted — the opposite disposition from `name`, in the same function, three lines apart.",
+      "form": { "name": "Somchai Vongsa", "email": "  ", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{\"email\":\"\"}",
+      "expected_keys": ["email"],
+      "naive_symmetric_body": "{\"email\":\"\"}"
+    },
+    {
+      "id": "address_cleared",
+      "kind": "profile_diff",
+      "note": "`address` behaves like `email`, not like `name`.",
+      "form": { "name": "Somchai Vongsa", "email": "somchai.vongsa@example.test", "address": "" },
+      "expected_body": "{\"address\":\"\"}",
+      "expected_keys": ["address"],
+      "naive_symmetric_body": "{\"address\":\"\"}"
+    },
+    {
+      "id": "only_email_changed",
+      "kind": "profile_diff",
+      "note": "B8-AC-31 case (iii) — exactly one key. A port that sent the whole form would send three.",
+      "form": { "name": "Somchai Vongsa", "email": "changed@example.test", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{\"email\":\"changed@example.test\"}",
+      "expected_keys": ["email"],
+      "naive_symmetric_body": "{\"email\":\"changed@example.test\"}"
+    },
+    {
+      "id": "nothing_changed",
+      "kind": "profile_diff",
+      "note": "B8-AC-31 case (iv). Every field equals the account's, so the body is empty and NO request is issued. The BLoC test asserts the zero invocation count; this asserts the body it would have sent.",
+      "form": { "name": "Somchai Vongsa", "email": "somchai.vongsa@example.test", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{}",
+      "expected_keys": [],
+      "naive_symmetric_body": "{}"
+    },
+    {
+      "id": "whitespace_only_change_is_no_change",
+      "kind": "profile_diff",
+      "note": "The comparison is on the TRIMMED value (`form.name.trim() !== account.name`), so padding a field with spaces is not an edit. A port that compared the raw value would issue a PATCH for a citizen who touched nothing.",
+      "form": { "name": "  Somchai Vongsa  ", "email": " somchai.vongsa@example.test ", "address": " Ban Synthetic, Sisattanak, Vientiane " },
+      "expected_body": "{}",
+      "expected_keys": [],
+      "naive_symmetric_body": "{}"
+    },
+    {
+      "id": "all_three_changed",
+      "kind": "profile_diff",
+      "note": "The CONTROL that proves nothing on its own: with all three fields edited, the real implementation and the naive one agree exactly. Kept because it is the reason the cases above exist — a fixture set made only of this shape would report PASS for a port that got `name` wrong.",
+      "form": { "name": "Somchai Vongsa Jr", "email": "changed@example.test", "address": "Ban Other, Chanthabouly, Vientiane" },
+      "expected_body": "{\"name\":\"Somchai Vongsa Jr\",\"email\":\"changed@example.test\",\"address\":\"Ban Other, Chanthabouly, Vientiane\"}",
+      "expected_keys": ["name", "email", "address"],
+      "naive_symmetric_body": "{\"name\":\"Somchai Vongsa Jr\",\"email\":\"changed@example.test\",\"address\":\"Ban Other, Chanthabouly, Vientiane\"}"
+    },
+    {
+      "id": "lao_name_changed",
+      "kind": "profile_diff",
+      "note": "A Lao name, so the trim/compare path is exercised on non-ASCII. `String.prototype.trim` and Dart's `String.trim` both strip Unicode whitespace, and neither touches the combining marks inside the name — but B9b's subject-slice defect is the reason this project no longer assumes an ASCII fixture covers Lao.",
+      "form": { "name": "ບຸນມີ ສີສະຫວັດ", "email": "somchai.vongsa@example.test", "address": "Ban Synthetic, Sisattanak, Vientiane" },
+      "expected_body": "{\"name\":\"ບຸນມີ ສີສະຫວັດ\"}",
+      "expected_keys": ["name"],
+      "naive_symmetric_body": "{\"name\":\"ບຸນມີ ສີສະຫວັດ\"}"
+    },
+
+    {
+      "id": "r25_mirror_lo",
+      "kind": "language_mirror",
+      "note": "R-25's FIRST mirror — LanguageToggle.tsx:71, `me.updateProfile({ preferred_lang: next })`. Exactly ONE key. B8-AC-16. Note the field name is `preferred_lang` and the endpoint is PATCH /me/profile; the second mirror (below) uses `language` and PUT /me/preferences, and B8-AC-18 asserts they are not collapsed into one.",
+      "preferred_lang": "lo",
+      "expected_body": "{\"preferred_lang\":\"lo\"}",
+      "expected_keys": ["preferred_lang"]
+    },
+    {
+      "id": "r25_mirror_en",
+      "kind": "language_mirror",
+      "note": "The other direction.",
+      "preferred_lang": "en",
+      "expected_body": "{\"preferred_lang\":\"en\"}",
+      "expected_keys": ["preferred_lang"]
+    },
+
+    {
+      "id": "prefs_toggle_sms_on",
+      "kind": "preferences_put",
+      "note": "THE DISCRIMINATING PREFERENCES CASE. One switch moves; all five fields transmit, with the two untouched notification booleans at their previous values. A shallow-spread implementation sends `notifications: {sms: true}` and silently clears in_app and email server-side. B8-AC-33.",
+      "prefs": { "language": "lo", "notifications": { "in_app": true, "email": false, "sms": false }, "biometric_login": true },
+      "patch": { "sms": true },
+      "expected_body": "{\"language\":\"lo\",\"notifications\":{\"in_app\":true,\"email\":false,\"sms\":true},\"biometric_login\":true}",
+      "shallow_spread_body": "{\"language\":\"lo\",\"notifications\":{\"sms\":true},\"biometric_login\":true}"
+    },
+    {
+      "id": "prefs_toggle_in_app_off",
+      "kind": "preferences_put",
+      "note": "The same claim in the other direction, and with the OTHER two booleans as the survivors.",
+      "prefs": { "language": "en", "notifications": { "in_app": true, "email": true, "sms": true }, "biometric_login": false },
+      "patch": { "in_app": false },
+      "expected_body": "{\"language\":\"en\",\"notifications\":{\"in_app\":false,\"email\":true,\"sms\":true},\"biometric_login\":false}",
+      "shallow_spread_body": "{\"language\":\"en\",\"notifications\":{\"in_app\":false},\"biometric_login\":false}"
+    },
+    {
+      "id": "prefs_language_second_mirror",
+      "kind": "preferences_put",
+      "note": "R-25's SECOND mirror — AccountPage.tsx:622, `updatePrefs({ language: code })`. Field name `language`, endpoint PUT /me/preferences, and the three notification booleans plus biometric_login ride along because the endpoint is a PUT. Compare with r25_mirror_lo above: different endpoint, different field, same user intent (specs.md § 2.2 Finding H, B8-AC-17/18).",
+      "prefs": { "language": "lo", "notifications": { "in_app": true, "email": false, "sms": true }, "biometric_login": false },
+      "patch": { "language": "en" },
+      "expected_body": "{\"language\":\"en\",\"notifications\":{\"in_app\":true,\"email\":false,\"sms\":true},\"biometric_login\":false}",
+      "shallow_spread_body": "{\"language\":\"en\",\"notifications\":{},\"biometric_login\":false}"
+    },
+    {
+      "id": "prefs_biometric_on",
+      "kind": "preferences_put",
+      "note": "AccountPage.tsx:668 — `updatePrefs({ biometric_login: next })`. No notification key in the patch at all, so `patch.notifications ?? {}` spreads nothing and all three booleans survive unchanged.",
+      "prefs": { "language": "lo", "notifications": { "in_app": false, "email": false, "sms": false }, "biometric_login": false },
+      "patch": { "biometric_login": true },
+      "expected_body": "{\"language\":\"lo\",\"notifications\":{\"in_app\":false,\"email\":false,\"sms\":false},\"biometric_login\":true}",
+      "shallow_spread_body": "{\"language\":\"lo\",\"notifications\":{},\"biometric_login\":true}"
+    },
+
+    {
+      "id": "change_password",
+      "kind": "change_password",
+      "note": "AccountPage.tsx:280 — exactly two keys, in this order. `confirm` is a CLIENT-SIDE check and is never transmitted (B8-AC-34). Both values below are invented strings and are not credentials for any system.",
+      "current_password": "synthetic-current-pw",
+      "new_password": "synthetic-new-pw-01",
+      "confirm_password": "synthetic-new-pw-01",
+      "expected_body": "{\"current_password\":\"synthetic-current-pw\",\"new_password\":\"synthetic-new-pw-01\"}",
+      "expected_keys": ["current_password", "new_password"]
+    }
+  ]
+}

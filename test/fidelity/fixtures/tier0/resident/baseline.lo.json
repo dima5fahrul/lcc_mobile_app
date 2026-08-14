@@ -24,5 +24,28 @@
     "nativePlace": "Test Native Place",
     "purpose": "school-enrolment",
     "purposeOther": ""
+  },
+  "_classification": {
+    "form.province": "driven ResidentCertificatePage.tsx:869",
+    "form.district": "driven ResidentCertificatePage.tsx:869",
+    "form.villageName": "driven ResidentCertificatePage.tsx:869",
+    "form.villageChiefName": "driven ResidentCertificatePage.tsx:881",
+    "form.certifyingJurisdiction": "driven ResidentCertificatePage.tsx:888",
+    "form.citizenName": "driven ResidentCertificatePage.tsx:809",
+    "form.age": "driven ResidentCertificatePage.tsx:820",
+    "form.occupation": "driven ResidentCertificatePage.tsx:838",
+    "form.nationality": "driven ResidentCertificatePage.tsx:829",
+    "form.currentVillage": "driven ResidentCertificatePage.tsx:908",
+    "form.groupKhum": "driven ResidentCertificatePage.tsx:932",
+    "form.unitNuayBan": "driven ResidentCertificatePage.tsx:925",
+    "form.houseNo": "driven ResidentCertificatePage.tsx:916",
+    "form.censusBookNo": "driven ResidentCertificatePage.tsx:949",
+    "form.censusBookDate": "driven ResidentCertificatePage.tsx:957",
+    "form.censusDistrictProvince": "driven ResidentCertificatePage.tsx:964",
+    "form.fatherName": "driven ResidentCertificatePage.tsx:977",
+    "form.motherName": "driven ResidentCertificatePage.tsx:984",
+    "form.nativePlace": "driven ResidentCertificatePage.tsx:992",
+    "form.purpose": "driven ResidentCertificatePage.tsx:1004",
+    "form.purposeOther": "driven ResidentCertificatePage.tsx:1013"
   }
 }

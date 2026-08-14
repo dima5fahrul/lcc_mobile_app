@@ -1,0 +1,327 @@
+{
+  "success": true,
+  "message": "case status catalogue",
+  "data": {
+    "pipeline_order": [
+      "draft",
+      "submitted",
+      "certified",
+      "under-review",
+      "registered",
+      "issued"
+    ],
+    "statuses": [
+      {
+        "acting_role": "Village Officer / Citizen",
+        "background": "#F1F5F9",
+        "color": "#475569",
+        "is_editable": true,
+        "is_open": true,
+        "is_terminal": false,
+        "label": "Draft",
+        "label_lo": "ຮ່າງ",
+        "meaning": "Case created and being captured; not yet submitted.",
+        "status": "draft",
+        "transitions": [
+          {
+            "action": "submit",
+            "label": "Submit for village certification",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": false,
+            "roles": [
+              "citizen",
+              "village-officer",
+              "village-chief"
+            ],
+            "to": "submitted"
+          },
+          {
+            "action": "cancel",
+            "label": "Cancel a draft",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": false,
+            "roles": [
+              "citizen",
+              "village-officer",
+              "supervisor"
+            ],
+            "to": "revoked"
+          }
+        ]
+      },
+      {
+        "acting_role": "Village Officer",
+        "background": "#DBEAFE",
+        "color": "#1D4ED8",
+        "is_editable": false,
+        "is_open": true,
+        "is_terminal": false,
+        "label": "Submitted",
+        "label_lo": "ສົ່ງແລ້ວ",
+        "meaning": "Submitted for village-level certification.",
+        "status": "submitted",
+        "transitions": [
+          {
+            "action": "certify",
+            "label": "Certify and e-sign at the village",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": true,
+            "roles": [
+              "village-chief"
+            ],
+            "to": "certified"
+          },
+          {
+            "action": "return",
+            "label": "Return for correction",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "village-chief",
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "returned"
+          },
+          {
+            "action": "reject",
+            "label": "Reject with a recorded reason",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "rejected"
+          }
+        ]
+      },
+      {
+        "acting_role": "Village Chief",
+        "background": "#E0F2FE",
+        "color": "#0369A1",
+        "is_editable": false,
+        "is_open": true,
+        "is_terminal": false,
+        "label": "Certified",
+        "label_lo": "ຢັ້ງຢືນແລ້ວ",
+        "meaning": "Address/event certified and e-signed at the village.",
+        "status": "certified",
+        "transitions": [
+          {
+            "action": "receive",
+            "label": "Take the case up for district review",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "under-review"
+          },
+          {
+            "action": "return",
+            "label": "Return for correction",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "returned"
+          },
+          {
+            "action": "reject",
+            "label": "Reject with a recorded reason",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "rejected"
+          }
+        ]
+      },
+      {
+        "acting_role": "District Registrar",
+        "background": "#EDE9FE",
+        "color": "#6D28D9",
+        "is_editable": false,
+        "is_open": true,
+        "is_terminal": false,
+        "label": "Under Review",
+        "label_lo": "ກຳລັງກວດສອບ",
+        "meaning": "Received and being reviewed at the district.",
+        "status": "under-review",
+        "transitions": [
+          {
+            "action": "return",
+            "label": "Return for correction",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "returned"
+          },
+          {
+            "action": "register",
+            "label": "Register the event and e-sign the certificate",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": true,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "registered"
+          },
+          {
+            "action": "reject",
+            "label": "Reject with a recorded reason",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor"
+            ],
+            "to": "rejected"
+          }
+        ]
+      },
+      {
+        "acting_role": "Village Officer",
+        "background": "#FFEDD5",
+        "color": "#C2410C",
+        "is_editable": true,
+        "is_open": true,
+        "is_terminal": false,
+        "label": "Returned for Correction",
+        "label_lo": "ສົ່ງກັບແກ້ໄຂ",
+        "meaning": "Sent back with notes; editable, then re-submitted.",
+        "status": "returned",
+        "transitions": [
+          {
+            "action": "resubmit",
+            "label": "Re-submit after correction",
+            "requires_paid_fee": false,
+            "requires_reason": false,
+            "requires_signature": false,
+            "roles": [
+              "citizen",
+              "village-officer",
+              "village-chief"
+            ],
+            "to": "submitted"
+          }
+        ]
+      },
+      {
+        "acting_role": "District Registrar",
+        "background": "#CCFBF1",
+        "color": "#0F766E",
+        "is_editable": false,
+        "is_open": false,
+        "is_terminal": false,
+        "label": "Registered / Signed",
+        "label_lo": "ຈົດທະບຽນ / ເຊັນແລ້ວ",
+        "meaning": "Event registered and certificate e-signed.",
+        "status": "registered",
+        "transitions": [
+          {
+            "action": "issue",
+            "label": "Issue the QR certificate and sync the family book",
+            "requires_paid_fee": true,
+            "requires_reason": false,
+            "requires_signature": false,
+            "roles": [
+              "district-registrar",
+              "supervisor",
+              "platform",
+              "dops-officer"
+            ],
+            "to": "issued"
+          },
+          {
+            "action": "revoke",
+            "label": "Cancel a registered case before issuance",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "supervisor",
+              "district-registrar"
+            ],
+            "to": "revoked"
+          }
+        ]
+      },
+      {
+        "acting_role": "Platform / DoPS",
+        "background": "#D1FAE5",
+        "color": "#047857",
+        "is_editable": false,
+        "is_open": false,
+        "is_terminal": true,
+        "label": "Issued",
+        "label_lo": "ອອກໃບແລ້ວ",
+        "meaning": "QR-verifiable certificate issued; registry & family book synced.",
+        "status": "issued",
+        "transitions": [
+          {
+            "action": "revoke",
+            "label": "Revoke an issued certificate",
+            "requires_paid_fee": false,
+            "requires_reason": true,
+            "requires_signature": false,
+            "roles": [
+              "supervisor",
+              "district-registrar"
+            ],
+            "to": "revoked"
+          }
+        ]
+      },
+      {
+        "acting_role": "District Registrar",
+        "background": "#FEE2E2",
+        "color": "#B91C1C",
+        "is_editable": false,
+        "is_open": false,
+        "is_terminal": true,
+        "label": "Rejected",
+        "label_lo": "ປະຕິເສດ",
+        "meaning": "Declined with a recorded reason; no certificate issued.",
+        "status": "rejected",
+        "transitions": []
+      },
+      {
+        "acting_role": "Authorised Officer",
+        "background": "#E7E5E4",
+        "color": "#44403C",
+        "is_editable": false,
+        "is_open": false,
+        "is_terminal": true,
+        "label": "Revoked / Cancelled",
+        "label_lo": "ຖອນ / ຍົກເລີກ",
+        "meaning": "Issued record later invalidated, with audit.",
+        "status": "revoked",
+        "transitions": []
+      }
+    ]
+  },
+  "request_id": "80fdbeae-c15e-436b-8e6b-be979f196c34",
+  "_provenance": "REAL RECORDING. GET https://api.staging.linkit360.la/api/v1/status-catalogue, anonymous (no Authorization header), captured 2026-08-14 for GOR-245 B7a. specs.md § 6.12: this is the ONE B7 fixture that is a real recorded payload, because `endpoints.ts:192` marks the endpoint `anonymous: true` — it can be regenerated and diffed against production at any time, by anyone, with no credentials. Body byte-for-byte as returned except for this key. 9 statuses, 6-entry pipeline_order (5 after `draft` is stripped)."
+}

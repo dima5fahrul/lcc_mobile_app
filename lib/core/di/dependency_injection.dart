@@ -30,17 +30,23 @@ library;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../features/account/di/account_feature_injection.dart';
+import '../../features/application/di/application_feature_injection.dart';
 import '../../features/auth/di/auth_feature_injection.dart';
 import '../../features/chat/di/chat_feature_injection.dart';
 import '../../features/help/di/help_feature_injection.dart';
+import '../../features/history/di/history_feature_injection.dart';
 import '../../features/home/di/home_feature_injection.dart';
 import '../../features/news/di/news_feature_injection.dart';
 import '../../features/notifications/di/notifications_feature_injection.dart';
+import '../../features/reference/di/reference_feature_injection.dart';
 import '../../features/service/di/service_feature_injection.dart';
 import '../../features/session/di/session_feature_injection.dart';
 import '../../features/session/di/session_injection.dart';
 import '../../features/session/domain/repositories/session_repository.dart';
 import '../../features/session/domain/usecases/get_profile.dart';
+import '../../features/session/domain/usecases/update_profile.dart';
+import '../../features/wallet/di/wallet_feature_injection.dart';
 import '../network/api_client.dart';
 import '../network/dio_network_client.dart';
 import '../session/bloc/session_bloc.dart';
@@ -117,6 +123,9 @@ class DependencyInjection {
         storage: injection<StorageService>(),
         getProfile: sessionInjection<GetProfile>(),
         repository: sessionInjection<SessionRepository>(),
+        // B8a — R-25's `PATCH /me/profile {preferred_lang}` mirror. Same
+        // container, same lazy resolution as the two above.
+        updateProfile: sessionInjection<UpdateProfile>(),
       ),
     );
 
@@ -218,5 +227,92 @@ class DependencyInjection {
     //     `ApiClient` for the Auth/Refresh interceptor chain — satisfied by
     //     re-exporting the same client, not by ordering against step 3.
     await ChatFeatureInjection.init();
+
+    // 12. Account (DI-6, B8a). One line, as the rule requires — **and the
+    //     second one that is deliberately not alphabetical.**
+    //
+    //     Ordering: **after step 3 (Session) AND after step 5 (Auth), and both
+    //     are hard requirements, not preferences.** `AccountUsecaseInjection`
+    //     re-exports `GetProfile` / `UpdateProfile` out of `sessionInjection`
+    //     and `ChangePassword` out of `authInjection` rather than adding a
+    //     second `PATCH /me/profile` and a second `POST /auth/change-password`
+    //     (specs.md § 6.3, B8-AC-7). So this container's registrations close
+    //     over two other containers'. DI-6's "one alphabetical line" would put
+    //     `account` first, before either of them, and break both.
+    //     **The alphabetical rule yields here and the deviation is stated at
+    //     the call site**, which is what step 11 already does for chat.
+    //
+    //     The registrations are lazy, so a wrong order would not fail here — it
+    //     would fail at the first resolution, i.e. the first time a citizen
+    //     opens the account tab. `account_injection_test.dart` asserts the
+    //     order rather than trusting this comment.
+    //
+    //     All three of its own endpoints are authenticated `/me/*` calls, so it
+    //     needs step 2's *instance* of `ApiClient` for the Auth/Refresh
+    //     interceptor chain — satisfied by re-exporting the same client.
+    await AccountFeatureInjection.init();
+
+    // 13. Reference / lookup layer (DI-6, F0b). One line, as the rule requires
+    //     — **and this one really is alphabetical-agnostic**, unlike steps 11
+    //     and 12.
+    //
+    //     Ordering: anywhere after step 2. All four of its endpoints carry
+    //     `anonymous: true` in `endpoints.ts` (`:186`, `:216`, `:223`, `:248`),
+    //     so — like the service catalogue and news — it has no dependency on
+    //     the session being registered and none the session has on it, and it
+    //     closes over no other feature's container. Appended for the reason
+    //     step 6 gives: appending is the change that cannot break the steps
+    //     above.
+    //
+    //     It registers **no BLoC**: `features/reference/` is page-less
+    //     (`ssd.md` § 11.1, `F0-AC-52`). The certificate page BLoCs F1 builds
+    //     resolve `GetLookupOptions` out of `referenceInjection` through their
+    //     route builders, which is the only sanctioned place to resolve from a
+    //     container (CR-1, G-L5).
+    await ReferenceFeatureInjection.init();
+
+    // 14. The application read slice, and 15. the history list (DI-6, B7a).
+    //     **Two lines, and their order is a real constraint, not a
+    //     convention.** `HistoryUsecaseInjection` resolves `ListApplications`
+    //     and `GetStatusPipeline` out of `applicationInjection` through
+    //     closures — the `ChatUsecaseInjection` → `helpInjection` shape — so
+    //     step 14 must precede step 15.
+    //
+    //     Unlike steps 11 and 12, **no DI-6 deviation arises**: `application`
+    //     sorts before `history`, so the alphabetical placement the rule asks
+    //     for and the dependency the code has are the same order. Recorded
+    //     because the two previous cross-container registrations both had to
+    //     state a deviation here, and the absence of one is the thing a
+    //     reader will look for.
+    //
+    //     Step 14 registers **no BLoC**: `features/application/` is page-less
+    //     (specs.md § 6.2, `B7-AC-10`), the second such feature after step 13's.
+    //     Four features consume its `domain/**`; none may reach its `data/`.
+    //     Ordering otherwise: anywhere after step 2. `/applications` is a
+    //     Bearer call, but that is a dependency on step 2's *instance* — the
+    //     interceptors hang off the client — not on the session container.
+    await ApplicationFeatureInjection.init();
+    await HistoryFeatureInjection.init();
+
+    // 16. The wallet (DI-6, B6a). One line, one whole feature.
+    //
+    //     **No cross-container closure, so no ordering constraint beyond step
+    //     2.** Unlike steps 11, 12, 13 and 15, `walletInjection` resolves
+    //     nothing out of another feature's container: all six use cases hang
+    //     off `WalletRepository`, which hangs off the wallet's own datasource,
+    //     which re-exports the root `ApiClient` (step 2). Recorded explicitly
+    //     because the four preceding registrations each had to state a
+    //     dependency here and a reader will look for this one's.
+    //
+    //     `features/application/` is deliberately NOT consumed. The bills-due
+    //     card renders its empty branch only in B6a; the populated branch and
+    //     the `ListApplications` closure over `applicationInjection` are B6b's
+    //     (specs.md § 2.3, § 3.1). Step 14 landing first does not license
+    //     reaching for it early.
+    //
+    //     Alphabetically `wallet` sorts last of the sixteen, so DI-6's
+    //     ordering rule and the append-only constraint on this file agree; no
+    //     deviation to record.
+    await WalletFeatureInjection.init();
   }
 }

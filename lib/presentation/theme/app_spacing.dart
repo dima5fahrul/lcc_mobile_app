@@ -138,4 +138,96 @@ abstract final class AppSpacing {
 
   /// `w-48 h-48` — 192 px. The QR preview inside the verification dialog.
   static const double qrPreview = 192;
+
+  // ── B10 additions — boot, onboarding, tutorial, button ─────────────────────
+
+  /// `rounded-t-[2rem]` / `sm:rounded-[2rem]` — 32 px. The splash's bottom
+  /// sheet (`SplashScreens.tsx:294`).
+  static const double radius4xl = 32;
+
+  /// `w-6 h-6` — 24 px. The dot hit area (WCAG 2.5.8, `SplashScreens.tsx:335`)
+  /// and slide 2's step markers. Numerically [gap24]; named because a hit area
+  /// and a gap are resized for different reasons.
+  static const double hit24 = 24;
+
+  /// The **visual** dot: `height: 6px`, `width: 6px` inactive and `20px`
+  /// active (`SplashScreens.tsx:340-341`, `TutorialOverlay.tsx:436-437`).
+  static const double dotSize = 6;
+  static const double dotActiveWidth = 20;
+
+  /// `size={58}` — the six `GlassIcon` tiles on splash slide 1
+  /// (`SplashScreens.tsx:80`). Not [tile56]: the source says 58.
+  static const double splashTile58 = 58;
+
+  /// `w-24 h-24` — 96 px. The boot logo tile (`LoadingScreen.tsx:81`).
+  static const double bootLogoTile = 96;
+
+  /// `w-16 h-16` — 64 px. The logo image inside that tile (`:88`).
+  static const double bootLogoGlyph = 64;
+
+  /// `w-48` / `h-1` — the boot progress bar (`LoadingScreen.tsx:101`).
+  static const double bootProgressWidth = 192;
+  static const double bootProgressHeight = 4;
+
+  /// `w-20 h-20` — 80 px. The tutorial step-1 home tile
+  /// (`TutorialOverlay.tsx:41`).
+  static const double tutorialHeroTile = 80;
+
+  /// `min-h-[160px]` — the tutorial's visual well (`:392`).
+  static const double tutorialVisualMinHeight = 160;
+
+  /// `max-w-[19rem]` — 304 px. Slide 2's tracking card (`SplashScreens.tsx:98`).
+  static const double trackingCardMaxWidth = 304;
+
+  /// `SWIPE_THRESHOLD = 50` — `SplashScreens.tsx:33`. Pixels of horizontal drag
+  /// before a gesture counts as a slide change. A **token**, not a magic
+  /// number, because § 6.14 and `B10-AC-26` make it Tier 2 material.
+  static const double swipeThreshold = 50;
+}
+
+/// Motion constants — durations the source states as data.
+///
+/// § 6.14: *"Durations are tokens too."* They live beside the spacing rather
+/// than inside the widgets for the same reason the colours do: Tier 2 compares
+/// **values**, and a `Duration(milliseconds: 1800)` written inline in a widget
+/// body is invisible to it.
+///
+/// Every value below is a literal from the source, cited. None is a feel
+/// judgement — `B10-AC-26` asserts the five against the `.tsx`.
+abstract final class AppMotion {
+  AppMotion._();
+
+  /// `DEFAULT_DURATION = 1800` — `LoadingScreen.tsx:17`. The boot hold, and the
+  /// progress bar's own animation length (`--lcc-boot-ms`, `:109`).
+  static const Duration bootHold = Duration(milliseconds: 1800);
+
+  /// `FADE_MS = 320` — `LoadingScreen.tsx:18`, and `EXIT_MS = 320` —
+  /// `SplashScreens.tsx:32`. One value, two names in the source; one token
+  /// here because they are the same 320 ms opacity transition.
+  ///
+  /// `onDone` fires at `duration + FADE_MS` = **2120 ms**, not at 1800
+  /// (`LoadingScreen.tsx:36-37`). [bootTotal] is that sum, named so the
+  /// arithmetic is stated once.
+  static const Duration exitFade = Duration(milliseconds: 320);
+
+  /// `duration + FADE_MS` — `LoadingScreen.tsx:37`. `B10-AC-32`.
+  static const Duration bootTotal = Duration(milliseconds: 2120);
+
+  /// `transition-opacity duration-500` — the splash backdrop cross-fade
+  /// (`SplashScreens.tsx:260`). A background-image cannot be transitioned, so
+  /// the source stacks all three and fades between them; the port does the
+  /// same.
+  static const Duration backdropCrossFade = Duration(milliseconds: 500);
+
+  /// `transition-opacity duration-300` / `transition-transform duration-300`
+  /// and `setTimeout(onDone, 300)` — the tutorial's exit
+  /// (`TutorialOverlay.tsx:344`, `:361`, `:367`).
+  static const Duration tutorialExit = Duration(milliseconds: 300);
+
+  /// `transition-all duration-200` — the progress dot's width change
+  /// (`SplashScreens.tsx:338`, `TutorialOverlay.tsx:434`).
+  static const Duration dotMorph = Duration(milliseconds: 200);
+
+  /// `transition-all duration-200` — `Button.tsx:92`.
+  static const Duration buttonState = Duration(milliseconds: 200);
 }

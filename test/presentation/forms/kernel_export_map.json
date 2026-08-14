@@ -1,0 +1,279 @@
+{
+  "_": [
+    "F0-AC-21 and F0-AC-96 — the 23 kernel exports, each mapped to a NAMED HOME",
+    "WITH ITS REASON, and each required to be EXERCISED rather than merely declared.",
+    "",
+    "Denominator, measured for this file against the pin 62f8a529:",
+    "  grep -c '^export ' src/app/components/formFields.tsx      -> 12",
+    "  grep -c '^export ' src/app/components/formValidation.tsx  -> 11",
+    "  total                                                     -> 23",
+    "",
+    "Three of the 23 are recorded as OUTSIDE lib/presentation/forms/ with the",
+    "L-2 / SSD 7.2 / G-L5 reason each (specs.md 6.3.7, RULING 8): fetchReferenceList,",
+    "useReferenceOptions and ReferenceSelect. Being outside the kernel directory is",
+    "NOT the same as being unsweepable, and an earlier revision of this header",
+    "conflated the two — it claimed all three carry \"dart_file\": null and put the",
+    "sweep denominator at 20. Measured against this file's own data, only ONE does.",
+    "fetchReferenceList and useReferenceOptions each have a real Dart declaration",
+    "(referenceRowsFrom, referenceFieldStateFrom) and are swept like any other.",
+    "",
+    "ReferenceSelect alone carries \"dart_file\": null, because it is NOT PORTED at",
+    "all — a symbol with no Dart declaration has no declaring line to hit. It is",
+    "excluded from the sweep by construction rather than by omission. The sweep's",
+    "denominator is therefore 23 of the 24 rows, and the test asserts that number",
+    "so a second symbol quietly acquiring \"dart_file\": null cannot shrink the gate.",
+    "",
+    "LoadFailure (formFields.tsx:53) is PRIVATE in the source, so it is not one of",
+    "the 23. It is recorded below anyway, flagged \"exported\": false, because",
+    "specs.md 6.3.7's table gives it row 9 and F0-AC-25/F0-AC-26 assert its",
+    "presence and its absence. It is swept like the rest.",
+    "",
+    "dart_symbol is what the lcov sweep locates in dart_file; the declaring line",
+    "RANGE is derived at test time by scanning forward to the next top-level",
+    "declaration, so this file cannot go stale against a line the kernel moves."
+  ],
+  "source_pin": "62f8a529aaa024a8b35b0af50a8fbd4850a63962",
+  "denominator": { "formFields.tsx": 12, "formValidation.tsx": 11, "total": 23 },
+  "exports": [
+    {
+      "n": 1,
+      "symbol": "FieldLabel",
+      "src": "formFields.tsx:40",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/field_label.dart",
+      "dart_symbol": "FieldLabel",
+      "reason": "pure UI"
+    },
+    {
+      "n": 2,
+      "symbol": "DateField",
+      "src": "formFields.tsx:71",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/date_field.dart",
+      "dart_symbol": "DateField",
+      "reason": "pure UI"
+    },
+    {
+      "n": 3,
+      "symbol": "Option",
+      "src": "formFields.tsx:98",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/option.dart",
+      "dart_symbol": "Option",
+      "reason": "view value type"
+    },
+    {
+      "n": 4,
+      "symbol": "SearchableSelect",
+      "src": "formFields.tsx:104",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/searchable_select.dart",
+      "dart_symbol": "SearchableSelect",
+      "reason": "already fully parameter-driven in the source — takes options, loading, failed, onRetry, emptyMessage. Nothing to change"
+    },
+    {
+      "n": 5,
+      "symbol": "ReferenceSelectView",
+      "src": "formFields.tsx:282",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/reference_select_view.dart",
+      "dart_symbol": "ReferenceSelectView",
+      "reason": "already takes source: ReferenceOptions as a parameter — the shape all of them take"
+    },
+    {
+      "n": 6,
+      "symbol": "LocationIds",
+      "src": "formFields.tsx:364",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/location_fields_view.dart",
+      "dart_symbol": "LocationIds",
+      "reason": "value type"
+    },
+    {
+      "n": 7,
+      "symbol": "LocationPaths",
+      "src": "formFields.tsx:374",
+      "exported": true,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/location_fields_view.dart",
+      "dart_symbol": "LocationPaths",
+      "reason": "value type"
+    },
+    {
+      "n": 8,
+      "symbol": "ReferenceOptions",
+      "src": "formFields.tsx:242",
+      "exported": true,
+      "home": "presentation/forms/widgets/ (renamed ReferenceFieldState)",
+      "dart_file": "lib/presentation/forms/widgets/reference_field_state.dart",
+      "dart_symbol": "ReferenceFieldState",
+      "reason": "{options, loading, failed, retry, labelOf} is a UI view-model with no wire knowledge. Renamed so nothing reads it as the hook it is named after"
+    },
+    {
+      "n": 9,
+      "symbol": "LoadFailure",
+      "src": "formFields.tsx:53",
+      "exported": false,
+      "home": "presentation/forms/widgets/",
+      "dart_file": "lib/presentation/forms/widgets/load_failure.dart",
+      "dart_symbol": "LoadFailure",
+      "reason": "pure UI. PRIVATE in the source, so not one of the 23 — recorded because specs.md 6.3.7 gives it row 9"
+    },
+    {
+      "n": 10,
+      "symbol": "fetchReferenceList",
+      "src": "formFields.tsx:235",
+      "exported": true,
+      "home": "features/reference/data/ — OUTSIDE presentation/forms/",
+      "dart_file": "lib/features/reference/data/models/reference_wire.dart",
+      "dart_symbol": "referenceRowsFrom",
+      "reason": "L-2 (ssd.md:836) — wire-shape absorption is absorbed in the data layer and never surfaces upward, and ssd.md:207 bars it from presentation/ outright. It is NOT a kernel export in Dart"
+    },
+    {
+      "n": 11,
+      "symbol": "useReferenceOptions",
+      "src": "formFields.tsx:252",
+      "exported": true,
+      "home": "SPLIT — mapping half in presentation/forms/widgets/, fetching half is the page BLoC's (F1)",
+      "dart_file": "lib/presentation/forms/widgets/reference_field_state.dart",
+      "dart_symbol": "referenceFieldStateFrom",
+      "reason": "ssd.md 7.2 — setState is Never for anything a network call produced. The mapping half (value=code, label=text(label,lang), sub=other locale, labelOf's raw-code fallback) is pure and lands here; the fetch does not"
+    },
+    {
+      "n": 12,
+      "symbol": "ReferenceSelect",
+      "src": "formFields.tsx:343",
+      "exported": true,
+      "home": "NOT PORTED as a self-fetching widget — OUTSIDE presentation/forms/",
+      "dart_file": null,
+      "dart_symbol": null,
+      "reason": "needs a GetLookupOptions it cannot obtain: ssd.md:511 — route builders and main.dart may resolve from a locator, NO WIDGET MAY, enforced by G-L5. Its whole body is `const source = useReferenceOptions(type); return <ReferenceSelectView source={source} …/>`; in Dart that composition happens where the state lives. Recorded as a deliberate structural divergence (specs.md 6.3.8)"
+    },
+    {
+      "n": 13,
+      "symbol": "LocationFields",
+      "src": "formFields.tsx:380",
+      "exported": true,
+      "home": "presentation/forms/widgets/ (as LocationFieldsView)",
+      "dart_file": "lib/presentation/forms/widgets/location_fields_view.dart",
+      "dart_symbol": "LocationFieldsView",
+      "reason": "parameter-driven over three option lists, three busy flags, failed/onRetry and onChange. The stale-row withholding rule (formFields.tsx:420-427) is behaviour Tier 1 observes, so it stays kernel-owned as the pure selector visibleRows"
+    },
+    {
+      "n": 14,
+      "symbol": "ValidationProvider",
+      "src": "formValidation.tsx:41",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "ValidationScope",
+      "reason": "the InheritedWidget scope ssd.md 7.4 already specifies; touches no network"
+    },
+    {
+      "n": 15,
+      "symbol": "useShowErrors",
+      "src": "formValidation.tsx:68",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "showErrorsOf",
+      "reason": "a hook over the scope becomes a static accessor on it; touches no network"
+    },
+    {
+      "n": 16,
+      "symbol": "useServerErrors",
+      "src": "formValidation.tsx:73",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "serverErrorsOf",
+      "reason": "as above"
+    },
+    {
+      "n": 17,
+      "symbol": "useServerError",
+      "src": "formValidation.tsx:78",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "serverErrorOf",
+      "reason": "as above"
+    },
+    {
+      "n": 18,
+      "symbol": "useClearServerError",
+      "src": "formValidation.tsx:84",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "clearServerErrorOf",
+      "reason": "as above"
+    },
+    {
+      "n": 19,
+      "symbol": "isEmpty",
+      "src": "formValidation.tsx:89",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/is_empty.dart",
+      "dart_symbol": "isEmpty",
+      "reason": "pure predicate"
+    },
+    {
+      "n": 20,
+      "symbol": "useFieldError",
+      "src": "formValidation.tsx:99",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/validation_scope.dart",
+      "dart_symbol": "fieldErrorOf",
+      "reason": "as above; its result type FieldErrorState lives beside it"
+    },
+    {
+      "n": 21,
+      "symbol": "fieldErrorRing",
+      "src": "formValidation.tsx:116",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/field_error_ring.dart",
+      "dart_symbol": "fieldErrorRing",
+      "reason": "pure function of a bool; the two branches are FieldRing constants"
+    },
+    {
+      "n": 22,
+      "symbol": "FieldError",
+      "src": "formValidation.tsx:124",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/field_error.dart",
+      "dart_symbol": "FieldErrorText",
+      "reason": "pure UI. Named FieldErrorText because the Dart side also needs FieldErrorMarker — the analogue of the source's data-field-error attribute that scrollToFirstError locates"
+    },
+    {
+      "n": 23,
+      "symbol": "scrollToFirstError",
+      "src": "formValidation.tsx:150",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/scroll_to_first_error.dart",
+      "dart_symbol": "scrollToFirstError",
+      "reason": "locates the Dart analogue of data-field-error and scrolls to the first in document order"
+    },
+    {
+      "n": 24,
+      "symbol": "stepOfFirstError",
+      "src": "formValidation.tsx:172",
+      "exported": true,
+      "home": "presentation/forms/validation/",
+      "dart_file": "lib/presentation/forms/validation/step_of_first_error.dart",
+      "dart_symbol": "stepOfFirstError",
+      "reason": "pure function returning the earliest step for a 422 map; an unknown path is SKIPPED, not treated as step 0"
+    }
+  ]
+}

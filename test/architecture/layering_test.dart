@@ -12,11 +12,20 @@
 /// | G-L3 | no file under `features/A/**` imports `features/B/{data,presentation}/**`, A ≠ B | CFI (§ 4.3) |
 /// | G-L4 | no file under `lib/core/**` imports `package:flutter/{material,widgets}.dart` or `features/*/{data,presentation}/**` | § 4.4, § 4.5 |
 /// | G-L5 | no file under `lib/presentation/**` or `features/*/presentation/**` names `injection` / `authInjection` / `sessionInjection`, or imports a `**/di/**` path | CR-1 (§ 6.4) |
+/// | G-L6 | no file under `**/data/**` or `lib/core/**` imports `**/presentation/**` | § 3.2 `ssd.md`:157 |
 /// | G-L7 | no file under `lib/presentation/**` imports `features/*/presentation/**` | § 4.4 second half (`ssd.md`:255) |
+/// | G-L8 | no `.tr()` in `lib/**` omits `context:`, outside `tr_allowlist.yaml` | D-3 (B10 § 6.7.4) |
+/// | O-4a | `toUtc()` appears nowhere in `lib/**` | ADR-0005 O-4 |
+/// | O-4b | `DateTime.now()` only at a `kDateNowRegister` site | ADR-0005 O-4 |
+/// | R-21 | no code path rejects a picked file by extension or MIME type | specs.md § 6.6.2 |
 ///
-/// **G-L6 is deliberately absent and the number is deliberately unused** — see
-/// `layering_rules.dart`'s library doc for the 170 measured lines of today's
-/// tree that F0's wording would fail on (B9-AC-9, FU-2).
+/// **G-L6 lands in F0b, and it is NARROWER than F0's own § 6.1.3 wording** —
+/// see `layering_rules.dart`'s `glL6Violations` doc. B9a refused the wording
+/// because `grep -rn "presentation/{theme,icons,common,shell}/" lib/features
+/// lib/core` returns **218 lines** on this tree (170 at `f530d8e`), every one
+/// of them a page importing `presentation/theme/`, which is what that directory
+/// is for. Scoped to `data/` and `core/` it is green, and it closes the exact
+/// edge § 6.1.2 row 3 names — which nothing in the tree could see.
 ///
 /// **Why G-L5 exists at all.** CR-1 removed the two global-locator reads that
 /// lived inside widgets (`LanguageToggle`'s `storage ?? injection<...>()` and
@@ -36,15 +45,21 @@
 /// unchanged from that commit.
 library;
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'layering_rules.dart';
 
 void main() {
   late final List<DartFile> files;
+  late final List<TrAllowEntry> trAllowlist;
 
   setUpAll(() {
     files = scanTree(kLibDir);
+    trAllowlist = parseTrAllowlist(
+      File('test/architecture/tr_allowlist.yaml').readAsStringSync(),
+    );
 
     expect(
       files,
@@ -171,6 +186,182 @@ void main() {
           'know both — and it is already the sanctioned place to resolve from '
           'a container (CR-1).\nOffenders:\n  ${violations.join('\n  ')}',
     );
+  });
+
+  test('G-L6 — no data/ or core/ file imports a presentation/ path', () {
+    final List<String> violations = glL6Violations(files);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: '`ssd.md`:157 — "presentation -> domain, data -> domain, nothing '
+          '-> presentation". A repository or a core utility that imports a '
+          'widget has inverted the layer it sits in: the wire mapping now '
+          'cannot be tested without a widget tree, and the widget cannot be '
+          'replaced without touching the data layer.\n'
+          'This is the edge RULING 9 was written to prevent (specs.md '
+          "§ 6.1.2 row 3): B4's submission executor lives in "
+          '`features/certificates/data/`, and the revoked '
+          '`lib/presentation/forms/submission/` placement would have had it '
+          'importing `lib/presentation/**` by design. G-L1, G-L2, G-L4 and '
+          'G-L7 are each scoped elsewhere and none of them could see '
+          'it.\nOffenders:\n  ${violations.join('\n  ')}',
+    );
+  });
+
+  test('G-L6 has something to say about — the scan really reaches data/ and '
+      'core/', () {
+    // Same positive control as G-L7's, for the same reason: G-L6 is green over
+    // a tree with zero such edges, and a rule that inspects nothing is green in
+    // exactly the same way.
+    expect(
+      files.where((DartFile f) => f.under('data')),
+      isNotEmpty,
+      reason: 'G-L6 filters on `under("data")` and found no such file',
+    );
+    expect(
+      files.where((DartFile f) => f.segments.first == 'core'),
+      isNotEmpty,
+      reason: 'G-L6 filters on `segments.first == "core"` and found no such file',
+    );
+  });
+
+  test('ADR-0005 O-4 — toUtc() appears nowhere in lib/', () {
+    final List<String> violations = toUtcViolations(files);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: 'ADR-0005 O-4. The web dates every submission with '
+          '`new Date().toISOString().slice(0, 10)` — UTC — so in Laos (UTC+7) '
+          'every submission made between 00:00 and 07:00 local is dated '
+          'YESTERDAY, on eleven call sites reaching eight registered wire '
+          'keys. That is the one deliberate divergence this port makes, and '
+          'a single `toUtc()` anywhere in `lib/**` puts the defect back.\n'
+          'If a date needs formatting, read it from an injected '
+          '`SubmissionClock` and use `todayLocal()`.\nOffenders:\n  '
+          "${violations.join('\n  ')}",
+    );
+  });
+
+  test('ADR-0005 O-4 — DateTime.now() only at a registered site', () {
+    final List<String> unregistered = dateNowUnregisteredSites(files);
+
+    expect(
+      unregistered,
+      isEmpty,
+      reason: 'The clock is INJECTED, never ambient. A page that reads '
+          '`DateTime.now()` inside its `buildFormData` cannot be driven to a '
+          'fixed instant, which makes the other ~200 payload keys '
+          'incomparable — Tier 0 rests entirely on being able to freeze '
+          'this.\nTake a `SubmissionClock` as a parameter. If the site really '
+          'is not a date path, add it to `kDateNowRegister` WITH the reason, '
+          'so the next reader inherits the argument and not just the '
+          "permission.\nOffenders:\n  ${unregistered.join('\n  ')}",
+    );
+
+    // The other direction: a register row nobody still needs.
+    final List<String> dead = dateNowDeadRegisterRows(files);
+    expect(
+      dead,
+      isEmpty,
+      reason: 'A `kDateNowRegister` row whose file no longer holds a '
+          '`DateTime.now()`. Membership is recomputed every run precisely so a '
+          'permission cannot outlive the thing it permitted — delete the '
+          "row.\nDead rows:\n  ${dead.join('\n  ')}",
+    );
+  });
+
+  test('R-21 — no code path rejects a picked file by type', () {
+    final List<String> violations = pickerRejectionViolations(files);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: 'specs.md § 6.6.2. In HTML `accept` filters the picker\'s '
+          'default VIEW and rejects nothing — the client performs no MIME or '
+          'size validation anywhere. In Flutter `FileType.custom` + '
+          '`allowedExtensions` is a hard filter with no escape hatch, so '
+          'porting the five `accept` strings that way diverges on ALL FIVE '
+          "pages, not on Resident alone.\nThe requirement: a `.pdf` selected "
+          'on the Resident form must reach the attachment list. '
+          '`AttachmentAcceptPolicy` holds the five source strings as DATA and '
+          'is never passed to a picker as a filter.\nOffenders:\n  '
+          "${violations.join('\n  ')}",
+    );
+  });
+
+  test('F0-AC-22 — no kernel VARIANT is declared under presentation/forms/',
+      () {
+    final List<String> violations = forbiddenKernelSymbolViolations(files);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: 'specs.md § 6.3, RULING 2 — ONE kernel, ZERO variants. Each of '
+          '`${kForbiddenKernelSymbols.join('`, `')}` is a CALL SHAPE of a '
+          'control the kernel already has, not a control of its own: '
+          "Marriage/Divorce's weaker error surface is produced by OMITTING "
+          '`failed` / `onRetry` / `emptyMessage` at the call site, exactly as '
+          '`formFields.tsx:223` does. A second widget is how one kernel '
+          'becomes two that drift, and nothing else in this tree can see one '
+          "appear.\nOffenders:\n  ${violations.join('\n  ')}",
+    );
+
+    // Non-vacuity. The scan is scoped to `presentation/forms/`, so a scope
+    // typo (or the kernel not existing yet) would make it pass on nothing.
+    expect(
+      files.where((DartFile f) => f.path.startsWith('presentation/forms/')),
+      isNotEmpty,
+      reason: 'the scan reached no file under `lib/presentation/forms/`',
+    );
+  });
+
+  test('G-L8 — no .tr() in lib/ omits `context:` outside the allowlist', () {
+    final List<String> violations =
+        glL8Violations(files, allowlist: trAllowlist);
+
+    expect(
+      violations,
+      isEmpty,
+      reason: 'D-3 (B10 § 6.6). `.tr()` with no `context:` reads '
+          '`Localization.instance` — a global — and registers no '
+          '`InheritedWidget` dependency, so the string does not repaint when '
+          'the citizen changes language. It refreshes on the next navigation '
+          'instead, which is the defect, not the behaviour.\n'
+          'The fix is `.tr(context: context)`. **Not** removing a `const`: '
+          '§ 6.6.3 measured a `const` widget with `context:` refreshing and a '
+          'non-const one without it going stale, and commit `d22cd98` had '
+          'already removed the `const` from both sites that theory blames '
+          'while the defect survived.\n'
+          'If the call has no context to pass — a BLoC, a mapper, a '
+          '`static final` — the string is being resolved outside the widget '
+          'tree, which is GG-3 and its own defect. Raise it; do not append to '
+          '`tr_allowlist.yaml`, which may only shrink.\nOffenders:\n  '
+          '${violations.join('\n  ')}',
+    );
+  });
+
+  test('G-L8 has something to say about — the scan really reaches .tr() calls',
+      () {
+    // Same positive control as G-L7's below, for the same reason: G-L8 is
+    // green over a fully-allowlisted tree, and a G-L8 that parsed no calls at
+    // all would be green in exactly the same way.
+    final int bare = files
+        .expand((DartFile f) => trCallsIn(f.source))
+        .where((TrCall c) => !c.bound)
+        .length;
+    final int bound = files
+        .expand((DartFile f) => trCallsIn(f.source))
+        .where((TrCall c) => c.bound)
+        .length;
+
+    expect(bare + bound, greaterThan(100),
+        reason: 'the tree has hundreds of `.tr()` calls; finding none means '
+            'the scanner stopped reading, not that the tree changed');
+    expect(bound, greaterThan(0),
+        reason: 'B10 bound at least the nine measured-stale strings. Zero '
+            'bound calls means the D-3 fix is not in this tree.');
   });
 
   test('G-L7 has something to say about — the scan really reaches '

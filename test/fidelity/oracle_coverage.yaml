@@ -1,4 +1,5 @@
-# oracle_coverage.yaml — RULING 10's coverage register (§ 6.5.5, `F0-AC-105`).
+# oracle_coverage.yaml — RULING 10's coverage register (§ 6.5.5, `F0-AC-105`),
+# with RULING 12's `constant:` section (§ 6.5.7, `F0-AC-107`).
 #
 # Owner:  qa-lcc-mobile-app-greenfield (agentId agent-1786630209903-djc1y5)
 # Batch:  F0a — GOR-245-f0-form-kernel
@@ -24,17 +25,11 @@
 # A leaf that some future fixture could reach, but nobody has driven yet, is
 # NOT eligible. It is reported as NOT EVALUATED in `qa-report.md` instead.
 
-schema: oracle_coverage/1
+schema: oracle_coverage/2
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Structurally unreachable — the register proper
 # ─────────────────────────────────────────────────────────────────────────────
-#
-# Two entries, and both were already named by § 6.5.5. Nothing has been added
-# to this list by this batch: the four Entry A drivers written since produced
-# no new *unreachable* leaf, only executed coverage and one BLOCKED
-# disagreement (below). That is the expected shape — driving a form should
-# shrink the undriven set, never grow the unreachable one.
 unreachable:
   - leaf: /linked_reference_no
     scope: createEnvelope
@@ -61,6 +56,9 @@ unreachable:
       key is dropped rather than sent empty. `manifest-authenticated.md`:230-232
       records all three `kind` values answering `200 data: [] total: 0`, and
       names that as the complete valid domain.
+      NOW ALSO EXECUTED on both nested forms: `divorce.create.{en,lo}` and
+      `marriage.create.{en,lo}` are Entry A captures at this pin, and the
+      elided inhabitant is what came off the wire.
     note: >-
       This is a data-availability limit, not a fixture-effort limit: the rig
       fulfils `/prerequisite-records` itself and could return a row, but that
@@ -101,20 +99,130 @@ unreachable:
       differ, so the leaf is oracled — it is only the EXECUTION of it that is
       unreachable.
 
+  # ── RULING 13 part 4 and § 6.5.5's v1.4 additions ──────────────────────────
+  # Both were IMPLIED by the `/prerequisite-records` row above and stated
+  # nowhere, which is how M-3 survived into a fixture file. A register entry
+  # that exists only as an inference is not an entry.
+  - leaf: /betrothal/creates_betrothal_record
+    scope: form_data
+    forms: [marriage]
+    state: 'false — i.e. betrothalMode = "existing"'
+    carried_by: B
+    also: [/betrothal/betrothal_record_no, /betrothal/proposal_date]
+    why: >-
+      `MarriageCertificatePage.tsx:854` makes step 1 `Boolean(linkedRecord &&
+      headerOk)` in this mode, and `linkedRecord` is written ONLY by
+      `selectExisting` (`:808-811`) from a `/prerequisite-records` row — the
+      same empty endpoint as the first entry above. So the `false` inhabitant
+      of the payload's only non-string primitive (`:904`), and with it the two
+      keys that are non-empty only under a linked record, cannot be executed.
+      The `true` inhabitant IS executed (`marriage.create.{en,lo}`).
+    evidence:
+      - manifest-authenticated.md:230-232
+      - MarriageCertificatePage.tsx:854
+      - MarriageCertificatePage.tsx:808-811
+      - MarriageCertificatePage.tsx:904
+    verified_by_qa: >-
+      MEASURED, not inferred: `driveMarriage` was pointed at
+      `marriage/whitespace.en.json` (`betrothalMode: "existing"`,
+      `linkedRecord: null`) and `probeMarriageBranch` stopped the run at step 1
+      before typing anything, reporting
+      `MARRIAGE_BETROTHAL_MODE_UNREACHABLE` with the DOM inventory
+      `{"choosers":2,"combos":0,"texts":0,"files":0}` — the chooser renders,
+      and nothing behind it does. `F0-AC-81` clause (iii) and `F0-AC-109`
+      clause (ii) both check this row.
+
+  - leaf: /mediation/mediation_record_no
+    scope: form_data
+    forms: [divorce]
+    state: 'non-empty — i.e. mediationMode = "existing"'
+    carried_by: B
+    why: >-
+      `DivorceCertificatePage.tsx:753` gates step 1 on the same `linkedRecord`,
+      from the same endpoint. RULING 13 part 4. The ELIDED-to-`""` inhabitant
+      is executed on all four driven divorce documents.
+    evidence:
+      - manifest-authenticated.md:230-232
+      - DivorceCertificatePage.tsx:753
+      - DivorceCertificatePage.tsx:803
+    verified_by_qa: >-
+      `canProceed()` at `:749-766` admits exactly two step-1 states and this is
+      not one of them. `driveDivorce` now REFUSES to choose the arm on the
+      fixture's behalf (`DIVORCE_MEDIATION_MODE_UNDECLARED`), so a fixture that
+      declared `existing` would stop rather than be quietly driven down `new`.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# constant: — RULING 12(b). NOT an exemption list.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# `unreachable:` and `escalated:` record leaves Entry A does NOT cover.
+# `constant:` records a leaf Entry A DOES cover, and whose agreement with
+# Entry B is nonetheless not evidence that the fixture pipeline works, because
+# no fixture input can influence it.
+#
+# The leaf STAYS IN `F0-AC-104`. QA offered "declare it driver-inert and exempt
+# it" and § 6.5.7 REFUSED: an exempted leaf catches nothing forever, where a
+# corrected one still catches a pin that moves and changes the constant.
+#
+# MEMBERSHIP IS RECOMPUTED, NEVER ASSERTED. `constant_scan.py` re-derives the
+# set from the five pinned pages on every run and asserts set equality with
+# this section in BOTH directions — a row with no scan support fails, a scan
+# hit with no row fails. Measured today the derived set has cardinality 1.
+constant:
+  - field: podCountry
+    leaf: /deceased.place_of_death_country
+    forms: [death]
+    group: deceased
+    initialiser: "Laos"
+    cite: DeathDeclarationPage.tsx:224
+    documents: 12         # every death document, both bodies, both locales
+    evidence:
+      - DeathDeclarationPage.tsx:85     # the DeceasedInfo field
+      - DeathDeclarationPage.tsx:224    # blankDeceased, the literal "Laos"
+      - DeathDeclarationPage.tsx:807    # the payload read
+    why: >-
+      Declared, initialised, read into the payload, and written by NOTHING.
+      `deceased` is written only through `patchDeceased` (`:713`), reached from
+      nineteen `onChange` handlers, and the one that touches the place-of-death
+      group (`LocationFields` at `:1201`, handler `:1210-1216`) enumerates
+      `podProvince`, `podDistrict`, `podVillage` and stops. `AddressFields`
+      (`:411-447`) is typed to the four `addr*` keys. No writer exists, so the
+      leaf holds `"Laos"` on every run of the pinned build.
+    resolution: >-
+      RULING 12(a). The six death fixtures declared `"LA"` — a value the
+      application cannot emit — and were corrected to `"Laos"`, the literal at
+      the cited line, machine-verified before the edit. That is a FIXTURE
+      DEFECT resolved from a third artefact neither entry produced (§ 6.5.5's
+      amended taxonomy), not an edit-to-green: had `:224` read `"Lao PDR"`, the
+      fixture would read that and Entry A would still have to agree.
+    cost_declared: >-
+      The correction costs this leaf its double-entry power on THIS pin: both
+      entries now derive from the same literal and cannot disagree about it.
+      That is declared here rather than absorbed, which is the whole reason the
+      section exists. What it still catches is a pin that moves: if `:224`
+      becomes `"Lao PDR"`, Entry A captures `"Lao PDR"` while Entry B evaluates
+      the fixture's `"Laos"` and `F0-AC-104` fails on it exactly as it did
+      before the correction.
+    recomputed_by: test/fidelity/constant_scan.py
+    negative_controls:
+      - "--control=planted-writer: a patchDeceased({ podCountry }) writer is
+         planted in an IN-MEMORY copy of the page; podCountry leaves the
+         derived set and the equality FAILS."
+      - "--control=planted-row: a `constant:` row with no scan support is
+         injected and the equality FAILS the other way."
+
 # ─────────────────────────────────────────────────────────────────────────────
 # What Entry A actually covers, measured
 # ─────────────────────────────────────────────────────────────────────────────
-#
-# Stated as a fraction, in this file, because "A covered 1488 leaves" reads as
-# full coverage to anyone who does not know the denominator.
 executed:
-  documents: 24           # of 50 Entry B documents (22 canonical + 28 variant)
-  leaves: 1488            # of 2690 across the whole matrix — 55.3 %
-  forms: [resident, birth, death]
+  documents: 36           # of 54 Entry B documents (22 canonical + 32 variant)
+  leaves: 2072            # of 2874 across the whole matrix — 72.1 %
+  forms: [resident, birth, death, marriage, divorce]
   variants_covered:
     - birth.father-unknown
     - death.father-skip
     - death.mother-skip
+    - divorce.contested       # new — RULING 13 part 3
   locales: [en, lo]
   bodies: [create, update]
   evidence: >-
@@ -124,133 +232,163 @@ executed:
     re-derives `form_data` from `raw_bytes` and fails if the two disagree, so a
     hand-edited capture cannot pass as evidence.
   qa_recount: >-
-    Counted independently of the four driver agents' reports, by reading
-    `provenance.entry` off all 74 documents on disk: 24 carry `A`, 50 carry
-    `B`. Leaf totals are `len(paths)` per document, NOT `len(form_data)` —
-    Marriage and Divorce are the NESTED payload family (Finding A), so
-    top-level `form_data` keys undercount their leaves roughly twelve-fold.
-    The Dart harness reports the same two numbers: `F0-AC-104: 1488 leaves
-    compared A vs B across 24 documents`.
+    Counted by reading `provenance.entry` off all 90 documents on disk: 36
+    carry `A`, 54 carry `B`. Leaf totals are `len(paths)` per document, NOT
+    `len(form_data)` — Marriage and Divorce are the NESTED payload family
+    (Finding A), so top-level `form_data` keys undercount their leaves roughly
+    twelve-fold.
+  new_this_round: >-
+    Marriage went from NO driver to four executed documents (108 leaves
+    compared per locale, zero disagreements) and Divorce from a complete but
+    unrunnable driver to eight (92 leaves per document). Death's twelve went
+    from one disagreeing leaf to zero. Every form family in the matrix now has
+    at least one executed document, which was not true of any previous round.
 
 # ─────────────────────────────────────────────────────────────────────────────
-# BLOCKED — a live A-vs-B disagreement, held open per § 8.3
-# ─────────────────────────────────────────────────────────────────────────────
-#
-# This is NOT a coverage gap and must not be read as one: Entry A DOES cover
-# this leaf. It is recorded here because it is the one place the two entries
-# contradict each other, and § 8.3 forbids resolving that by editing either
-# side. It is why `F0-AC-104` is FAIL rather than PASS.
-blocked:
-  - leaf: /deceased.place_of_death_country
-    forms: [death]
-    documents: 12         # every death document, both bodies, both locales,
-                          # baseline + father-skip + mother-skip
-    executed_value: "Laos"        # 22 4c 61 6f 73 22
-    transcribed_value: "LA"       # 22 4c 41 22
-    b_cites: DeathDeclarationPage.tsx:807
-    diagnosis: >-
-      Neither a rig defect nor, strictly, a transcription defect: the leaf is
-      DRIVER-INERT. `podCountry` occurs exactly three times in the pinned tree
-      — the type (`DeathDeclarationPage.tsx:85`), the blank-state initialiser
-      `podCountry: "Laos"` (`:224`), and the payload read (`:807`). None is a
-      write, and no JSX renders a control for it, so no user action on the
-      pinned build can make this leaf hold anything but `"Laos"`. Entry B
-      faithfully evaluated the fixture's declared `"podCountry": "LA"`, which
-      is a value the application cannot emit.
-    qa_verification: >-
-      Confirmed independently: `grep -rn podCountry src/` in the pinned tree at
-      62f8a529 returns exactly those three lines and no setter.
-    resolution_owner: software-architect
-    permitted_resolutions:
-      - correct the death fixtures' `podCountry` to the constant `"Laos"`
-      - declare the leaf driver-inert and exempt it from `F0-AC-104`
-    forbidden_resolution: >-
-      Editing Entry A's capture or Entry B's transcription so the two agree.
-      That is the double entry deleting itself, and § 8.3 names it explicitly.
-
-# ─────────────────────────────────────────────────────────────────────────────
-# NOT in the register, and the reason is the whole point of the register
+# not_eligible — and this section is now an ESCALATION, not a to-do list
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # `F0-AC-105` clause (ii) — "every `transcribed` leaf in every oracle appears
-# in the register" — is NOT satisfied, and it is recorded here as FAIL rather
-# than closed by adding rows.
+# in the register" — is satisfied by name here, and the honest reading of the
+# rows below is NOT "someone still has to write a driver". It is the opposite,
+# and that is the change from the previous revision of this file.
 #
-# 26 of the 50 Entry B documents have no Entry A coverage. Two of them
-# (family-book) are registered as structurally unreachable above. The other
-# 24 — 1200 leaves — are UNDRIVEN or BLOCKED ON A DEFECTIVE FIXTURE, and not
-# one of them could carry the `file:line` proving otherwise. Resident, Birth
-# and Death are the proof: all three looked exactly as uncovered as Marriage
-# does now, until drivers were written for them, and all three are executed
-# end to end today. That substitution — effort recorded as impossibility — is
-# the single failure mode this register was written to make impossible.
+# 18 of the 54 Entry B documents have no Entry A coverage. Two (family-book)
+# are registered unreachable above. The other 16 — 800 leaves — are the
+# `blank-b` and `whitespace` variants of the two nested forms, and MEASUREMENT
+# says they are not undriven. They are undrivable, for reasons that were not
+# known when § 6.5.3 item 1 was written.
+#
+# They are filed HERE rather than under `unreachable:` on purpose. They meet
+# that section's evidence bar — each carries a `file:line` proving no click
+# sequence reaches the state — but entering them there would close the matter,
+# and the matter is not QA's to close: a fixture amendment is architect-only
+# (§ 6.5.5), and the same evidence says three criteria (`F0-AC-37(b)`,
+# `F0-AC-37(c)`, `F0-AC-83`) cannot be discharged by Entry A at all as those
+# criteria are currently worded. That is an escalation, and it is reported as
+# FAIL / NOT EVALUATED in `qa-report.md` rather than absorbed here.
 not_eligible:
-  total_documents: 24     # 26 uncovered, minus family-book's 2 (registered above)
-  total_leaves: 1200      # 2690 − 1488 executed − 2 family-book registered
+  total_documents: 16     # 18 uncovered, minus family-book's 2 (registered)
+  total_leaves: 800       # 432 marriage + 368 divorce
 
   forms:
   - form: marriage
-    documents: 12         # marriage.{create,update}.{en,lo}
-                          # + variants blank-b / whitespace, both bodies, both locales
-    leaves: 648
-    reason: undriven-no-driver-exists
+    documents: 4          # marriage.blank-b.{create,update}.{en,lo}
+    leaves: 216
+    variant: blank-b
+    reason: escalated-fixture-declares-a-state-canProceed-rejects
     detail: >-
-      `execute_forms_oracle.mjs`'s `DRIVERS` table (`:789-794`) registers
-      resident, birth, death and divorce. There is no `marriage` entry, so the
-      rig exits `NO_DRIVER_FOR_marriage` (`:1694`) and captures nothing. No
-      structural claim is made or available: nobody has driven this form.
-    remaining_work: >-
-      A `marriageSteps` / `driveMarriage` pair on the pattern the other four
-      follow. Marriage is a NESTED-family page sharing `both()` and the spouse
-      mirror with Divorce, so the divorce driver is the closest worked example.
-      It will also need the `READ_SHAPED_POSTS` fulfilment already added for
-      `catalog.quote` — Marriage is the other page that POSTs it at mount.
+      `spouseValid` (`MarriageCertificatePage.tsx:839-848`) requires
+      `fullName.trim()`, `dob.trim()`, `gender`, `nationality`,
+      `idOrPassport.trim()`, `address.villageId`, `address.provinceId`,
+      `residenceCertRef.trim()` and `singleStatusCert` — and `canProceed()`
+      gates step 3 on it (`:860`). The `blank-b` fixture blanks exactly those
+      keys on spouse B, so step 3 can never advance.
+    the_deeper_finding: >-
+      This is not a defect in one fixture. Every one of the SEVEN keys the
+      `both()` mirror reads (`:911-917`) is separately mandatory in
+      `spouseValid`, so `both()` can NEVER return `""` in any state that
+      reaches `submitCase`. The mirror's collapse-to-`""` branch — which
+      § 6.5.3 item 1(b) exists to make observable and `F0-AC-37(b)` asserts —
+      is structurally unreachable on this page, and no fixture can fix that.
+      The same holds on Divorce for all six of its mirrored keys
+      (`DivorceCertificatePage.tsx:737-741`, `:817-822`).
+    measured: >-
+      `node execute_forms_oracle.mjs --form=marriage --variant=blank-b
+      --locale=en` stops at `STEP_3_DID_NOT_ADVANCE
+      (MarriageCertificatePage.tsx:1399-1416)`, zero documents landed.
+    resolution_owner: software-architect
+
+  - form: marriage
+    documents: 4          # marriage.whitespace.{create,update}.{en,lo}
+    leaves: 216
+    variant: whitespace
+    reason: escalated-two-independent-structural-blocks
+    detail: >-
+      (1) It declares `betrothalMode: "existing"` with `linkedRecord: null`,
+      which is the arm registered as unreachable above — measured by
+      `probeMarriageBranch` before a single control is touched. (2) Even under
+      `"new"` it would not run: the variant's whole purpose is the asymmetric
+      trim, and § 6.5.3 item 1(c) names the four keys that carry it — `dob`,
+      `gender`, `nationality`, `address.villageId`. NONE of the four can hold a
+      whitespace-padded value in the pinned build.
+    the_deeper_finding: >-
+      `dob` is an `input[type=date]` (`formFields.tsx:71-95`); `gender`'s
+      options are the page's own hard-coded `GENDERS` constant
+      (`MarriageCertificatePage.tsx:129-132`), not reference data;
+      `address.villageId` is a `SearchableSelect` whose value is an option id
+      (`formFields.tsx:196`, `:204`). The three keys that CAN carry whitespace
+      — `fullName`, `idOrPassport`, `residenceCertRef` — are exactly the three
+      § 6.5.3 item 1 calls the CONTROL GROUP, because they trim on both sides.
+      So the trim asymmetry `F0-AC-83` asserts is Entry-B-only by construction.
+      `dob` and `gender` are the load-bearing citations here and neither is
+      rig-choosable; `nationality`'s option list IS served by the rig, so that
+      one key is deliberately NOT relied on for this claim.
+    measured: >-
+      `--form=marriage --variant=whitespace --locale=en` stops at
+      `MARRIAGE_BETROTHAL_MODE_UNREACHABLE`; the divorce twin, which has no
+      betrothal mode, gets one step further and stops at
+      `COMBO_OPTION_ABSENT index=2 value=" 33333333-…-333333333333 "`.
+    resolution_owner: software-architect
 
   - form: divorce
-    documents: 12         # divorce.{create,update}.{en,lo}
-                          # + variants blank-b / whitespace, both bodies, both locales
-    leaves: 552
-    reason: blocked-on-defective-fixture
+    documents: 4          # divorce.blank-b.{create,update}.{en,lo}
+    leaves: 184
+    variant: blank-b
+    reason: escalated-fixture-declares-a-state-canProceed-rejects
     detail: >-
-      A complete `driveDivorce` EXISTS (`:793` in `DRIVERS`) and is not the
-      blocker. All six divorce fixtures declare
-      `basis.divorceType: "mutual"`, but `DivorceCertificatePage.tsx:745-746`
-      branches on the string literals `"voluntary"` and `"contested"`, so a
-      third code leaves both `isVoluntary` and `isContested` false and step 1
-      renders only the type `<select>` — no header, no mediation block, no
-      court block, and no click sequence that advances. The same fixtures also
-      carry mediation content AND court content, which `:745-746` makes
-      mutually exclusive, so they are unreachable whatever code is set.
-    why_not_eligible: >-
-      This is the OPPOSITE of unreachable and must not be filed as such. The
-      divorce agent demonstrated, against a minimally corrected fixture in a
-      scratch copy, that the existing driver captures all 46 leaves per body in
-      both locales with zero missing and zero unexpected keys. The leaves are
-      provably reachable; the fixture is the defect. Registering them here
-      would be the exact substitution this file forbids.
+      `spouseValid` (`DivorceCertificatePage.tsx:737-741`) requires all six of
+      the wife's mirrored inputs, and `canProceed()` gates step 3 on it
+      (`:768`). Same class as marriage's, one key smaller (Divorce's mirror has
+      no `gender`).
+    measured: >-
+      `--form=divorce --variant=blank-b --locale=lo` stops at
+      `STEP_3_DID_NOT_ADVANCE (DivorceCertificatePage.tsx:1397-1412)`.
     resolution_owner: software-architect
-    remaining_work: >-
-      Amend the divorce fixture matrix: set `basis.divorceType` to a code the
-      page branches on, and split the co-existing mediation and court content
-      into two variants. That changes Entry B's divorce oracles on at least
-      three leaves, so it is an amendment to the transcription's INPUTS and
-      outside an implementer's authority under § 8.3. Once amended, the driver
-      needs no further change.
+
+  - form: divorce
+    documents: 4          # divorce.whitespace.{create,update}.{en,lo}
+    leaves: 184
+    variant: whitespace
+    reason: escalated-declared-values-outside-every-control-domain
+    detail: >-
+      `husband.dob` is ` 1985-04-17 ` into an `input[type=date]`,
+      `husband.nationality` is `"  "` into a reference `<select>`, and
+      `husband.address.villageId` is a whitespace-padded uuid into a
+      `SearchableSelect`. The rig refuses each rather than leaving a default in
+      the payload, which is the correct behaviour.
+    resolution_owner: software-architect
 
   criteria_affected:
-    - F0-AC-104   # FAIL (BLOCKED, § 8.3) — 1488 leaves compared across 24
-                  #      documents, 1 distinct disagreeing leaf in 12 of them.
-                  #      Not NOT EVALUATED: the comparison ran on a real,
-                  #      non-zero leaf count.
-    - F0-AC-105   # clause (i) PASS — both registered entries carry a
-                  #      re-verified file:line.
-                  # clause (ii) FAIL — 24 documents / 1200 leaves are
-                  #      transcribed-only and none is register-eligible.
-    - F0-AC-106   # (a) PASS — a one-character drift in a driven input is
-                  #     caught and names the leaf; verified non-inert on
-                  #     resident, birth and death.
+    - F0-AC-104   # PASS — 2072 leaves compared A vs B across 36 documents,
+                  #        ZERO disagreements. The single standing
+                  #        disagreement (D-1, `podCountry`) is closed by
+                  #        RULING 12(a) and its `constant:` row above.
+    - F0-AC-105   # clause (i) PASS — every registered entry carries a
+                  #        re-verified file:line.
+                  # clause (ii) PASS by name — all 18 uncovered documents are
+                  #        declared, and none is filed as unreachable on
+                  #        effort grounds.
+    - F0-AC-37    # (a) PASS executed on both nested forms.
+                  # (b) FAIL — see the blank-b rows: structurally unreachable.
+                  # (c) FAIL — see the whitespace rows.
+    - F0-AC-83    # FAIL — the trim asymmetry is Entry-B-only; the four keys
+                  #        that carry it cannot hold whitespace.
+    - F0-AC-81    # clause (i) PASS, (ii) PASS (`true` executed on marriage),
+                  #        (iii) PASS (`false` registered above).
+    - F0-AC-106   # (a) PASS on resident, birth, death.
+                  #     NOT EVALUATED for marriage and divorce — the
+                  #     `--control=value-drift` arm has no branch for their
+                  #     fixture shapes yet.
                   # (b) PASS — a zero-capture run reports NOT EVALUATED and
-                  #     exits non-zero rather than passing vacuously.
-                  # (a) is NOT EVALUATED for marriage and divorce: neither can
-                  #     currently be driven, so a drift arm for either would
-                  #     assert coverage the form cannot exercise.
+                  #     exits non-zero, re-observed four times this round on
+                  #     the undrivable variants.
+    - F0-AC-107   # PASS — derived set {podCountry} equals the `constant:`
+                  #        section, both directions, with both controls firing.
+    - F0-AC-108   # see test/fidelity/fixture_classify.py
+    - F0-AC-109   # (i) PASS — voluntary+new and contested both driven;
+                  #     marriage's `new` driven.
+                  # (ii) PASS — both `existing` arms registered above.
+                  # (iii) PASS — no fixture spans two exclusive arms since
+                  #     RULING 13 removed the court block from the voluntary
+                  #     variants.

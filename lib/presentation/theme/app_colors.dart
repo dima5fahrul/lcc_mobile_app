@@ -513,6 +513,89 @@ abstract final class AppColors {
   /// one either; recorded with the two class-derived colours above.
   static const Color chatBubbleShadow = Color(0x12000000);
 
+  // ── B8a additions — the account & profile surface ──────────────────────────
+  //
+  // ## The same required deviation B9a and B9b's blocks above record
+  //
+  // specs.md § 3.1's B8a table names `lib/features/account/**`, four shared
+  // files and two shell/session files; it does not name this one. `ssd.md`
+  // § 10.1 — a binding architecture document, not a batch spec — makes this
+  // directory **the only place in `lib/**` allowed to hold a raw colour
+  // literal**, and `color_literal_test.dart` enforces it with a closed
+  // grandfather list of ten `features/auth/presentation/**` files that
+  // `lib/features/account/` is not on and cannot join. So the alternative to
+  // this block is not a tidier diff: it is a **failing green test**, because
+  // the two values below have no compliant home anywhere else. B8-AC-38's own
+  // wording — *"no new hardcoded hex in `features/account/**`"* — assumes a
+  // token exists to use; for these two, none did.
+  //
+  // Recorded as a scope deviation to be reviewed, and reported as one in the
+  // hand-back rather than left for a diff to find.
+  //
+  // **Two, and only two.** Everything else `AccountPage` draws resolves to a
+  // token already in this file, and each was checked **by value**, not by name:
+  // `#344EAD` → [primary] (`:312`, `:438`, `:475`, `:627`), `#EEF2FF` →
+  // [primarySoft] (`:436`, `:626`), `#1A2D6B` → [newsHeaderStart] (`:312`, the
+  // header gradient's dark stop), `#E5E7EB` → [gray200] (`:119`, `:627`),
+  // `#6B7280` → [muted] (`:628`), `bg-green-400` → [presenceOnline] (`:348`,
+  // the same Tailwind class B9b's chat avatar uses), `border-red-100` →
+  // [dangerOutlineSoft] (`:381`, `:722`), `text-red-500` → [dangerGlyph]
+  // (`:382`, `:517`, `:531`, `:545`, `:600`, `:701`, `:726`), `text-red-600` →
+  // [dangerText] (`:384`), and the four-part doc badge palette →
+  // [successSoft] / [successBorder] / [success] / [dangerSoft] /
+  // [dangerOutline] / [danger] / [gray50] / [gray200] / [gray500] (`:299-302`).
+  //
+  // ## A measured discrepancy in the reused tokens, recorded not forked
+  //
+  // Four of those reuses are **one step off the Tailwind v4 value the browser
+  // actually paints**, because the token was derived from a v3 name or from an
+  // inline hex in a different file: [gray300] is `#D1D5DB` where v4
+  // `gray-300` is `#D1D5DC`; [gray800] is `#1F2937` (an inline hex in
+  // `ServiceCard.tsx:65`) where the v4 *class* is `#1E2939`; [successBorder]
+  // is `#BBF7D0` where v4 `green-200` is `#B9F8CF`; [success] is `#15803D`
+  // where v4 `green-700` is `#008236`.
+  //
+  // B8 **reuses them anyway** and does not add four near-duplicates. Each of
+  // those four tokens is already this project's designated token for that
+  // Tailwind class — [gray300]'s own doc cites a `text-gray-300` class at
+  // `ServicePage.tsx:455` — so forking here would give the app two colours for
+  // one class and make the account page disagree with every other ported
+  // surface. The discrepancy is a token-layer defect predating B8 and is
+  // reported to the theme's owner rather than half-fixed inside one feature.
+  //
+  // Conversions below use the same OKLCH → sRGB path B9a validated by
+  // re-deriving `red-500` → [dangerGlyph], `red-400` → [dangerGlyphSoft] and
+  // `green-400` → [presenceOnline]; all three reproduce exactly.
+
+  /// `#7BF1A8` — Tailwind v4 `green-300`, `oklch(87.1% 0.15 154.449)`
+  /// (`lcc-app/node_modules/tailwindcss/theme.css:73`, `tailwindcss@4.1.12`).
+  /// The **"Verified Citizen" chip's label** on the account header
+  /// (`AccountPage.tsx:371`, `text-green-300`), sitting on the `bg-white/10`
+  /// pill.
+  ///
+  /// **Class-derived, so Tier 2 cannot see it** — `derive_tier2.py` greps hex
+  /// out of the web source and a Tailwind class never appears as one. Named
+  /// here with its provenance and recorded as not covered (B8-AC-38) rather
+  /// than quietly counted as covered.
+  ///
+  /// Deliberately not [presenceOnline] (`#05DF72`, `green-400`), which is the
+  /// **check glyph beside this very label** (`:370`, `text-green-400`) — one
+  /// step apart on one ramp, two nodes in the same three-element row, and the
+  /// source really does write two values.
+  static const Color green300 = Color(0xFF7BF1A8);
+
+  /// `#00A63E` — Tailwind v4 `green-600`, `oklch(62.7% 0.194 149.214)`
+  /// (`theme.css:76`). The two green confirmation notes: the profile editor's
+  /// `profileNote` (`AccountPage.tsx:547`, `text-green-600`) and the password
+  /// form's `pwNote` (`:702`).
+  ///
+  /// Class-derived, so likewise invisible to Tier 2. Deliberately not
+  /// [categoryAccentFinance] (`#16A34A`), which happens to be v3's `green-600`
+  /// and is an **inline hex** in `ServicePage.tsx:147`'s category seed table —
+  /// a different source for a different thing, and the mistake
+  /// [categoryAccentFallback] apologises for.
+  static const Color green600 = Color(0xFF00A63E);
+
   // ── Help-centre swatch palette ─────────────────────────────────────────────
 
   /// `HelpCenterPage.tsx:56`'s `PALETTE`, cycled over the help categories.
@@ -595,6 +678,167 @@ abstract final class AppColors {
   /// fallback chain. Same value as [primary]; named for the same reason.
   static const Color categoryAccentFallback = Color(0xFF344EAD);
 
+  // ── B10 — boot, onboarding, tutorial and the shared button ─────────────────
+  //
+  // § 6.14. Tier 2 compares *values*, and `color_literal_test.dart`'s own doc
+  // says why every one of these has to be here rather than inline: *"a value
+  // that is written inline in a widget body is not in the theme, so Tier 2
+  // cannot see it."*
+  //
+  // **The WCAG reasoning is carried across with the values, deliberately.**
+  // `SplashScreens.tsx:57-62` and `Button.tsx:24-25` each explain that a dark
+  // shade was chosen *because* the vibrant one fails 1.4.3 as text. A token
+  // named without that reasoning is one refactor away from being "simplified"
+  // back to the bright value by someone who reads it as an arbitrary choice.
+
+  // ── LoadingScreen.tsx ──
+  /// `linear-gradient(160deg, #4460C9 0%, …)` — `LoadingScreen.tsx:52`, stop 1.
+  static const Color bootGradientStart = Color(0xFF4460C9);
+
+  /// `… #344EAD 45% …` — same value as [primary]; named separately because it
+  /// is a gradient stop and would be changed for a different reason.
+  static const Color bootGradientMid = Color(0xFF344EAD);
+
+  /// `… #1B2C68 100%` — `LoadingScreen.tsx:52`, stop 3. Also the third stop of
+  /// all three splash washes (`SplashScreens.tsx:170`, `:181`, `:192`).
+  static const Color bootGradientEnd = Color(0xFF1B2C68);
+
+  /// `rgba(255,255,255,0.10)` — the top-right decorative glow
+  /// (`LoadingScreen.tsx:61`).
+  static const Color bootGlowWhite = Color(0x1AFFFFFF);
+
+  /// `rgba(245,197,66,0.12)` — the bottom-left glow (`:66`).
+  static const Color bootGlowAmber = Color(0x1FF5C542);
+
+  /// `#F5C542` — the progress bar fill (`:108`) and the issuing-authority star
+  /// (`:123`). Not [warningStrong] (`#F59E0B`): a different amber.
+  static const Color bootAccent = Color(0xFFF5C542);
+
+  /// `rgba(255,255,255,0.22)` — the progress track (`:102`).
+  static const Color bootProgressTrack = Color(0x38FFFFFF);
+
+  /// `border: 1px solid rgba(255,255,255,0.45)` — the pulsing halo (`:78`).
+  static const Color bootRing = Color(0x73FFFFFF);
+
+  /// `boxShadow: 0 20px 45px rgba(0,0,0,0.28)` — the logo tile's drop shadow
+  /// (`LoadingScreen.tsx:82`). Deeper than [cardShadowMedium] (0.10) because
+  /// the tile floats over a photograph-free gradient with nothing else to
+  /// separate it.
+  static const Color bootLogoShadow = Color(0x47000000);
+
+  // ── SplashScreens.tsx — badge inks ──
+  /// `#344EAD`, **7.36:1 on white** (`SplashScreens.tsx:168`). Slide 1's badge.
+  /// Same value as [primary]; a badge ink, not the brand fill.
+  static const Color splashBadgeInk1 = Color(0xFF344EAD);
+
+  /// `#075985`, **7.2:1 on white** (`:179`). Slide 2. The vibrant sky it
+  /// darkens (`#0EA5E9`) is only **2.32:1** and fails WCAG 1.4.3 as text —
+  /// that is the whole reason this is a separate, darker token.
+  static const Color splashBadgeInk2 = Color(0xFF075985);
+
+  /// `#166534`, **7.14:1 on white** (`:190`). Slide 3, same rationale.
+  static const Color splashBadgeInk3 = Color(0xFF166534);
+
+  // ── SplashScreens.tsx — the three colour washes over the shared photo ──
+  // `linear-gradient(160deg, …)`, three stops each, all translucent so the
+  // backdrop still reads through them.
+
+  /// `rgba(68,96,201,0.86)` — slide 1, stop 1 (`:170`).
+  static const Color splashWash1Start = Color(0xDB4460C9);
+
+  /// `rgba(52,78,173,0.90)` — slide 1, stop 2.
+  static const Color splashWash1Mid = Color(0xE6344EAD);
+
+  /// `rgba(27,44,104,0.95)` — the shared stop 3 of all three washes.
+  static const Color splashWashEnd = Color(0xF21B2C68);
+
+  /// `rgba(47,127,212,0.86)` — slide 2, stop 1 (`:181`).
+  static const Color splashWash2Start = Color(0xDB2F7FD4);
+
+  /// `rgba(42,91,184,0.90)` — slide 2 and slide 3, stop 2 (`:181`, `:192`).
+  static const Color splashWash2Mid = Color(0xE62A5BB8);
+
+  /// `rgba(46,143,122,0.86)` — slide 3, stop 1 (`:192`).
+  static const Color splashWash3Start = Color(0xDB2E8F7A);
+
+  // ── SplashScreens.tsx — slide 2's tracking card ──
+  /// `#C7D0EA` — the connector between two completed tracking steps (`:125`).
+  /// Also `Button.tsx:46`'s secondary border.
+  static const Color trackingConnector = Color(0xFFC7D0EA);
+
+  /// `#16A34A` — the final "approved" step's dot (`:120`). Not [success]
+  /// (`#15803D`): the source uses the brighter green *as a fill behind a white
+  /// check*, where contrast is a glyph problem and not a text one.
+  static const Color trackingDone = Color(0xFF16A34A);
+
+  /// `rgba(255,255,255,0.18)` — the card peeking out behind slide 3's ID card
+  /// (`:152`), suggesting a stack of stored documents.
+  static const Color splashCardStack = Color(0x2EFFFFFF);
+
+  // ── TutorialOverlay.tsx — badge pairs (background / ink) ──
+  /// `#EEF2FF` / `#344EAD` — steps 1 and 4. Same values as [primarySoft] /
+  /// [primary]; named as a *pair* so the six badges read as one table.
+  static const Color tutorialBadgeBgIndigo = Color(0xFFEEF2FF);
+  static const Color tutorialBadgeInkIndigo = Color(0xFF344EAD);
+
+  /// `#FEF3C7` / `#D97706` — step 2 (search).
+  static const Color tutorialBadgeBgAmber = Color(0xFFFEF3C7);
+  static const Color tutorialBadgeInkAmber = Color(0xFFD97706);
+
+  /// `#DCFCE7` / `#16A34A` — step 3 (browse & filter).
+  static const Color tutorialBadgeBgGreen = Color(0xFFDCFCE7);
+  static const Color tutorialBadgeInkGreen = Color(0xFF16A34A);
+
+  /// `#F3E8FF` / `#9333EA` — step 5 (history).
+  static const Color tutorialBadgeBgPurple = Color(0xFFF3E8FF);
+  static const Color tutorialBadgeInkPurple = Color(0xFF9333EA);
+
+  /// `#FEE2E2` / `#DC2626` — step 6 (news & chat).
+  static const Color tutorialBadgeBgRed = Color(0xFFFEE2E2);
+  static const Color tutorialBadgeInkRed = Color(0xFFDC2626);
+
+  /// `#F8FAFF` — the wash behind every step's visual (`TutorialOverlay.tsx:393`).
+  /// Same value as [moreTileSurface], named separately for the same reason the
+  /// category fallbacks are.
+  static const Color tutorialVisualSurface = Color(0xFFF8FAFF);
+
+  /// `rgba(0,0,0,0.6)` — the tutorial scrim (`:364`).
+  static const Color tutorialScrim = Color(0x99000000);
+
+  /// `#F59E0B` — step 2's search button and step 6's unread badge. Same value
+  /// as [warningStrong].
+  static const Color tutorialAmberFill = Color(0xFFF59E0B);
+
+  /// `border-amber-300` — Tailwind `#FCD34D`, the highlighted search field in
+  /// step 2's visual (`:85`).
+  static const Color tutorialSearchOutline = Color(0xFFFCD34D);
+
+  /// `text-amber-500` — Tailwind `#F59E0B`, the search glyph in the same
+  /// visual. Named separately because it is a glyph tint, not a fill.
+  static const Color tutorialSearchGlyph = Color(0xFFF59E0B);
+
+  // ── Button.tsx — the five variant triples (`:44-50`) ──
+  /// `primary: { bg #344EAD, fg #FFFFFF, border #344EAD }`. Reuses [primary]
+  /// and [white]; no new token needed.
+  ///
+  /// `secondary: { bg #FFFFFF, fg #344EAD, border #C7D0EA }` —
+  /// [trackingConnector] is that border.
+  ///
+  /// `amber: { bg #F59E0B, fg #1F2937, border #F59E0B }`. **The dark
+  /// foreground is not a style preference**: `Button.tsx:24-25` records that
+  /// white on `#F59E0B` measures **2.15:1**, and `#1F2937` measures 6.83:1.
+  /// [gray800] is that ink; [warningStrong] is that fill.
+  ///
+  /// `danger: { bg #DC2626, … }` — [danger].
+  ///
+  /// `ghost: { bg transparent, fg #4B5563, border transparent }` — the one
+  /// value with no existing token.
+  static const Color buttonGhostInk = Color(0xFF4B5563);
+
+  /// `text-red-600` — Tailwind `#DC2626`, the inline error message under a
+  /// button in its error state (`Button.tsx:115`). Same value as [danger].
+  static const Color buttonErrorText = Color(0xFFDC2626);
+
   // ── glass.ts ───────────────────────────────────────────────────────────────
 
   /// `glass.ts`'s `shade()` — lighten toward white (`percent > 0`) or darken
@@ -665,4 +909,133 @@ abstract final class AppColors {
   /// a decision, not an oversight.
   static const String hexToRgbaNote =
       'glass.ts hexToRgba(c, a) == Flutter c.withValues(alpha: a)';
+
+  // ── Wallet quick actions + the QR bitmap (B6a) ─────────────────────────────
+  //
+  // **Five tokens, appended under an explicit § 8.3 escalation that was raised
+  // and granted rather than assumed.** specs.md § 4.1 puts
+  // `lib/presentation/theme/**` out of B6's scope and § 8.3 makes a
+  // needed-but-missing Tier 2 token an escalation; `B6-AC-40` requires the
+  // escalation to be recorded *even when granted*. It was granted on the
+  // precedent B10 already carries — its § 3.1 holds the identical row for the
+  // identical reason (*"the `color_literal_test.dart` guard forbids literals
+  // outside `presentation/theme/`"*). The record is
+  // `docs/greenfield/GOR-245-b6-wallet-payment/blocked.md`.
+  //
+  // Measured first, not assumed: `grep -in "0xFF<hex>"` over this directory
+  // returns nothing for any of the five, while the other twelve
+  // `QUICK_ACTIONS` values and every other colour B6a renders already resolve
+  // to a member above.
+  //
+  // Append-only: nothing above this comment changed.
+  //
+  // `WalletPage.tsx:51-60`'s `QUICK_ACTIONS` is a table of eight
+  // `{color, bg}` pairs. Six of the eight resolve to existing members —
+  // topup `#16A34A`/`#DCFCE7`, transfer `#344EAD`/`#EEF2FF`, mobile
+  // `#0EA5E9`/`#E0F2FE`, electricity `#F59E0B`/`#FEF3C7`, internet
+  // `#DB2777`/`#FCE7F3`, fines `#DC2626`/`#FEE2E2`. Two do not, and they are
+  // the four below. They are compile-time copy the API cannot send — the same
+  // standing the eight `categoryTint*` washes have — so this is where they
+  // belong.
+
+  /// `#7C3AED` — the **Scan & Pay** quick-action glyph
+  /// (`WalletPage.tsx:54`, `QUICK_ACTIONS[2].color`).
+  static const Color quickActionAccentScan = Color(0xFF7C3AED);
+
+  /// `#EDE9FE` — the **Scan & Pay** tile wash (`WalletPage.tsx:54`,
+  /// `QUICK_ACTIONS[2].bg`).
+  static const Color quickActionTintScan = Color(0xFFEDE9FE);
+
+  /// `#0891B2` — the **Water** quick-action glyph colour
+  /// (`WalletPage.tsx:57`, `QUICK_ACTIONS[5].color`).
+  ///
+  /// Rendered only as a fallback in practice: the Water tile carries a raster
+  /// logo (`nampapa-logo.png`), and `:249-255` draws the logo *instead of* the
+  /// glyph whenever `a.logo` is set. Ported because the source's table sets
+  /// it, on the same footing as the eight `categoryAccent*` values that exist
+  /// for a fallback branch the live API never reaches.
+  static const Color quickActionAccentWater = Color(0xFF0891B2);
+
+  /// `#CFFAFE` — the **Water** tile wash (`WalletPage.tsx:57`,
+  /// `QUICK_ACTIONS[5].bg`).
+  ///
+  /// Likewise fallback-only: `:249` uses `a.logo ? "white" : a.bg`, so a tile
+  /// with a logo renders on [white] with a [gray100] hairline border.
+  static const Color quickActionTintWater = Color(0xFFCFFAFE);
+
+  /// `#1a1a1a` — the ink of one filled cell in the decorative QR bitmap
+  /// (`PaymentSection.tsx:158`, `fill="#1a1a1a"` over a white 20×20 `rect`).
+  ///
+  /// **The source writes this hex in lower case**, which is why a
+  /// case-sensitive `grep "1A1A1A"` over `PaymentSection.tsx` returns 0 and a
+  /// case-insensitive one returns line 158. Recorded because
+  /// `derive_tier2.py` verifies a token's provenance by grepping its hex out
+  /// of the attributed web file, and a case-sensitive check cannot see this
+  /// one.
+  ///
+  /// Deliberately not [black] (`#000000`): the source is one step off pure
+  /// black and a Tier 2 comparison is an equality, not a tolerance.
+  ///
+  /// What this paints is `B6-DIV-3` — a **constant** bitmap that does not
+  /// encode `instruction.qr_payload`. See `presentation/payment/
+  /// qr_placeholder.dart` and specs.md § 6.10 / FU-6.
+  static const Color qrCellInk = Color(0xFF1A1A1A);
+
+  // ── The approved status ring (B7a) ─────────────────────────────────────────
+  //
+  // **One token, appended under the § 3.1 operation-A scope row B7 was granted
+  // for this file.** The precedent is B10's § 3.1 line 284, which carries the
+  // identical row for the identical reason, and B6a's five tokens directly
+  // above, granted on that same precedent.
+  //
+  // ## Why exactly one, when `history_palette.dart` held fifteen literals
+  //
+  // Measured before assuming, the way B9b and B8a's blocks describe — **by
+  // value, not by name**: of the fifteen distinct `0xFF……` values in
+  // `features/history/presentation/widgets/history_palette.dart`, fourteen
+  // already resolve to a member of this class and are now references to it.
+  // They were duplication, not a missing token, and the file's doc comment
+  // claiming they *"have no `AppColors` entry"* was false for all fourteen.
+  //
+  // The mapping, so the next reader does not have to re-measure it: `#15803D`
+  // → [success], `#DC2626` → [danger], `#FCA5A5` → [dangerBorder], `#B45309`
+  // → [warning], `#344EAD` → [primary], `#EEF2FF` → [primarySoft], `#F3F4F6` →
+  // [gray100], `#6B7280` → [muted], `#DCFCE7` → [categoryTintFinance],
+  // `#FEE2E2` → [categoryTintHealth], `#FEF3C7` → [categoryTintTransport],
+  // `#16A34A` → [categoryAccentFinance], `#D97706` → [warningLink], `#FCD34D`
+  // → [tutorialSearchOutline].
+  //
+  // The last six of those are surface-specific names being read from another
+  // feature, which is a real coupling and is **not** a new liberty: B6a's
+  // `wallet_quick_actions.dart:100-152` and B9a's `notif_style.dart:107-116`
+  // already reuse those same three `categoryTint*` washes for these same three
+  // values. Adding history-local synonyms instead would be the fifth name for
+  // one colour that [categoryAccentFallback]'s own doc apologises for.
+  //
+  // Append-only: nothing above this comment changed.
+
+  /// `#86EFAC` — Tailwind v3 `green-300`, the **`ring` of the `approved` status
+  /// badge** (`HistoryPage.tsx:43`, `STATUS_CONFIG.approved.ring`).
+  ///
+  /// **Inline hex in the source**, so Tier 2 can see it and it is exact;
+  /// `test/features/history/fidelity/tier2_history_test.dart` reads it back out
+  /// of the pinned TSX.
+  ///
+  /// Three near neighbours it is deliberately none of, each a different value:
+  /// [successBorder] (`#BBF7D0`, v3 `green-200`) — the name the B7a escalation
+  /// first proposed, already taken and one step lighter; [green300]
+  /// (`#7BF1A8`) — Tailwind **v4**'s `green-300`, which is what a class-derived
+  /// token for this ramp position would hold, while this is an inline hex of
+  /// v3's; and [success] (`#15803D`, `green-700`) — the *text* of the very same
+  /// chip. Named `successRing` after the source's own field name rather than
+  /// after the ramp position, so the collision with [green300] cannot recur.
+  ///
+  /// **Carried, not rendered — and that is faithful.** `config.ring` is read
+  /// nowhere in `HistoryPage.tsx`: the badge at `:304-306` is
+  /// `border-2 border-white` over `backgroundColor: config.bg`, and the only
+  /// reads of the table are `config.icon` (`:284`), `config.bg` (`:305`,
+  /// `:323`) and `config.text` (`:307`, `:323`). The field is dead in the web
+  /// app too. It is ported because the port carries the source's data, and
+  /// `history_i18n_test.dart:219-232` asserts it stays distinct from `bg`.
+  static const Color successRing = Color(0xFF86EFAC);
 }

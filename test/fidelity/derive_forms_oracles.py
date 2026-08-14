@@ -282,6 +282,126 @@ def const_string(name: str, ident: str) -> tuple:
     raise Refuse(f"{name}: no `const {ident} = \"…\"`")
 
 
+def state_initialisers(name: str) -> dict:
+    """`const [x, setX] = useState<T>(INIT);` -> {x: (value, line)}.
+
+    RULING 13 part 3 requires the `court` block to be REMOVED from the three
+    voluntary divorce fixtures and the `mediation` / `children` blocks removed
+    from the contested one — "removed, not blanked", because a fixture's INPUT
+    block may not claim a value no control can type. That collides with this
+    file's standing invariant that the fixture mirrors the page's state tree
+    exactly, so `Evaluator.member` REFUSES on a missing group.
+
+    The resolution is not to relax the invariant but to source the missing
+    group from a THIRD artefact, exactly as RULING 12 sources `podCountry`:
+    a React state group no action on the driven branch writes still holds its
+    `useState` initialiser, and that initialiser is a cited line of the pinned
+    source. So a fixture that omits `court` is not under-specified — it is
+    saying "this branch never writes `court`", and the value that produces is
+    read from the page rather than retyped into the fixture.
+
+    Only the four measured literal shapes are read. Anything else is absent
+    from the table and `member` REFUSES as before: a silent default here would
+    turn every fixture typo into a blank oracle leaf.
+    """
+    out = {}
+    src = read(name)
+    pattern = re.compile(
+        r"const\s+\[\s*([A-Za-z_$][\w$]*)\s*,\s*set[\w$]+\s*\]\s*="
+        r"\s*useState\s*(?:<[^>]*>)?\s*\(", re.S)
+    for m in pattern.finditer(src):
+        ident = m.group(1)
+        line_no = src.count("\n", 0, m.start()) + 1
+        rest = src[m.end():]
+        depth, end = 1, None
+        for i, ch in enumerate(blank_strings(rest)):
+            if ch in "([{":
+                depth += 1
+            elif ch in ")]}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end is None:
+            continue
+        init = rest[:end].strip()
+        value = _init_literal(init, name)
+        if value is not _UNREADABLE:
+            out[ident] = (value, line_no)
+    return out
+
+
+_UNREADABLE = object()
+
+
+def _init_literal(init: str, page: str):
+    """The four measured `useState(...)` initialiser shapes, and no others."""
+    if init in ("null", ""):
+        return None
+    if init == "false":
+        return False
+    if init == "true":
+        return True
+    if re.fullmatch(r'"([^"]*)"', init):
+        return init[1:-1]
+    if re.fullmatch(r"[A-Za-z_$][\w$]*", init):
+        # `useState<SpouseInfo>(blankSpouse)` — follow the const one hop.
+        m = re.search(r"const\s+" + re.escape(init)
+                      + r"\s*(?::[^=]*)?=\s*(\{)", read(page))
+        if not m:
+            return _UNREADABLE
+        return _init_literal(_brace_span(read(page), m.start(1)), page)
+    if init.startswith("{"):
+        obj = {}
+        body = init[1:-1] if init.endswith("}") else init[1:]
+        for part in _split_top_commas(body):
+            kv = part.split(":", 1)
+            if len(kv) != 2:
+                return _UNREADABLE
+            key = kv[0].strip()
+            if not re.fullmatch(r"[A-Za-z_$][\w$]*", key):
+                return _UNREADABLE
+            val = _init_literal(kv[1].strip(), page)
+            if val is _UNREADABLE:
+                return _UNREADABLE
+            obj[key] = val
+        return obj
+    return _UNREADABLE
+
+
+def _brace_span(src: str, start: int) -> str:
+    depth = 0
+    blanked = blank_strings(src)
+    for i in range(start, len(src)):
+        if blanked[i] in "([{":
+            depth += 1
+        elif blanked[i] in ")]}":
+            depth -= 1
+            if depth == 0:
+                return src[start:i + 1]
+    return ""
+
+
+def _split_top_commas(body: str) -> list:
+    out, depth, cur = [], 0, []
+    blanked = blank_strings(body)
+    for i, ch in enumerate(body):
+        b = blanked[i]
+        if b in "([{":
+            depth += 1
+        elif b in ")]}":
+            depth -= 1
+        if b == "," and depth == 0:
+            out.append("".join(cur))
+            cur = []
+            continue
+        cur.append(ch)
+    tail = "".join(cur).strip()
+    if tail:
+        out.append(tail)
+    return [p.strip() for p in out if p.strip()]
+
+
 def attribution_ok(name: str, key: str, line_no: int) -> bool:
     """F0-AC-87(ii): the cited line really contains that key literal.
 
@@ -413,9 +533,14 @@ class Evaluator:
     """
 
     def __init__(self, page: str, scope: dict, locale: str, i18n_ns: str,
-                 document_no: str, consts: dict, helpers: dict):
+                 document_no: str, consts: dict, helpers: dict,
+                 defaults: dict = None, used_defaults: dict = None):
         self.page = page
         self.scope = scope
+        # RULING 13 part 3 — state groups the fixture deliberately omits,
+        # sourced from the page's own `useState` initialiser with its line.
+        self.defaults = defaults or {}
+        self.used_defaults = used_defaults if used_defaults is not None else {}
         self.locale = locale
         self.i18n_ns = i18n_ns
         self.document_no = document_no
@@ -582,11 +707,23 @@ class Evaluator:
 
         parts = re.split(r"\??\.", e)
         cur = self.scope
-        for part in parts:
+        for depth, part in enumerate(parts):
             if cur is ABSENT or cur is None:
                 cur = ABSENT
                 break
             if not isinstance(cur, dict) or part not in cur:
+                # RULING 13 part 3. ONLY at the top of a chain, and only for a
+                # state group whose `useState` initialiser this file could
+                # actually read. A missing SUB-key still refuses — that is a
+                # fixture typo, not a deliberate omission, and the two must not
+                # collapse into the same silent blank.
+                if depth == 0 and cur is self.scope and part in self.defaults:
+                    value, line = self.defaults[part]
+                    self.used_defaults[part] = f"{self.page}:{line}"
+                    cur = value
+                    if cur is None:
+                        cur = ABSENT
+                    continue
                 raise Refuse(
                     f"{self.page}: fixture has no `{e}` (stuck at {part!r}). "
                     f"The fixture must mirror the page's state tree exactly, "
@@ -681,7 +818,8 @@ def make_parent_data(page: str):
         if skipped and not rows:
             raise Refuse(f"{page}: parentData has no skipped branch")
         sub = Evaluator(page, {**ev.scope, "p": ev.scope[who]}, ev.locale,
-                        ev.i18n_ns, ev.document_no, ev.consts, ev.helpers)
+                        ev.i18n_ns, ev.document_no, ev.consts, ev.helpers,
+                        ev.defaults, ev.used_defaults)
         out = OrderedDict()
         for suffix, line, expr in rows:
             key = f"{prefix}.{suffix}"
@@ -701,7 +839,8 @@ def make_spouse_payload(page: str):
         if len(args) != 1:
             raise Refuse(f"spousePayload with {len(args)} args")
         sub = Evaluator(page, {**ev.scope, "s": ev.scope[args[0]]}, ev.locale,
-                        ev.i18n_ns, ev.document_no, ev.consts, ev.helpers)
+                        ev.i18n_ns, ev.document_no, ev.consts, ev.helpers,
+                        ev.defaults, ev.used_defaults)
         return build_nodes(nodes, sub, page)
 
     return inline
@@ -825,7 +964,11 @@ FORMS = OrderedDict([
         "route": "#/service/divorce-certificate",
         "family": "nested",
         "ns": "divorce",
-        "variants": ["asymmetric", "blank-b", "whitespace"],
+        # `contested` is RULING 13 part 3 — the second of the two step-1 arms
+        # `canProceed()` (`DivorceCertificatePage.tsx:749-766`) admits. Without
+        # it the whole `court` group is only ever `""` in every divorce oracle
+        # and a port that hardcoded `""` there passes Tier 0 (`F0-AC-86`).
+        "variants": ["asymmetric", "blank-b", "whitespace", "contested"],
         "canonical": "asymmetric",
     }),
     ("family-book", {
@@ -1027,9 +1170,12 @@ def build_documents(form: str, variant: str, locale: str) -> list:
     ref_path, ref_line = ref_binding(page, spec["family"])
     reference = fx.get("_reference_no", "REF-0001")
 
+    defaults = state_initialisers(page)
+    used_defaults = {}
+
     def evaluator(document_no: str) -> Evaluator:
         return Evaluator(page, fx, locale, spec["ns"], document_no, consts,
-                         helpers)
+                         helpers, defaults, used_defaults)
 
     builder_nodes = arrow_object(page, r"const buildFormData = ")
 

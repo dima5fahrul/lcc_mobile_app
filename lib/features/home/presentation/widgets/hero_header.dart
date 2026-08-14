@@ -97,7 +97,7 @@ class HeroHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _greetingRow(),
+                  _greetingRow(context),
                   const SizedBox(height: AppSpacing.gap16),
                   LaoIdCard(
                     authenticated: authenticated,
@@ -122,7 +122,11 @@ class HeroHeader extends StatelessWidget {
   /// is a small translucent label above a large name; without, it is the large
   /// element itself (`Hero.tsx:88-93`). That is a real branch, not a nicety —
   /// it is what makes the signed-out hero read as a heading.
-  Widget _greetingRow() {
+  /// Takes [context] so `home.greeting` can be read through the
+  /// `Localizations` scope rather than off `Localization.instance` — D-3's fix
+  /// (B10 § 6.7). A bare `.tr()` here creates no `InheritedWidget` dependency,
+  /// and this string is one of the nine § 6.6.1 measured going stale.
+  Widget _greetingRow(BuildContext context) {
     final bool hasName = name.isNotEmpty;
 
     return Row(
@@ -136,7 +140,7 @@ class HeroHeader extends StatelessWidget {
               Semantics(
                 header: !hasName,
                 child: Text(
-                  'home.greeting'.tr(),
+                  'home.greeting'.tr(context: context),
                   style: hasName
                       ? TextStyle(
                           color: AppColors.white.withValues(alpha: 0.75),

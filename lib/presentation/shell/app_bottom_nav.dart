@@ -44,8 +44,8 @@ class AppBottomNav extends StatelessWidget {
           NavigationDestination(
             icon: Icon(tab.icon),
             selectedIcon: Icon(tab.selectedIcon),
-            label: tab.labelKey.tr(),
-            tooltip: tab.labelKey.tr(),
+            label: tab.labelKey.tr(context: context),
+            tooltip: tab.labelKey.tr(context: context),
           ),
       ],
     );

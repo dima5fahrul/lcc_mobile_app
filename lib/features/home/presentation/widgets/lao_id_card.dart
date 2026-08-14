@@ -66,9 +66,33 @@ class LaoIdCard extends StatefulWidget {
     this.name = '',
     this.card,
     this.onSignIn,
+    this.interactive = true,
   });
 
   final bool authenticated;
+
+  /// `interactive = true` — `Hero.tsx`:147, added by B10 § 6.9.
+  ///
+  /// The web's `<LaoIdCard>` gates three things on it, and **only** three:
+  ///
+  /// | source | gate |
+  /// |---|---|
+  /// | `:263` | the UIN reveal eye — `authenticated && interactive` |
+  /// | `:287` | the QR **button** — `interactive ? <button> : <div aria-hidden>` |
+  /// | `:316` | the QR dialog — `interactive && showQr` |
+  ///
+  /// Note what `:287` does **not** do: the QR tile is still drawn when
+  /// `interactive` is false, at the same size, colour and radius. It stops
+  /// being a control (no tap, `aria-hidden`) and stays a picture. Removing it
+  /// would change the card's layout, which is precisely what splash slide 3
+  /// must not do — the whole reason it renders the real card is *"so what the
+  /// slide promises is exactly what the user meets after signing in"*
+  /// (`SplashScreens.tsx`:155).
+  ///
+  /// **The default is `true`**, so every pre-B10 call site is byte-identical
+  /// in behaviour (`B10-AC-39`). The only caller passing `false` is the splash
+  /// slot in `app_routes.dart`.
+  final bool interactive;
 
   /// The citizen's display name, from `/me/home-summary`. Empty while that
   /// request is in flight — `name || "—"` (`Hero.tsx:172`) covers it.
@@ -431,7 +455,8 @@ class _LaoIdCardState extends State<LaoIdCard> {
                 ),
               ),
             ),
-            if (authed)
+            // `authenticated && interactive` — `Hero.tsx`:263.
+            if (authed && widget.interactive)
               IconButton(
                 onPressed: () => setState(() => _showUin = !_showUin),
                 tooltip:
@@ -488,32 +513,29 @@ class _LaoIdCardState extends State<LaoIdCard> {
     );
   }
 
-  /// `Hero.tsx:287-302` — the QR button, which opens the verification dialog.
+  /// `Hero.tsx:287-302` — the QR tile.
+  ///
+  /// **Two shapes, one picture.** `:287` is a ternary, not a conditional
+  /// render: with `interactive` it is a `<button>` that opens the verification
+  /// dialog; without, it is an `aria-hidden` `<div>` with byte-identical
+  /// styling. The tile is therefore always drawn — see [LaoIdCard.interactive]
+  /// for why removing it would break the one thing splash slide 3 exists to
+  /// promise.
   Widget _qrButton() {
+    const Widget tile = _QrTile();
+
+    if (!widget.interactive) {
+      // `aria-hidden` — a picture, not a control.
+      return const ExcludeSemantics(child: tile);
+    }
+
     return Semantics(
       button: true,
       label: 'hero.idTapVerify'.tr(),
       child: InkWell(
         onTap: () => _openVerifyDialog(context),
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-        child: Container(
-          width: AppSpacing.tile44,
-          height: AppSpacing.tile44,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(color: AppColors.cardShadowMedium, blurRadius: 6),
-            ],
-          ),
-          child: const Center(
-            child: LucideIcon(
-              name: 'QrCode',
-              size: 28,
-              color: AppColors.white,
-            ),
-          ),
-        ),
+        child: tile,
       ),
     );
   }
@@ -621,6 +643,39 @@ class _LaoIdCardState extends State<LaoIdCard> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The QR square itself — `Hero.tsx`:288-302 / `:296-303`, which are the same
+/// box drawn twice with different wrappers.
+///
+/// Extracted so the interactive and non-interactive branches of
+/// [_LaoIdCardState._qrButton] cannot drift: the source's own duplication is
+/// two literal copies of the same class list, and copying that duplication
+/// into Dart would be copying a maintenance hazard rather than a behaviour.
+class _QrTile extends StatelessWidget {
+  const _QrTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: AppSpacing.tile44,
+      height: AppSpacing.tile44,
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(color: AppColors.cardShadowMedium, blurRadius: 6),
+        ],
+      ),
+      child: const Center(
+        child: LucideIcon(
+          name: 'QrCode',
+          size: 28,
+          color: AppColors.white,
         ),
       ),
     );

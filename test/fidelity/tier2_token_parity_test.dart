@@ -27,6 +27,7 @@ library;
 import 'dart:ui' show Color;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lcc_mobile_app/presentation/forms/validation/field_error_ring.dart';
 import 'package:lcc_mobile_app/presentation/icons/app_icons.dart';
 import 'package:lcc_mobile_app/presentation/icons/lucide_registry.g.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_colors.dart';
@@ -104,6 +105,67 @@ final Map<String, double> _spacing = <String, double>{
   'radiusXl': AppSpacing.radiusXl,
   'radius2xl': AppSpacing.radius2xl,
   'tile56': AppSpacing.tile56,
+};
+
+/// `#RRGGBB` at a fractional alpha → the ARGB int `withValues` produces.
+int _argbAlpha(String hex, double alpha) =>
+    ((alpha * 255).round() << 24) |
+    int.parse(hex.replaceFirst('#', ''), radix: 16);
+
+/// An oracle `value` for a colour entry → the ARGB int it denotes.
+int _expectedArgb(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return _argbAlpha(value['base'] as String, value['alpha'] as double);
+  }
+  final String hex = value as String;
+  return hex == 'transparent' ? 0x00000000 : _argb(hex);
+}
+
+Map<String, dynamic> _forms(Map<String, dynamic> oracle) =>
+    oracle['forms'] as Map<String, dynamic>;
+
+/// The colour tokens the `forms` group names, by their oracle token key.
+///
+/// Separate from [_colours] because the two groups have different
+/// denominators: [_colours] is B2's whole-app palette and this is the kernel's
+/// 19-utility Tier 2 surface. `token@0.2` keys are the two `/20` derivations,
+/// computed from the token they are an alpha OF so there is no second value.
+final Map<String, Color> _formColours = <String, Color>{
+  'primary': AppColors.primary,
+  'primarySoft': AppColors.primarySoft,
+  'white': AppColors.white,
+  'transparent': AppColors.transparent,
+  'gray50': AppColors.gray50,
+  'gray100': AppColors.gray100,
+  'gray200': AppColors.gray200,
+  'gray400Inline': AppColors.gray400Inline,
+  'gray800': AppColors.gray800,
+  'muted': AppColors.muted,
+  'dangerBorder': AppColors.dangerBorder,
+  'dangerStrong': AppColors.dangerStrong,
+  'primary@0.2': AppColors.primary.withValues(alpha: kFocusRingAlpha),
+  'dangerStrong@0.2':
+      AppColors.dangerStrong.withValues(alpha: kFocusRingAlpha),
+};
+
+/// The radius, spacing and type tokens the `forms` group names.
+final Map<String, num> _formNumbers = <String, num>{
+  'gap2': AppSpacing.gap2,
+  'gap4': AppSpacing.gap4,
+  'gap6': AppSpacing.gap6,
+  'gap8': AppSpacing.gap8,
+  'gap10': AppSpacing.gap10,
+  'gap12': AppSpacing.gap12,
+  'gap14': AppSpacing.gap14,
+  'gap16': AppSpacing.gap16,
+  'gap24': AppSpacing.gap24,
+  'gap40': AppSpacing.gap40,
+  'radiusXl': AppSpacing.radiusXl,
+  'radius2xl': AppSpacing.radius2xl,
+  'size11': AppTypography.size11,
+  'size12': AppTypography.size12,
+  'size14': AppTypography.size14,
+  'semiBold': AppTypography.semiBold.value,
 };
 
 void main() {
@@ -265,6 +327,159 @@ void main() {
       }
       expect((oracle['provenance'] as Map<String, dynamic>)
           ['root_font_size_px'], 16);
+    });
+  });
+
+  group('Tier 2 — the `forms` group (F0-AC-94, specs.md § 6.10.1)', () {
+    test('the denominator is enumerated, and it is the scan\'s', () {
+      // v1.0's F0-AC-59 asserted "100 %" over a set nobody had written down.
+      // This is that set, and `derive_tier2.py`'s scan_form_utilities() — which
+      // does not read the curated list — is what fixes its size. If the two
+      // disagree the derivation fails and this file never sees the oracle.
+      final Map<String, dynamic> forms = _forms(oracle);
+      final Map<String, dynamic> denominator =
+          forms['denominator'] as Map<String, dynamic>;
+      final Map<String, dynamic> entries =
+          forms['entries'] as Map<String, dynamic>;
+
+      expect(denominator['total'], entries.length,
+          reason: 'the recorded denominator and the emitted entries disagree');
+      expect(entries.length, 52,
+          reason: 'the measured Tier 2 surface of formFields.tsx + '
+              'formValidation.tsx. A change here is a real change in the '
+              'source and needs a re-derivation, not an edited number.');
+      expect(denominator['colour'], 19);
+      expect(denominator['radius'], 2);
+      expect(denominator['spacing'], 27);
+      expect(denominator['type'], 4);
+    });
+
+    test('every tokenised entry equals its presentation/theme token', () {
+      final Map<String, dynamic> entries =
+          _forms(oracle)['entries'] as Map<String, dynamic>;
+      final List<String> mismatches = <String>[];
+      int compared = 0;
+
+      entries.forEach((String utility, dynamic raw) {
+        final Map<String, dynamic> entry = raw as Map<String, dynamic>;
+        final String? token = entry['token'] as String?;
+        if (token == null) {
+          return; // the untokenised register, asserted separately below
+        }
+        final String source = entry['source'] as String;
+
+        if (entry['category'] == 'colour') {
+          final Color? actual = _formColours[token];
+          if (actual == null) {
+            mismatches.add('$utility: no Flutter token named `$token`');
+            return;
+          }
+          final int expected = _expectedArgb(entry['value']);
+          compared++;
+          if (actual.toARGB32() != expected) {
+            mismatches.add(
+              '$utility ($source): web '
+              '0x${expected.toRadixString(16).toUpperCase()} vs Flutter '
+              '`$token` 0x${actual.toARGB32().toRadixString(16).toUpperCase()}',
+            );
+          }
+        } else {
+          final num? actual = _formNumbers[token];
+          if (actual == null) {
+            mismatches.add('$utility: no Flutter token named `$token`');
+            return;
+          }
+          compared++;
+          if (actual != entry['value'] as num) {
+            mismatches.add(
+              '$utility ($source): web ${entry['value']} vs Flutter '
+              '`$token` $actual',
+            );
+          }
+        }
+      });
+
+      expect(compared, 48,
+          reason: 'the 52 utilities less the 4 in the untokenised register. If '
+              'this drops, entries stopped being compared without the '
+              'register growing to say so — the vacuity this count exists to '
+              'catch.');
+      expect(mismatches, isEmpty,
+          reason: 'Tier 2 is blocking and 100 % over the enumerated '
+              'denominator.\n  ${mismatches.join('\n  ')}');
+    });
+
+    test('the untokenised register is closed, reasoned and NOT STALE', () {
+      // The same discipline `excluded` gets above: dropping a value from a
+      // blocking gate must be the hardest thing to do quietly. Four entries,
+      // each with a measured reason.
+      final Map<String, dynamic> register =
+          _forms(oracle)['untokenised'] as Map<String, dynamic>;
+
+      expect(
+        register.keys.toSet(),
+        <String>{
+          'focus:border-red-400',
+          'text-red-400',
+          'max-h-60',
+          'min-w-0',
+        },
+        reason: 'a fifth untokenised entry means a Tier 2 value stopped being '
+            'compared; it needs a reason in derive_tier2.py, not silence',
+      );
+      register.forEach((String key, dynamic raw) {
+        final Map<String, dynamic> entry = raw as Map<String, dynamic>;
+        expect(entry['reason'], isNotEmpty, reason: '$key has no reason');
+        expect(entry['consequence'], isNotEmpty,
+            reason: '$key does not say what it costs');
+        expect(entry['owner'], isNotEmpty, reason: '$key has no owner');
+      });
+
+      // The positive control. Both red-400 rows are registered because
+      // `#F87171` has NO token — so if a token ever appears, this assertion
+      // fails and the register must shrink. Without it the register would
+      // outlive the defect and keep excusing a comparison that had become
+      // possible.
+      expect(
+        _formColours.values.map((Color c) => c.toARGB32()),
+        isNot(contains(_argb('#F87171'))),
+        reason: '`#F87171` (Tailwind red-400) now HAS a token in the forms '
+            'map. Remove `focus:border-red-400` and `text-red-400` from '
+            "FORMS_UNTOKENISED, point them at it, and F0b's one registered "
+            'Tier 2 divergence is resolved.',
+      );
+
+      // And the divergence is real, not theoretical: the focused error border
+      // draws red-300 where the web draws red-400.
+      expect(AppColors.dangerBorder.toARGB32(), _argb('#FCA5A5'));
+      expect(AppColors.dangerBorder.toARGB32(), isNot(_argb('#F87171')));
+    });
+
+    test('the two 20 %-alpha derivations are computed, not approximated', () {
+      // § 6.10.1 names these as "the ones an implementer will approximate".
+      // Asserting them by name means "close enough" cannot pass.
+      final Map<String, dynamic> entries =
+          _forms(oracle)['entries'] as Map<String, dynamic>;
+
+      for (final String utility in <String>[
+        'focus:ring-[#344EAD]/20',
+        'focus:ring-red-500/20',
+      ]) {
+        final Map<String, dynamic> entry =
+            entries[utility] as Map<String, dynamic>;
+        final Map<String, dynamic> value =
+            entry['value'] as Map<String, dynamic>;
+        expect(value['alpha'], 0.2, reason: '$utility is a /20 suffix');
+        expect(_formColours[entry['token'] as String]!.toARGB32(),
+            _expectedArgb(value),
+            reason: '$utility must be its base token at exactly 20 %, '
+                'derived from the token rather than written as a second '
+                'literal that can drift');
+      }
+
+      // 20 % of 255 is exactly 51 — no rounding argument to have.
+      expect(kFocusRingAlpha, 0.2);
+      expect((_argbAlpha('#344EAD', 0.2) >> 24) & 0xFF, 51);
     });
   });
 

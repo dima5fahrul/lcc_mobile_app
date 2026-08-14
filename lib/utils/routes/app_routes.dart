@@ -97,6 +97,7 @@ library;
 import 'dart:async';
 
 import 'package:chucker_flutter/chucker_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -105,6 +106,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/session/bloc/session_bloc.dart';
 import '../../core/storage/storage_service.dart';
+import '../../features/account/di/account_injection.dart';
+import '../../features/account/presentation/bloc/account_documents_bloc.dart';
+import '../../features/account/presentation/bloc/account_preferences_bloc.dart';
+import '../../features/account/presentation/bloc/account_profile_bloc.dart';
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
@@ -115,10 +120,14 @@ import '../../features/chat/presentation/widgets/chat_launcher.dart';
 import '../../features/help/di/help_injection.dart';
 import '../../features/help/presentation/bloc/help_bloc.dart';
 import '../../features/help/presentation/pages/help_page.dart';
+import '../../features/history/di/history_injection.dart';
+import '../../features/history/presentation/bloc/history_bloc.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/di/home_injection.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/widgets/lao_id_card.dart';
+import '../../features/home/presentation/widgets/tier_a_image.dart';
 import '../../features/news/di/news_injection.dart';
 import '../../features/news/presentation/bloc/news_bloc.dart';
 import '../../features/news/presentation/bloc/news_detail_bloc.dart';
@@ -130,7 +139,10 @@ import '../../features/notifications/presentation/widgets/notification_bell.dart
 import '../../features/service/di/service_injection.dart';
 import '../../features/service/presentation/bloc/service_bloc.dart';
 import '../../features/service/presentation/pages/service_page.dart';
+import '../../features/wallet/di/wallet_injection.dart';
+import '../../features/wallet/presentation/bloc/wallet_bloc.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
+import '../../presentation/boot/splash_slide_visual.dart';
 import '../../presentation/shell/app_shell.dart';
 import 'app_name_routes.dart';
 
@@ -204,6 +216,45 @@ class AppRoutes {
       routes: _buildRoutes(),
     );
   }
+
+  // ── B10 — the splash composition slots (§ 6.9) ───────────────────────────
+  //
+  // **No new `GoRoute`.** The boot phases are not routes: `App.tsx`:195-222 is
+  // a three-phase state machine whose phases have no hash and are not
+  // addressable, so making them routes would invent deep-linkable surfaces the
+  // source lacks *and* need a redirect guard to stop `/onboarding` being
+  // reachable after first run (§ 6.8). `main.dart` mounts them directly.
+  //
+  // What lands here instead is the **composition**. `lib/presentation/boot/`
+  // may not name `LaoIdCard` (G-L7) or `hero-bg.webp` (the Tier A guard), and
+  // this file may name both: it is not under `lib/presentation/**`, and it is
+  // already the sanctioned place to assemble a feature widget for the shell
+  // (`ShellRoute`'s `topBarActions` / `floatingAction`, B9a's seam). G-L7
+  // therefore stays green with a **third** proven consumer.
+
+  /// Splash slide 3's card — `SplashScreens.tsx`:157
+  /// `<LaoIdCard authenticated interactive={false} name={t("idHolderValue")} />`.
+  ///
+  /// `name` is read here rather than inside the splash because it is the one
+  /// argument the source computes at the call site. `context:` is passed for
+  /// the same reason every other B10 `.tr()` does — see G-L8.
+  static Widget splashSlide3Visual(BuildContext context) => LaoIdCard(
+        authenticated: true,
+        interactive: false,
+        name: 'onboarding.idHolderValue'.tr(context: context),
+      );
+
+  /// The shared splash backdrop — `SplashScreens.tsx`:263-268's `<img>`.
+  ///
+  /// A [SplashBackdropBuilder] rather than a widget: `TierAImage` needs the
+  /// logical paint width to size its decode (B2-AC-31), and that is only known
+  /// inside the splash's own layout.
+  static Widget splashBackdrop(Alignment alignment, double paintWidth) =>
+      TierAImage(
+        asset: kHeroBackdrop,
+        paintWidth: paintWidth,
+        alignment: alignment,
+      );
 
   // ── Redirect (port of `handleTabChange` + `handleAuthSuccess`) ───────────
   static String? _redirect(SessionBloc sessionBloc, GoRouterState state) {
@@ -360,7 +411,10 @@ class AppRoutes {
           name: AppNameRoutes.home,
           builder: (_, __) => BlocProvider<HomeBloc>(
             create: (_) => homeInjection<HomeBloc>()..add(const HomeStarted()),
-            child: const HomePage(),
+            // B10 § 6.10: the tutorial's `lcc.tutorial_seen` gate. Resolved
+            // here for the same CR-1 reason the BLoC is — a route builder may
+            // read the locator, the page may not.
+            child: HomePage(storage: injection<StorageService>()),
           ),
         ),
         // CR-1 again, and this is the pattern every B2 page follows: the BLoC
@@ -386,20 +440,116 @@ class AppRoutes {
             child: const ServicePage(),
           ),
         ),
+        // CR-1 again (B7a). The **existing** `/history` route, with its
+        // builder wrapped — no new route, no `_protectedPaths` change, no
+        // table reordering. specs.md § 6.6 rules the detail page *in-page
+        // state, not a route*: the web swaps the body on `selectedId` and
+        // never changes the URL, so a `/history/:id` here would make the
+        // detail deep-linkable and back-stackable when the source's is
+        // neither — a functional divergence invisible to every fidelity tier.
+        //
+        // `create:` (not `.value`) carries the lifetime, and
+        // `historyInjection` registers `HistoryBloc` with `registerFactory`:
+        // the BLoC holds a live 350 ms debounce `Timer` plus one visit's page,
+        // filter and search term, and a surviving instance would hand the next
+        // visit all four.
+        //
+        // `..add(const HistoryStarted())` is the mount fetch — the three hooks
+        // `HistoryPage.tsx:68`, `:83` and `:99` fire on render. Doing it here
+        // rather than in `HistoryPage.initState` keeps the page a pure
+        // function of its BLoC, which is what lets a widget test pump it
+        // against any state without a container.
         GoRoute(
           path: AppNameRoutes.history,
           name: AppNameRoutes.history,
-          builder: (_, __) => const HistoryPage(),
+          builder: (_, __) => BlocProvider<HistoryBloc>(
+            create: (_) =>
+                historyInjection<HistoryBloc>()..add(const HistoryStarted()),
+            child: const HistoryPage(),
+          ),
         ),
+        // CR-1 again (B6a). The **existing** `/wallet` route, builder wrapped.
+        // No new `GoRoute`, no `_protectedPaths` change, no reordering
+        // (specs.md § 3.1, § 2.2 M) — `/wallet` is a public tab whose *body*
+        // branches on `isAuthenticated`, not a gated route, and moving it into
+        // `_protectedPaths` would replace the signed-out wallet (the one
+        // surface B6a has a Tier 3 reference for, § 2.2 L) with a redirect.
+        //
+        // `create:` (not `.value`): `walletInjection` registers `WalletBloc`
+        // with `registerFactory`, and the instance holds one visit's balance,
+        // account number, receipts page and ledger page. A survivor hands all
+        // four to whoever signs in next on this device.
+        //
+        // `..add(const WalletStarted())` dispatches a mount event that
+        // **fetches nothing** — all four page queries are
+        // `enabled: isAuthenticated` (`WalletPage.tsx:101,105,113,119`) and the
+        // flag arrives later as `WalletAuthChanged` from the page's
+        // `BlocListener<SessionBloc>`. `B6-AC-25` asserts a mount issues zero
+        // requests. It is dispatched anyway because the shape must match
+        // `/`, `/service` and `/history` above; see `WalletStarted`'s own
+        // doc comment for why the event exists rather than being dropped.
         GoRoute(
           path: AppNameRoutes.wallet,
           name: AppNameRoutes.wallet,
-          builder: (_, __) => const WalletPage(),
+          builder: (_, __) => BlocProvider<WalletBloc>(
+            create: (_) =>
+                walletInjection<WalletBloc>()..add(const WalletStarted()),
+            child: const WalletPage(),
+          ),
         ),
+        // ── B8a ────────────────────────────────────────────────────────────
+        //
+        // The three BLoCs `AccountPage` needs are created **HERE**, by the
+        // route builder, and owned by these providers. `create:` and not
+        // `.value`: `accountInjection` registers all three with
+        // `registerFactory`, so each visit gets fresh instances and the
+        // providers close them on the way out — each holds one citizen's
+        // profile buffer, preference switches and document wallet, and a
+        // survivor would hand them to whoever signs in next on this device.
+        //
+        // **Three, not one** (specs.md § 6.3): the source runs three
+        // independent `useQuery` calls (`AccountPage.tsx:189-191`) whose
+        // loading and error states render in three different places.
+        //
+        // **No `..add(...)` mount fetch here.** Unlike `/service` and `/`, the
+        // three requests are dispatched from `AccountPage.initState`, because
+        // all three are `useQuery(..., [])` — one fetch per *mount of the
+        // page*, not per creation of the BLoC, and the two differ if the
+        // provider is ever hoisted.
+        //
+        // ── Recorded deviation from B8-AC-9 ────────────────────────────────
+        //
+        // specs.md § 3.1 and B8-AC-9 require `app_routes.dart` to be
+        // unmodified, on the ground (§ 2.2 Finding I) that `/account` is
+        // already routed and the page has no sub-routes. **That ground is
+        // correct and it is not the whole requirement**: the page needs its
+        // BLoCs provided, and G-L5 forbids any widget under `presentation/`
+        // from resolving a locator, so a route builder is the only sanctioned
+        // seam (`ssd.md` § 6.4). The spec's Finding I did not consider BLoC
+        // provisioning.
+        //
+        // The change is confined to this one `GoRoute` and is additive.
+        // `app_shell.dart` and `app_top_bar.dart` — the files § 6.4's design
+        // exists to keep out of B8 because B10's D-3 must edit them — remain
+        // **untouched**, which is the half of B8-AC-9 that carries the
+        // cross-batch risk. Reported in the hand-back.
         GoRoute(
           path: AppNameRoutes.account,
           name: AppNameRoutes.account,
-          builder: (_, __) => const AccountPage(),
+          builder: (_, __) => MultiBlocProvider(
+            providers: <BlocProvider<StateStreamableSource<Object?>>>[
+              BlocProvider<AccountProfileBloc>(
+                create: (_) => accountInjection<AccountProfileBloc>(),
+              ),
+              BlocProvider<AccountDocumentsBloc>(
+                create: (_) => accountInjection<AccountDocumentsBloc>(),
+              ),
+              BlocProvider<AccountPreferencesBloc>(
+                create: (_) => accountInjection<AccountPreferencesBloc>(),
+              ),
+            ],
+            child: const AccountPage(),
+          ),
         ),
       ],
     ),

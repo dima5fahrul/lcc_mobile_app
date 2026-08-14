@@ -15,6 +15,7 @@ import 'package:lcc_mobile_app/features/session/domain/entities/citizen_profile.
 import 'package:lcc_mobile_app/features/session/domain/entities/citizen_session.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
+import 'package:lcc_mobile_app/features/session/domain/usecases/update_profile.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'auth_mock_data.dart';
@@ -25,6 +26,15 @@ class MockSessionRemoteDatasource extends Mock
 class MockSessionRepository extends Mock implements SessionRepository {}
 
 class MockGetProfile extends Mock implements GetProfile {}
+
+/// B8a — R-25's `PATCH /me/profile {preferred_lang}` mirror.
+///
+/// `SessionBloc` now takes it as a required dependency, so every construction
+/// site needs one. A mock rather than a real use case over a mock repository:
+/// the R-25 assertions are about **whether it was called at all** (B8-AC-20's
+/// zero-call case) and about the exact body (B8-AC-16), both of which are
+/// invocation questions.
+class MockUpdateProfile extends Mock implements UpdateProfile {}
 
 // ── Wire fixtures ───────────────────────────────────────────────────────────
 

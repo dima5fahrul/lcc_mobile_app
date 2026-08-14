@@ -1,5 +1,5 @@
 {
-  "_note": "Tier 0 fixture — Divorce, WHITESPACE variant (c) — as Marriage's, over Divorce's six mirrored keys. The husband's dob / nationality / address.villageId carry surrounding whitespace (the mirror trims, `husband.*` does not), nationality is whitespace-only so its mirror collapses to \"\", and name / id_number / marriage_certificate_ref are the both-sides-trimmed controls. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.",
+  "_note": "Tier 0 fixture — Divorce, WHITESPACE variant (c) — as Marriage's, over Divorce's six mirrored keys. The husband's dob / nationality / address.villageId carry surrounding whitespace (the mirror trims, `husband.*` does not), nationality is whitespace-only so its mirror collapses to \"\", and name / id_number / marriage_certificate_ref are the both-sides-trimmed controls. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.  RULING 13 parts 1-3 (§ 6.5.7). `basis.divorceType` is `\"voluntary\"`, cited to `DivorceCertificatePage.tsx:745` — the string literal `isVoluntary` compares against. It was `\"mutual\"`, which is not merely unvalidated but TERMINAL: `:745-746` leaves both `isVoluntary` and `isContested` false, step 1 renders only the type select, and `canProceed()` falls through to the contested arm (`:765`) demanding three court values whose JSX is gated on `isContested` (`:1337`). `mediationMode` is now DECLARED here rather than inferred by the driver (`:754`): an inferred input is a fixture value the fixture file does not state. The `court` block is REMOVED, not blanked — nothing writes `court` outside `:1337`, so under this arm no control can type it and § 6.5.3 item 7 forbids the fixture claiming a value. `basis.court_name` / `basis.court_decision_date` still appear in the oracle as `\"\"`, sourced from the page's own `useState` initialiser at `DivorceCertificatePage.tsx:642` (§ 6.5.3 item 6 permits a branch's genuine `\"\"`). The `contested` variant is the other arm and carries the court block.",
   "_locale": "en",
   "_reference_no": "DC-2026-000654",
   "header": {
@@ -8,6 +8,7 @@
     "villageId": "77777777-7777-4777-8777-777777777777"
   },
   "linkedRecord": null,
+  "mediationMode": "new",
   "hasChildren": true,
   "children": {
     "list": "Test Child A; Test Child B",
@@ -51,13 +52,9 @@
     "marriageCertRef": "MC-WIFE-0002"
   },
   "basis": {
-    "divorceType": "mutual",
+    "divorceType": "voluntary",
     "dateOfDivorce": "2026-07-09",
     "placeOfRegistration": "  Test Divorce Office  "
-  },
-  "court": {
-    "name": "Test People's Court",
-    "decisionDate": "2026-06-30"
   },
   "_locations": {
     "11111111-1111-4111-8111-111111111111": {
@@ -84,5 +81,45 @@
       "en": "Test Village Seven",
       "lo": "ບ້ານທົດສອບເຈັດ"
     }
+  },
+  "_classification": {
+    "header.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "header.districtId": "driven DivorceCertificatePage.tsx:344",
+    "header.villageId": "driven DivorceCertificatePage.tsx:344",
+    "linkedRecord": "driven DivorceCertificatePage.tsx:1186",
+    "mediationMode": "driven DivorceCertificatePage.tsx:1066",
+    "hasChildren": "driven DivorceCertificatePage.tsx:1287",
+    "children.list": "driven DivorceCertificatePage.tsx:1297",
+    "children.custody": "driven DivorceCertificatePage.tsx:1304",
+    "mediation.propertyDivision": "driven DivorceCertificatePage.tsx:1265",
+    "mediation.debts": "driven DivorceCertificatePage.tsx:1274",
+    "mediation.dateMarriageBegan": "driven DivorceCertificatePage.tsx:1235",
+    "mediation.reasonsHusband": "driven DivorceCertificatePage.tsx:1242",
+    "mediation.reasonsWife": "driven DivorceCertificatePage.tsx:1249",
+    "mediation.outcome": "driven DivorceCertificatePage.tsx:1256",
+    "mediation.additionalAssets": "driven DivorceCertificatePage.tsx:1281",
+    "mediation.w1Name": "driven DivorceCertificatePage.tsx:1317",
+    "mediation.w2Name": "driven DivorceCertificatePage.tsx:1323",
+    "husband.fullName": "driven DivorceCertificatePage.tsx:474",
+    "husband.dob": "driven DivorceCertificatePage.tsx:482",
+    "husband.nationality": "driven DivorceCertificatePage.tsx:491",
+    "husband.idOrPassport": "driven DivorceCertificatePage.tsx:500",
+    "husband.addrHouseNo": "driven DivorceCertificatePage.tsx:510",
+    "husband.address.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "husband.address.districtId": "driven DivorceCertificatePage.tsx:344",
+    "husband.address.villageId": "driven DivorceCertificatePage.tsx:344",
+    "husband.marriageCertRef": "driven DivorceCertificatePage.tsx:524",
+    "wife.fullName": "driven DivorceCertificatePage.tsx:474",
+    "wife.dob": "driven DivorceCertificatePage.tsx:482",
+    "wife.nationality": "driven DivorceCertificatePage.tsx:491",
+    "wife.idOrPassport": "driven DivorceCertificatePage.tsx:500",
+    "wife.addrHouseNo": "driven DivorceCertificatePage.tsx:510",
+    "wife.address.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "wife.address.districtId": "driven DivorceCertificatePage.tsx:344",
+    "wife.address.villageId": "driven DivorceCertificatePage.tsx:344",
+    "wife.marriageCertRef": "driven DivorceCertificatePage.tsx:524",
+    "basis.divorceType": "driven DivorceCertificatePage.tsx:1041",
+    "basis.dateOfDivorce": "driven DivorceCertificatePage.tsx:1421",
+    "basis.placeOfRegistration": "driven DivorceCertificatePage.tsx:1429"
   }
 }

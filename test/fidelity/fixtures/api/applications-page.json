@@ -1,0 +1,331 @@
+{
+  "_provenance": "DECLARED SYNTHETIC — NOT A RECORDED PAYLOAD. specs.md § 6.12. Hand-built from `lcc-app/src/app/api/types.ts:421-449`, covering all 9 CaseStatus values in order, all 5 PaymentState values plus one value outside the union (row 9's `payment_state: \"unheard-of-state\"`, which exercises PaymentState.unknown and the source's `?? [\"—\",\"—\"]` fallback), overdue and non-overdue rows, present and absent optional fields, and a multi-page `meta`. Every criterion discharged against this file is evidence that the PORT is correct GIVEN a payload; it is NOT evidence that staging sends this payload, and must be reported NOT EVALUATED against live data (§ 6.4). FU-1 re-derives it from a recording when B4 lands and an application exists.",
+  "success": true,
+  "message": "applications retrieved",
+  "data": [
+    {
+      "id": "app-001",
+      "reference_no": "LCC-2026-000001",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "draft",
+      "status_label": {
+        "en": "Draft",
+        "lo": "ຮ່າງ"
+      },
+      "payment_state": "free",
+      "fee_lak": 0,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 0,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-01T02:15:00Z",
+      "updated_at": "2026-08-01T02:15:00Z"
+    },
+    {
+      "id": "app-002",
+      "reference_no": "LCC-2026-000002",
+      "service_code": "birth-cert",
+      "service_name": {
+        "en": "Birth Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "submitted",
+      "status_label": {
+        "en": "Submitted",
+        "lo": "ສົ່ງແລ້ວ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 2,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-02T03:00:00Z",
+      "updated_at": "2026-08-02T03:00:00Z",
+      "submitted_at": "2026-08-02T04:10:00Z",
+      "due_at": "2026-08-07T04:10:00Z"
+    },
+    {
+      "id": "app-003",
+      "reference_no": "LCC-2026-000003",
+      "service_code": "biography-cv",
+      "service_name": {
+        "en": "Biography / CV",
+        "lo": "ປະຫວັດຫຍໍ້ / CV"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "certified",
+      "status_label": {
+        "en": "Certified",
+        "lo": "ຢັ້ງຢືນແລ້ວ"
+      },
+      "payment_state": "paid",
+      "fee_lak": 30000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 3,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-03T01:00:00Z",
+      "updated_at": "2026-08-03T01:00:00Z",
+      "assigned_officer": "Khamla P.",
+      "submitted_at": "2026-08-03T02:00:00Z"
+    },
+    {
+      "id": "app-004",
+      "reference_no": "LCC-2026-000004",
+      "service_code": "general",
+      "service_name": {
+        "en": "General Application",
+        "lo": "ຄຳຮ້ອງທົ່ວໄປ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "under-review",
+      "status_label": {
+        "en": "Under Review",
+        "lo": "ກຳລັງກວດສອບ"
+      },
+      "payment_state": "failed",
+      "fee_lak": 20000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 9,
+      "days_overdue": 4,
+      "is_overdue": true,
+      "created_at": "2026-08-04T05:00:00Z",
+      "updated_at": "2026-08-04T05:00:00Z",
+      "assigned_officer": "Bounmy S.",
+      "submitted_at": "2026-08-04T06:00:00Z"
+    },
+    {
+      "id": "app-005",
+      "reference_no": "LCC-2026-000005",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "returned",
+      "status_label": {
+        "en": "Returned",
+        "lo": "ສົ່ງກັບຄືນ"
+      },
+      "payment_state": "refunded",
+      "fee_lak": 15000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 6,
+      "days_overdue": 1,
+      "is_overdue": true,
+      "created_at": "2026-08-05T07:00:00Z",
+      "updated_at": "2026-08-05T07:00:00Z",
+      "submitted_at": "2026-08-05T08:00:00Z",
+      "reason_note": "The uploaded identity document is unclear."
+    },
+    {
+      "id": "app-006",
+      "reference_no": "LCC-2026-000006",
+      "service_code": "birth-cert",
+      "service_name": {
+        "en": "Birth Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "registered",
+      "status_label": {
+        "en": "Registered",
+        "lo": "ຂຶ້ນທະບຽນແລ້ວ"
+      },
+      "payment_state": "paid",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 4,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-06T01:30:00Z",
+      "updated_at": "2026-08-06T01:30:00Z",
+      "submitted_at": "2026-08-06T02:30:00Z"
+    },
+    {
+      "id": "app-007",
+      "reference_no": "LCC-2026-000007",
+      "service_code": "birth-cert",
+      "service_name": {
+        "en": "Birth Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "issued",
+      "status_label": {
+        "en": "Issued",
+        "lo": "ອອກໃບແລ້ວ"
+      },
+      "payment_state": "paid",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 5,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-07T01:00:00Z",
+      "updated_at": "2026-08-07T01:00:00Z",
+      "submitted_at": "2026-08-07T02:00:00Z",
+      "issued_at": "2026-08-12T03:00:00Z",
+      "certificate_id": "cert-77",
+      "certificate_no": "CERT-2026-000077"
+    },
+    {
+      "id": "app-008",
+      "reference_no": "LCC-2026-000008",
+      "service_code": "general",
+      "service_name": {
+        "en": "General Application",
+        "lo": "ຄຳຮ້ອງທົ່ວໄປ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "rejected",
+      "status_label": {
+        "en": "Rejected",
+        "lo": "ຖືກປະຕິເສດ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 10000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 7,
+      "days_overdue": 2,
+      "is_overdue": true,
+      "created_at": "2026-08-08T01:00:00Z",
+      "updated_at": "2026-08-08T01:00:00Z",
+      "submitted_at": "2026-08-08T02:00:00Z",
+      "closed_at": "2026-08-11T09:00:00Z",
+      "reason_note": "Supporting documents were not provided."
+    },
+    {
+      "id": "app-009",
+      "reference_no": "LCC-2026-000009",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "revoked",
+      "status_label": {
+        "en": "Revoked",
+        "lo": "ຖືກຖອນ"
+      },
+      "payment_state": "unheard-of-state",
+      "fee_lak": 0,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 1,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "created_at": "2026-08-09T01:00:00Z",
+      "updated_at": "2026-08-09T01:00:00Z",
+      "submitted_at": "2026-08-09T02:00:00Z",
+      "closed_at": "2026-08-10T01:00:00Z"
+    }
+  ],
+  "meta": {
+    "page": 2,
+    "per_page": 10,
+    "total": 42,
+    "total_pages": 5,
+    "has_next": true,
+    "has_prev": true
+  },
+  "request_id": "b7a-applications-page"
+}

@@ -54,6 +54,29 @@ abstract class AuthRemoteDatasource {
     required String code,
     required String newPassword,
   });
+
+  /// `POST /auth/change-password` — B8a, and **the one authenticated call on
+  /// this datasource.**
+  ///
+  /// Every other method here passes `anonymous: true`; this one must not. The
+  /// endpoint sits in the `auth` object (`endpoints.ts:88`) but has no
+  /// `{ anonymous: true }` option, so it goes out with whatever token the
+  /// interceptor chain attaches — a signed-out citizen has no route to it
+  /// (`AccountPage` is behind `_protectedPaths`).
+  ///
+  /// Body is exactly `{current_password, new_password}` in that order
+  /// (`AccountPage.tsx:280`). `confirm` is a client-side check and is **never
+  /// transmitted** — B8-AC-34.
+  ///
+  /// **Recorded, not repaired** (specs.md § 6.8, GG-4/GG-5/GG-8): the source
+  /// validates only `length >= 8` and equality, a success invalidates no
+  /// session anywhere, and the three passwords transit immutable Dart
+  /// `String`s. All four are properties of the ADR-0001 oracle; changing them
+  /// here would be an R-25-class invisible divergence.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
 }
 
 class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
@@ -153,5 +176,24 @@ class AuthRemoteDatasourceImpl implements AuthRemoteDatasource {
     );
     // The server answers `{ reset: bool }` — read it defensively.
     return (data['reset'] as bool?) ?? true;
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    // No `anonymous: true` — see the abstract's doc. The response is typed
+    // `unknown` in the source and its value is discarded, so `dynamic` rather
+    // than `Map<String, dynamic>`: an endpoint that answers `"data": null`
+    // would throw on the cast and surface as a failed password change that
+    // actually succeeded.
+    await apiClient.post<dynamic>(
+      ApiEndpoint.authChangePassword,
+      body: <String, dynamic>{
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      },
+    );
   }
 }

@@ -19,6 +19,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../domain/entities/auth_tokens.dart';
 import '../../domain/entities/citizen_profile.dart';
+import '../../domain/entities/profile_update.dart';
 import '../../domain/repositories/session_repository.dart';
 import '../datasources/session_remote_datasource.dart';
 import '../models/auth_tokens_model.dart';
@@ -37,6 +38,28 @@ class SessionRepositoryImpl implements SessionRepository {
     } on ApiException {
       // Rethrown so SessionBloc can check isUnauthorized/isForbidden and
       // clear tokens — the one typed-error branch the session feature needs.
+      rethrow;
+    } catch (e) {
+      return Left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, CitizenProfile>> updateProfile(
+      ProfileUpdate update) async {
+    try {
+      final model = await remote.updateProfile(update);
+      return Right(model.toEntity());
+    } on ApiException {
+      // Rethrown for the same reason `getProfile` rethrows: a 401/403 on a
+      // `/me/*` write means the token no longer resolves to an account, and
+      // `SessionBloc` is the thing that has to clear it. Wrapping would lose
+      // `isUnauthorized`/`isForbidden`.
+      //
+      // The two B8 callers dispose of it differently and both are ports:
+      // `AccountProfileBloc` catches and surfaces the message
+      // (`AccountPage.tsx:544-546`), while `SessionBloc`'s R-25 mirror swallows
+      // it outright (`.catch(() => undefined)`, `LanguageToggle.tsx:71`).
       rethrow;
     } catch (e) {
       return Left(Failure(e.toString()));

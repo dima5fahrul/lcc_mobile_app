@@ -1,0 +1,101 @@
+{
+  "_note": "Tier 0 fixture - Divorce, CONTESTED variant - RULING 13 part 3 (§ 6.5.7). The FOURTH variant, and its own variant rather than an overload of `blank-b`, because a variant carrying two independent traps cannot attribute its own failure. `canProceed()` (`:749-766`) admits exactly two step-1 states; `voluntary`+`mediationMode:\"new\"` is the other three variants and this is the second. The two arms PARTITION the payload: under `voluntary` the `court` pair is always `\"\"`; under `contested` the whole `mediation` object except `mediation_record_no`, plus `custody_arrangement` / `custody_reference` / `children`, is always `\"\"` - `hasChildren`'s toggle lives at `:1288` inside `isVoluntary && mediationMode === \"new\"` and cannot be reached from here. Without this variant one of those two groups is only ever empty and A PORT THAT HARDCODED `\"\"` THERE PASSES TIER 0 - the `F0-AC-86` vacuity shape. The `mediation`, `children` and `hasChildren` keys are therefore REMOVED, not blanked: § 6.5.3 item 7 classes them `unreachable` from this state and a fixture may not declare an unreachable key. Their oracle leaves are still emitted as `\"\"`, sourced from `:634-637` / `:638` / `:639`. Spouses stay ASYMMETRIC (§ 6.5.3 item 1a) so the `both()` mirror's discard of the wife's value is observable on this arm too. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Locale seed: lo.",
+  "_locale": "lo",
+  "_reference_no": "DC-2026-000655",
+  "header": {
+    "provinceId": "55555555-5555-4555-8555-555555555555",
+    "districtId": "66666666-6666-4666-8666-666666666666",
+    "villageId": "77777777-7777-4777-8777-777777777777"
+  },
+  "linkedRecord": null,
+  "husband": {
+    "fullName": "Test Husband Alpha",
+    "dob": "1985-04-17",
+    "nationality": "lao",
+    "idOrPassport": "ID-HUSB-0001",
+    "addrHouseNo": "31",
+    "address": {
+      "provinceId": "11111111-1111-4111-8111-111111111111",
+      "districtId": "22222222-2222-4222-8222-222222222222",
+      "villageId": "33333333-3333-4333-8333-333333333333"
+    },
+    "marriageCertRef": "MC-HUSB-0001"
+  },
+  "wife": {
+    "fullName": "Test Wife Beta",
+    "dob": "1987-12-05",
+    "nationality": "thai",
+    "idOrPassport": "ID-WIFE-0002",
+    "addrHouseNo": "32",
+    "address": {
+      "provinceId": "55555555-5555-4555-8555-555555555555",
+      "districtId": "66666666-6666-4666-8666-666666666666",
+      "villageId": "77777777-7777-4777-8777-777777777777"
+    },
+    "marriageCertRef": "MC-WIFE-0002"
+  },
+  "basis": {
+    "divorceType": "contested",
+    "dateOfDivorce": "2026-07-09",
+    "placeOfRegistration": "  Test Divorce Office  "
+  },
+  "court": {
+    "name": "Test People's Court",
+    "decisionDate": "2026-06-30"
+  },
+  "_locations": {
+    "11111111-1111-4111-8111-111111111111": {
+      "en": "Test Province One",
+      "lo": "ແຂວງທົດສອບໜຶ່ງ"
+    },
+    "22222222-2222-4222-8222-222222222222": {
+      "en": "Test District Two",
+      "lo": "ເມືອງທົດສອບສອງ"
+    },
+    "33333333-3333-4333-8333-333333333333": {
+      "en": "Test Village Three",
+      "lo": "ບ້ານທົດສອບສາມ"
+    },
+    "55555555-5555-4555-8555-555555555555": {
+      "en": "Test Province Five",
+      "lo": "ແຂວງທົດສອບຫ້າ"
+    },
+    "66666666-6666-4666-8666-666666666666": {
+      "en": "Test District Six",
+      "lo": "ເມືອງທົດສອບຫົກ"
+    },
+    "77777777-7777-4777-8777-777777777777": {
+      "en": "Test Village Seven",
+      "lo": "ບ້ານທົດສອບເຈັດ"
+    }
+  },
+  "_classification": {
+    "header.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "header.districtId": "driven DivorceCertificatePage.tsx:344",
+    "header.villageId": "driven DivorceCertificatePage.tsx:344",
+    "linkedRecord": "driven DivorceCertificatePage.tsx:1186",
+    "husband.fullName": "driven DivorceCertificatePage.tsx:474",
+    "husband.dob": "driven DivorceCertificatePage.tsx:482",
+    "husband.nationality": "driven DivorceCertificatePage.tsx:491",
+    "husband.idOrPassport": "driven DivorceCertificatePage.tsx:500",
+    "husband.addrHouseNo": "driven DivorceCertificatePage.tsx:510",
+    "husband.address.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "husband.address.districtId": "driven DivorceCertificatePage.tsx:344",
+    "husband.address.villageId": "driven DivorceCertificatePage.tsx:344",
+    "husband.marriageCertRef": "driven DivorceCertificatePage.tsx:524",
+    "wife.fullName": "driven DivorceCertificatePage.tsx:474",
+    "wife.dob": "driven DivorceCertificatePage.tsx:482",
+    "wife.nationality": "driven DivorceCertificatePage.tsx:491",
+    "wife.idOrPassport": "driven DivorceCertificatePage.tsx:500",
+    "wife.addrHouseNo": "driven DivorceCertificatePage.tsx:510",
+    "wife.address.provinceId": "driven DivorceCertificatePage.tsx:331",
+    "wife.address.districtId": "driven DivorceCertificatePage.tsx:344",
+    "wife.address.villageId": "driven DivorceCertificatePage.tsx:344",
+    "wife.marriageCertRef": "driven DivorceCertificatePage.tsx:524",
+    "basis.divorceType": "driven DivorceCertificatePage.tsx:1041",
+    "basis.dateOfDivorce": "driven DivorceCertificatePage.tsx:1421",
+    "basis.placeOfRegistration": "driven DivorceCertificatePage.tsx:1429",
+    "court.name": "driven DivorceCertificatePage.tsx:385",
+    "court.decisionDate": "driven DivorceCertificatePage.tsx:1362"
+  }
+}

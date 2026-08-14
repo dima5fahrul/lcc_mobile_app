@@ -120,7 +120,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(
-                      'layout.brand'.tr(),
+                      'layout.brand'.tr(context: context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -132,7 +132,7 @@ class AppTopBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                     Text(
-                      'layout.brandSub'.tr(),
+                      'layout.brandSub'.tr(context: context),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

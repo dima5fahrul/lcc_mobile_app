@@ -14,9 +14,10 @@
 /// Note the containers are not idempotent — a second `init()` throws
 /// `already registered inside GetIt`. That is a real constraint on the frozen
 /// DI files (§ 4.1), so each test boots once and `tearDown` empties all
-/// **nine**: B2a added `serviceInjection`, B2b added `homeInjection`, B2c
+/// **ten**: B2a added `serviceInjection`, B2b added `homeInjection`, B2c
 /// added `newsInjection` and `helpInjection`, B9a added
-/// `notificationsInjection` and B9b adds `chatInjection`. A container that `tearDown`
+/// `notificationsInjection`, B9b added `chatInjection` and B8a adds
+/// `accountInjection`. A container that `tearDown`
 /// forgets does not fail on the test that added it — it fails on the second
 /// test in the file, with a message naming `ApiClient`.
 library;
@@ -27,6 +28,9 @@ import 'package:lcc_mobile_app/core/network/api_client.dart';
 import 'package:lcc_mobile_app/core/network/auth_interceptor.dart';
 import 'package:lcc_mobile_app/core/network/refresh_interceptor.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
+import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
+import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
+import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
@@ -39,6 +43,8 @@ import 'package:lcc_mobile_app/features/auth/domain/usecases/reset_password.dart
 import 'package:lcc_mobile_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
+import 'package:lcc_mobile_app/features/reference/di/reference_injection.dart';
+import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
 import 'package:lcc_mobile_app/features/news/di/news_injection.dart';
 import 'package:lcc_mobile_app/features/notifications/di/notifications_injection.dart';
@@ -85,6 +91,38 @@ void main() {
     // `test/features/chat/**` and not this file; the edit is a recorded scope
     // deviation, and the alternative is leaving three DI test files red.
     await chatInjection.reset();
+    // B8a's, and the prediction held a THIRD time: without this line every
+    // test after the first in this file fails with
+    // `Type ApiClient is already registered inside GetIt`, thrown from
+    // `AccountDatasourceInjection.inject` — measured at 34 failures across
+    // this file (15), `news_injection_test.dart` (9) and
+    // `home_injection_test.dart` (6). B8's § 3.1 table names
+    // `test/features/account/**` and not this file; the edit is a recorded
+    // scope deviation on exactly B9a's and B9b's grounds.
+    await accountInjection.reset();
+    // F0b's. Fifth occurrence of the same omission; `di_teardown_completeness_test.dart`
+    // now fails the moment a container exists without a reset here, naming the
+    // container rather than `ApiClient`.
+    await referenceInjection.reset();
+    // B6a's. SIXTH occurrence of the same omission — and the first one caught
+    // by `di_teardown_completeness_test.dart` before it could cost a round
+    // trip: that guard names `walletInjection` and the file it is declared in,
+    // instead of the `ApiClient` message the five previous occurrences all
+    // surfaced as. B6's § 3.1 table names `test/features/wallet/**` and not
+    // this file; the edit is a recorded scope deviation on exactly B9a's,
+    // B9b's, B8a's and F0b's grounds.
+    await walletInjection.reset();
+    // B7a's two. SEVENTH and EIGHTH occurrences of the same omission, and the
+    // second caught by `di_teardown_completeness_test.dart` rather than by
+    // thirty `ApiClient is already registered inside GetIt` failures. Two
+    // containers and not one because `features/application/` is page-less
+    // (specs.md § 6.2) and `features/history/` holds the BLoC — the split the
+    // guard's scan discovers on its own, and the reason it prints the count.
+    // B7's § 3.1 table names `test/features/{application,history}/**` and not
+    // this file; the edit is a recorded scope deviation on exactly B9a's,
+    // B9b's, B8a's, F0b's and B6a's grounds.
+    await applicationInjection.reset();
+    await historyInjection.reset();
   });
 
   group('root container', () {

@@ -44,11 +44,13 @@
 ///   worse than one that is absent. The **chip stays** (Tier 1 compares the
 ///   text the web presents) and its tap is a no-op, the same shape C-4 already
 ///   sanctions for the catalogue card. **Escalated, not decided here.**
-/// * **The tutorial overlay** (`TutorialOverlay.tsx`, opened by "How it works").
-///   § 2.3's table scopes B2b to *"`HomePage` + `Hero` + `ServiceCard`, 1,516
-///   lines"* — 1058 + 348 + 110 exactly. `TutorialOverlay` is a separate
-///   component and is not in that count, so porting it would be scope B2b was
-///   not given. Same disposition: chip renders, tap is a no-op, escalated.
+/// * ~~**The tutorial overlay**~~ — **landed in B10** (§ 6.10). B2b left it
+///   out because § 2.3's table scoped that batch to *"`HomePage` + `Hero` +
+///   `ServiceCard`, 1,516 lines"* and `TutorialOverlay` is a separate
+///   component. It is now mounted below, gated on `lcc.tutorial_seen`, exactly
+///   as `HomePage.tsx`:212 gates it. The "How it works" chip's tap is still a
+///   no-op: in the source that chip does **not** open the tutorial either —
+///   the overlay is first-run-automatic, not chip-triggered.
 ///
 /// ## The BLoC is created by the route builder, not by this page
 ///
@@ -79,6 +81,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/session/bloc/session_bloc.dart';
+import '../../../../core/storage/storage_service.dart';
 import '../../../../presentation/icons/lucide_icon.dart';
 import '../../../../presentation/theme/app_colors.dart';
 import '../../../../presentation/theme/app_spacing.dart';
@@ -99,15 +102,31 @@ import '../widgets/news_slider.dart';
 import '../widgets/section_header.dart';
 import '../widgets/service_detail_sheet.dart';
 import '../widgets/summary_tiles.dart';
+import '../widgets/tutorial_overlay.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.storage});
+
+  /// Reads and writes `lcc.tutorial_seen` — B10 § 6.10, § 6.11.
+  ///
+  /// Threaded from the `/` route builder (CR-1 / G-L5: *route builders may
+  /// resolve from a locator; no widget may*). **Nullable, and null means "no
+  /// tutorial"**: without a storage service there is no gate to read, and a
+  /// tutorial that mounted unconditionally would appear over every widget test
+  /// that pumps this page directly. Production always supplies it; the gate
+  /// itself is exercised by `test/features/home/.../tutorial_gate_test.dart`.
+  final StorageService? storage;
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  /// `useState showTutorial` — `HomePage.tsx`:211-213. Starts false and is
+  /// raised only after the async read says the flag is absent, which is the
+  /// Flutter cost of a `localStorage` call that is synchronous in the source.
+  bool _showTutorial = false;
+
   @override
   void initState() {
     super.initState();
@@ -116,6 +135,27 @@ class _HomePageState extends State<HomePage> {
     // regions can learn about a session that was already resolved before this
     // page existed.
     _syncAuth(context.read<SessionBloc>().state);
+    _resolveTutorialGate();
+  }
+
+  /// `const seen = localStorage.getItem("lcc_tutorial_seen"); if (!seen)
+  /// setShowTutorial(true);` — `HomePage.tsx`:212-213.
+  ///
+  /// **Independent of the splash's gate.** `manifest.md`:262-264 measured that
+  /// dismissing the onboarding splash does *not* set this key, so a fresh
+  /// install shows splash → Home → tutorial (`B10-AC-35`).
+  Future<void> _resolveTutorialGate() async {
+    final StorageService? storage = widget.storage;
+    if (storage == null) return;
+    final bool seen = await storage.hasSeenTutorial();
+    if (!mounted || seen) return;
+    setState(() => _showTutorial = true);
+  }
+
+  /// `handleTutorialDone` — `HomePage.tsx`:228-231.
+  void _dismissTutorial() {
+    widget.storage?.markTutorialSeen();
+    if (mounted) setState(() => _showTutorial = false);
   }
 
   void _syncAuth(SessionState session) {
@@ -142,8 +182,22 @@ class _HomePageState extends State<HomePage> {
       listener: (BuildContext context, SessionState state) =>
           _syncAuth(state),
       child: BlocBuilder<HomeBloc, HomeState>(
-        builder: (BuildContext context, HomeState state) =>
-            _HomeBody(state: state),
+        builder: (BuildContext context, HomeState state) {
+          final Widget body = _HomeBody(state: state);
+          // `{showTutorial && <TutorialOverlay onDone={handleTutorialDone} />}`
+          // — `HomePage.tsx`:791. A `Stack`, not a `showDialog`: the source
+          // renders it as a sibling inside the page, so it scrolls with
+          // nothing and sits inside the shell's chrome rather than above it.
+          if (!_showTutorial) return body;
+          return Stack(
+            children: <Widget>[
+              body,
+              Positioned.fill(
+                child: TutorialOverlay(onDone: _dismissTutorial),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

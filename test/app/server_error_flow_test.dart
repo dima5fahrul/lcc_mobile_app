@@ -46,6 +46,7 @@ import 'package:lcc_mobile_app/features/session/data/datasources/session_remote_
 import 'package:lcc_mobile_app/features/session/data/repositories/session_repository_impl.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
+import 'package:lcc_mobile_app/features/session/domain/usecases/update_profile.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 
 import '../helpers/core_test_helper.dart';
@@ -106,6 +107,8 @@ void main() {
       storage: storage,
       getProfile: GetProfile(repository: repository),
       repository: repository,
+      // B8a — R-25's mirror, over the same repository this bloc already holds.
+      updateProfile: UpdateProfile(repository: repository),
     );
   }
 

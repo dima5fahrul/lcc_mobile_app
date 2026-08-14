@@ -128,13 +128,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(locationOf(tester), AppNameRoutes.wallet);
 
-    await tester.tap(find.descendant(
-      of: find.byType(AppTopBar),
-      matching: find.byType(InkWell).first,
-    ));
+    // The brand block is the tappable that wraps the brand mark, identified by
+    // what it *is* rather than by where it sits in the bar. The previous finder
+    // was `matching: find.byType(InkWell).first`, which put `.first` on the
+    // GLOBAL `InkWell` finder — it resolved to the first `InkWell` in the whole
+    // tree and only then asked whether that one happened to descend from
+    // `AppTopBar`. `Scaffold` lists `body` ahead of `appBar`, so the globally
+    // first `InkWell` is whatever the page body renders; the intersection is
+    // empty the moment a tab has a tappable, which is what B6a's wallet
+    // build-out made true. `Icons.account_balance` is the brand mark and
+    // appears nowhere else in `lib/` (`app_top_bar.dart`:111), so anchoring on
+    // it survives the bar gaining actions and the body gaining anything.
+    final Finder brandBlock = find.ancestor(
+      of: find.byIcon(Icons.account_balance),
+      matching: find.descendant(
+        of: find.byType(AppTopBar),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(
+      brandBlock,
+      findsOneWidget,
+      reason: 'the brand block must resolve to exactly one tappable, so that a '
+          'future ambiguity fails here rather than silently tapping another '
+          'control in the bar',
+    );
+
+    await tester.tap(brandBlock);
     await tester.pumpAndSettle();
 
+    // The assertion with the teeth: reaching home is the capability. Finding
+    // the widget above only proves it is present.
     expect(locationOf(tester), AppNameRoutes.home);
+    expect(find.byType(HomePage), findsOneWidget);
   });
 }
 

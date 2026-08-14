@@ -114,6 +114,165 @@ SPACING = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# The `forms` group — F0-AC-94's ENUMERATED denominator (specs.md § 6.10.1)
+# ---------------------------------------------------------------------------
+#
+# v1.0's F0-AC-59 claimed "Tier 2: PASS, 100 %" over an unnamed set, and named
+# two colours that already existed and therefore asserted nothing. F0-AC-94
+# replaces the claim with a denominator: **every distinct colour, radius,
+# spacing and type value appearing in `formFields.tsx` and `formValidation.tsx`**
+# — the whole two files, not just `fieldBase` and `fieldErrorRing`.
+#
+# Two mechanisms make the number mean something:
+#
+# 1. **Whole-token verification, not substring grep.** `gap-1` is a substring of
+#    `gap-1.5`, `w-3` of `w-3.5`, `py-2` of `py-2.5`, and `text-gray-400` of
+#    `placeholder:text-gray-400`. A substring grep would let four of the entries
+#    below "verify" against a line that does not contain them. Every entry is
+#    located by splitting the file's string literals into class tokens and
+#    matching one **exactly** (`token_lines`).
+#
+# 2. **An INDEPENDENT scan sets the cardinality.** `scan_form_utilities()`
+#    re-derives the utility set from the two files with a Tailwind grammar that
+#    knows nothing about the list below, and the derivation FAILS on any
+#    difference in either direction. A curated list can be short by an entry;
+#    a curated list checked against an independent scan cannot be short by one
+#    silently. (Both directions matter: the first draft of that scanner missed
+#    `focus:border-[#344EAD]` and `focus:ring-2`, which is precisely the class
+#    of miss this check exists to surface.)
+FORMS_FILES = {
+    "FF": "src/app/components/formFields.tsx",
+    "FV": "src/app/components/formValidation.tsx",
+}
+
+# Tailwind's published scale at the source's 16 px root (`theme.css:4`):
+# a numeric suffix n renders 4n px.
+#
+# (utility, category, file key, value, dart token or None)
+#   colour values are "#RRGGBB", ("#RRGGBB", alpha) for a `/nn` suffix, or
+#   "transparent"; radius/spacing values are px; type values are px or a weight.
+FORMS = [
+    # ---- colour (19) -----------------------------------------------------
+    ("bg-[#EEF2FF]", "colour", "FF", "#EEF2FF", "primarySoft"),
+    ("bg-gray-100", "colour", "FF", "#F3F4F6", "gray100"),
+    ("bg-gray-50", "colour", "FF", "#F9FAFB", "gray50"),
+    ("bg-transparent", "colour", "FF", "transparent", "transparent"),
+    ("bg-white", "colour", "FF", "#FFFFFF", "white"),
+    ("border-gray-100", "colour", "FF", "#F3F4F6", "gray100"),
+    ("border-gray-200", "colour", "FV", "#E5E7EB", "gray200"),
+    ("border-red-300", "colour", "FV", "#FCA5A5", "dangerBorder"),
+    ("focus:border-[#344EAD]", "colour", "FV", "#344EAD", "primary"),
+    ("focus:border-red-400", "colour", "FV", "#F87171", None),
+    ("focus:ring-[#344EAD]/20", "colour", "FV", ("#344EAD", 0.2), "primary@0.2"),
+    ("focus:ring-red-500/20", "colour", "FV", ("#EF4444", 0.2), "dangerStrong@0.2"),
+    ("hover:bg-gray-50", "colour", "FF", "#F9FAFB", "gray50"),
+    ("placeholder:text-gray-400", "colour", "FF", "#9CA3AF", "gray400Inline"),
+    ("text-gray-400", "colour", "FF", "#9CA3AF", "gray400Inline"),
+    ("text-gray-500", "colour", "FF", "#6B7280", "muted"),
+    ("text-gray-800", "colour", "FF", "#1F2937", "gray800"),
+    ("text-red-400", "colour", "FF", "#F87171", None),
+    ("text-red-500", "colour", "FF", "#EF4444", "dangerStrong"),
+    # ---- radius (2) ------------------------------------------------------
+    ("rounded-xl", "radius", "FF", 12, "radiusXl"),
+    ("rounded-2xl", "radius", "FF", 16, "radius2xl"),
+    # ---- spacing (27) ----------------------------------------------------
+    ("focus:ring-2", "spacing", "FV", 2, "gap2"),
+    ("gap-1", "spacing", "FF", 4, "gap4"),
+    ("gap-1.5", "spacing", "FF", 6, "gap6"),
+    ("gap-2", "spacing", "FF", 8, "gap8"),
+    ("gap-3", "spacing", "FF", 12, "gap12"),
+    ("h-3", "spacing", "FF", 12, "gap12"),
+    ("h-3.5", "spacing", "FF", 14, "gap14"),
+    ("h-4", "spacing", "FF", 16, "gap16"),
+    ("max-h-60", "spacing", "FF", 240, None),
+    ("mb-1.5", "spacing", "FF", 6, "gap6"),
+    ("min-w-0", "spacing", "FF", 0, None),
+    ("ml-0.5", "spacing", "FF", 2, "gap2"),
+    ("mt-1.5", "spacing", "FF", 6, "gap6"),
+    ("mt-2", "spacing", "FF", 8, "gap8"),
+    ("p-2", "spacing", "FF", 8, "gap8"),
+    ("pr-10", "spacing", "FF", 40, "gap40"),
+    ("px-3", "spacing", "FF", 12, "gap12"),
+    ("px-4", "spacing", "FF", 16, "gap16"),
+    ("py-1", "spacing", "FF", 4, "gap4"),
+    ("py-2", "spacing", "FF", 8, "gap8"),
+    ("py-2.5", "spacing", "FF", 10, "gap10"),
+    ("py-3.5", "spacing", "FF", 14, "gap14"),
+    ("py-6", "spacing", "FF", 24, "gap24"),
+    ("right-4", "spacing", "FF", 16, "gap16"),
+    ("w-3", "spacing", "FF", 12, "gap12"),
+    ("w-3.5", "spacing", "FF", 14, "gap14"),
+    ("w-4", "spacing", "FF", 16, "gap16"),
+    # ---- type (4) --------------------------------------------------------
+    ("text-[11px]", "type", "FF", 11, "size11"),
+    ("text-xs", "type", "FF", 12, "size12"),
+    ("text-sm", "type", "FF", 14, "size14"),
+    ("font-semibold", "type", "FF", 600, "semiBold"),
+]
+
+# The entries above with `token: None`, each with the measured reason there is
+# nothing in `presentation/theme/` to compare them against. Carried as a CLOSED
+# register rather than dropped: an entry silently missing from the group is
+# indistinguishable from an oversight, and the Dart side asserts this register's
+# exact contents so it cannot grow without a reviewer seeing it.
+FORMS_UNTOKENISED = {
+    "focus:border-red-400": {
+        "value": "#F87171",
+        "reason":
+            "Tailwind `red-400`. Measured: `grep -rn F87171 "
+            "lib/presentation/theme/` returns NOTHING — the value has no token. "
+            "Adding one means editing `lib/presentation/theme/app_colors.dart`, "
+            "which is NOT in specs.md § 3.1's F0b table and IS named in § 4.1's "
+            "out-of-scope list, so editing it is an automatic F0-AC-66 FAIL; "
+            "writing `Color(0xFFF87171)` at the use site instead is an automatic "
+            "F0-AC-59 / B2-AC-11 FAIL. `field_error_ring.dart:87` therefore "
+            "holds `AppColors.dangerBorder` (red-300) for the FOCUSED error "
+            "border as well as the resting one.",
+        "consequence":
+            "A REGISTERED DIVERGENCE FROM THE WEB, not a resolution: on the web "
+            "a focused errored field darkens its border one step (red-300 -> "
+            "red-400) and the port does not. Reported as FAIL, not rounded to "
+            "PASS.",
+        "owner": "F1, or whichever batch is authorised to add the token",
+    },
+    "text-red-400": {
+        "value": "#F87171",
+        "reason":
+            "Same value, same absent token, different site: `formFields.tsx:44`'s "
+            "required-marker asterisk. Listed separately because the denominator "
+            "counts distinct UTILITIES, and collapsing the two would make the "
+            "cardinality check disagree with the independent scan.",
+        "consequence":
+            "`field_label.dart` draws the asterisk in the nearest token it may "
+            "use. Same FAIL, same owner.",
+        "owner": "F1, or whichever batch is authorised to add the token",
+    },
+    "max-h-60": {
+        "value": 240,
+        "reason":
+            "`AppSpacing` tops out at `gap40` (40) / `tile56` (56); 240 px is a "
+            "dropdown max-height, not a spacing step, and inventing `gap240` "
+            "would put a one-use layout constant in the shared scale.",
+        "consequence":
+            "`searchable_select.dart` carries it as a local constant. Not a "
+            "divergence — the VALUE is correct; it simply has no shared token to "
+            "be compared against.",
+        "owner": "none — recorded so the denominator stays honest",
+    },
+    "min-w-0": {
+        "value": 0,
+        "reason":
+            "Tailwind's flex-shrink escape hatch. Zero is not a design token in "
+            "any scale, and Flutter expresses the same thing structurally "
+            "(`Expanded`/`Flexible`) rather than as a measurement.",
+        "consequence":
+            "No Flutter value to compare. Recorded, not compared.",
+        "owner": "none — recorded so the denominator stays honest",
+    },
+}
+
+
 # Tokens that exist in `presentation/theme/` and have NO web counterpart to
 # compare against. Excluded from Tier 2 rather than omitted: an omission is
 # indistinguishable from an oversight, and § 6.5.5 requires an item excluded
@@ -151,6 +310,89 @@ def read(rel: str) -> str:
 def grep_lines(rel: str, needle: str) -> list[int]:
     lines = read(rel).splitlines()
     return [i + 1 for i, line in enumerate(lines) if needle in line]
+
+
+_STRING_LITERAL = re.compile(r'"([^"\n]*)"|\'([^\'\n]*)\'|`([^`]*)`', re.S)
+
+# The four Tailwind grammars. Deliberately written against the framework's
+# shape — NOT against the FORMS list — so agreement between the two is evidence.
+_VARIANT = re.compile(
+    r"^(?:hover|focus|active|disabled|group-hover|peer-focus|focus-visible):")
+_G_COLOUR = re.compile(
+    r"^(?:bg|text|border|ring|divide|from|to|fill|stroke|placeholder:text)-"
+    r"(?:\[#[0-9A-Fa-f]{3,8}\]"
+    r"|(?:red|gray|green|blue|amber|slate|indigo|emerald|white|black|transparent)"
+    r"(?:-\d{2,3})?)(?:/\d{1,3})?$")
+_G_RADIUS = re.compile(r"^rounded(?:-(?:sm|md|lg|xl|[2-9]xl|full|none))?$")
+_G_SPACING = re.compile(
+    r"^(?:p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|gap-x|gap-y|space-x"
+    r"|space-y|w|h|min-w|min-h|max-w|max-h|inset|top|bottom|left|right|ring"
+    r"|size|translate-x|translate-y)-(?:\[[0-9.]+(?:px|rem)\]|[0-9]+(?:\.[0-9]+)?)$")
+_G_TYPE = re.compile(
+    r"^(?:text-(?:xs|sm|base|lg|xl|[2-9]xl|\[[0-9.]+px\])"
+    r"|font-(?:thin|light|normal|medium|semibold|bold|extrabold))$")
+
+
+def class_tokens(rel: str) -> list[tuple[int, str]]:
+    """Every whitespace-separated class token in every string literal, with its line.
+
+    Class tokens are read from string literals rather than by grepping raw text
+    because a raw grep cannot tell `gap-1` from the `gap-1` inside `gap-1.5`.
+
+    Scanned over the whole file rather than line by line: the longest class
+    strings in `formFields.tsx` are multi-line template literals, and a
+    per-line regex never sees a literal whose backticks are on different lines.
+    Measured — `pr-10` (:311) and `py-2.5` (:201) are both inside one, and a
+    line-by-line reading silently loses them.
+    """
+    text = read(rel)
+    out: list[tuple[int, str]] = []
+    for match in _STRING_LITERAL.finditer(text):
+        group = next(
+            (i for i, g in enumerate(match.groups()) if g is not None), None)
+        if group is None:
+            continue
+        body = match.group(group + 1)
+        base_line = text.count("\n", 0, match.start(group + 1)) + 1
+        offset = 0
+        for raw in body.split(" "):
+            token = raw.strip("\n\t\"'`{}(),;")
+            if token:
+                out.append((base_line + body.count("\n", 0, offset), token))
+            offset += len(raw) + 1
+    return out
+
+
+def token_lines(rel: str, utility: str) -> list[int]:
+    """Lines of `rel` carrying `utility` as a WHOLE class token."""
+    return sorted({n for n, t in class_tokens(rel) if t == utility})
+
+
+def scan_form_utilities() -> dict[str, set[str]]:
+    """Re-derive the kernel's Tier 2 surface from the two files, independently.
+
+    Knows nothing about FORMS. This is F0-AC-94's *"independent scan of Tailwind
+    colour/radius/spacing utilities over those two files"*, and it is what turns
+    the group's cardinality from an assertion into a measurement.
+    """
+    found: dict[str, set[str]] = {
+        "colour": set(), "radius": set(), "spacing": set(), "type": set(),
+    }
+    for rel in FORMS_FILES.values():
+        for _, token in class_tokens(rel):
+            base = _VARIANT.sub("", token)
+            stripped = base[len("placeholder:"):] \
+                if base.startswith("placeholder:") else base
+            # type before colour: `text-sm` and `text-gray-800` share a prefix
+            if _G_TYPE.match(stripped):
+                found["type"].add(token)
+            elif _G_RADIUS.match(stripped):
+                found["radius"].add(token)
+            elif _G_COLOUR.match(base):
+                found["colour"].add(token)
+            elif _G_SPACING.match(base):
+                found["spacing"].add(token)
+    return found
 
 
 def icon_scope(rel: str, marker: str) -> list[str]:
@@ -211,6 +453,54 @@ def main() -> int:
             ("source", f"{rel}:{hits[0]}"),
             ("verified", "usage"),
         ])
+
+    # ---- the `forms` group (F0-AC-94) ------------------------------------
+    forms = OrderedDict()
+    curated: dict[str, set[str]] = {
+        "colour": set(), "radius": set(), "spacing": set(), "type": set(),
+    }
+    for utility, category, key, value, token in FORMS:
+        curated[category].add(utility)
+        rel = FORMS_FILES[key]
+        hits = token_lines(rel, utility)
+        if not hits:
+            failures.append(
+                f"forms/{utility}: not present as a whole class token in {rel}")
+            continue
+        if isinstance(value, tuple):
+            base, alpha = value
+            recorded: object = OrderedDict([("base", base), ("alpha", alpha)])
+            # the `/nn` forms carry their hex literally in the source
+            verified = "grep" if base in read(rel) else "usage"
+        elif isinstance(value, str) and value.startswith("#"):
+            recorded = value
+            verified = "grep" if value in read(rel) else "usage"
+        else:
+            recorded = value
+            verified = "usage"
+        forms[utility] = OrderedDict([
+            ("category", category),
+            ("value", recorded),
+            ("token", token),
+            ("source", f"{rel}:{','.join(str(h) for h in hits[:4])}"),
+            ("verified", verified),
+        ])
+
+    # The cardinality check, both directions.
+    scanned = scan_form_utilities()
+    for category in ("colour", "radius", "spacing", "type"):
+        missing = scanned[category] - curated[category]
+        extra = curated[category] - scanned[category]
+        if missing:
+            failures.append(
+                f"forms/{category}: the independent scan found "
+                f"{len(missing)} utilit{'y' if len(missing) == 1 else 'ies'} "
+                f"the group does not carry: {sorted(missing)}")
+        if extra:
+            failures.append(
+                f"forms/{category}: the group carries "
+                f"{len(extra)} utilit{'y' if len(extra) == 1 else 'ies'} "
+                f"the independent scan does not find: {sorted(extra)}")
 
     if failures:
         for line in failures:
@@ -273,6 +563,22 @@ def main() -> int:
         ])),
     ])
     doc["spacing"] = spacing
+    doc["forms"] = OrderedDict([
+        ("note",
+         "F0-AC-94's enumerated denominator — every distinct colour, radius, "
+         "spacing and type utility in formFields.tsx and formValidation.tsx. "
+         "Each is located as a WHOLE class token (a substring grep cannot tell "
+         "`gap-1` from `gap-1.5`), and the cardinality is set by "
+         "scan_form_utilities(), which re-derives the set from a Tailwind "
+         "grammar that does not read the curated list."),
+        ("denominator", OrderedDict(
+            [(c, len(curated[c])) for c in
+             ("colour", "radius", "spacing", "type")]
+            + [("total", sum(len(v) for v in curated.values()))])),
+        ("root_font_size_px", 16),
+        ("entries", forms),
+        ("untokenised", FORMS_UNTOKENISED),
+    ])
     doc["icons"] = OrderedDict([
         ("fallback", "FileText"),
         ("serviceScope", service_scope),
@@ -291,7 +597,9 @@ def main() -> int:
         json.dump(doc, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     print(f"wrote {path}  ({len(colours)} colours, {len(typography)} type, "
-          f"{len(spacing)} spacing, {len(service_scope)}+{len(help_scope)} icons)")
+          f"{len(spacing)} spacing, {len(service_scope)}+{len(help_scope)} icons, "
+          f"{len(forms)} forms utilities "
+          f"[{len(FORMS_UNTOKENISED)} untokenised])")
     return 0
 
 

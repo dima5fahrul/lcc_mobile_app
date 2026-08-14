@@ -105,31 +105,55 @@ void main() {
     // One writer, one key (GOR-245 § 4.2 freezes `lcc.lang`). If
     // `saveLocale` were ever switched back on, the SharedPreferences copy and
     // this one could disagree after an upgrade.
-    expect(harness.store.keys, <String>[StorageKeys.lang]);
+    //
+    // **B10 narrowed this from "the store holds exactly one key" to "the
+    // language is written under exactly one key".** The original form asserted
+    // the whole store, which made it a gate on every *other* key any batch
+    // might add: B10 adds `lcc.onboarding_seen` and `lcc.tutorial_seen`
+    // (§ 6.11), and the harness now seeds them the way `e2e/smoke.mjs`:91-96
+    // seeds their `localStorage` twins. Neither has anything to do with
+    // language, and neither can desynchronise `lcc.lang`. The property this
+    // test is named for — one writer, one key — is asserted directly instead.
+    expect(
+      harness.store.keys.where((String k) => k.contains('lang')),
+      <String>[StorageKeys.lang],
+      reason: 'exactly one language key, and it is `lcc.lang`',
+    );
+    expect(
+      harness.store.keys.any((String k) => k.contains('locale')),
+      isFalse,
+      reason: 'easy_localization writes `locale` when `saveLocale` is on. It '
+          'is off, and this is what would notice it being switched back.',
+    );
   });
 
-  // ── DEFECT D-3 ─────────────────────────────────────────────────────────────
+  // ── DEFECT D-3 — CLOSED for these strings by B10 ───────────────────────────
   //
-  // `LanguageToggle` re-renders because it reads `Localizations.localeOf`,
-  // i.e. it *depends* on the inherited widget that changes. Everything else in
-  // the shell renders through `'key'.tr()`, which is a context-free lookup
-  // against the global `Localization.instance` and creates no dependency.
+  // This group used to pin the **defect**: it asserted that flipping to Lao
+  // left the nav labels in English, and that only a later navigation repainted
+  // them. Its own comment said what to do next — *"They are expected to be
+  // rewritten into positive assertions once `lib/` is corrected."* B10 § 6.7 is
+  // that correction, so they are rewritten here rather than deleted, because a
+  // reader coming from the old comment needs to find out what happened.
   //
-  // Flutter's `Localizations` loads its delegates asynchronously. The rebuild
-  // triggered by the new locale runs BEFORE easy_localization's delegate has
-  // swapped the global table; when the delegate finishes and `Localizations`
-  // calls `setState`, its child widget is the identical instance from that
-  // earlier rebuild, so the element tree is skipped entirely. Net effect: the
-  // global lookup is already Lao while the rendered text is still English.
+  // **The cause was not what this file's original note said.** That note (and
+  // `ssd.md`:775-778) blamed `const` subtrees over `.tr()`. Measured in B10
+  // § 6.6.3: a `const` widget calling `.tr(context: context)` refreshes, a
+  // NON-const one calling bare `.tr()` goes stale, and commit `d22cd98` had
+  // already removed the `const` from both sites the theory blames while the
+  // defect survived. The real mechanism is that `.tr()` without `context:`
+  // reads `Localization.instance`, a global, and registers no
+  // `InheritedWidget` dependency (`public.dart`:39-44). The rest of that note
+  // — the async delegate load, the identical `child` instance,
+  // `framework.dart`:4014 — was right.
   //
-  // The citizen sees the toggle chip change and nothing else — until the next
-  // unrelated rebuild (any navigation) repaints the app in the new language.
-  //
-  // These tests pin the observed behaviour so it cannot regress unnoticed and
-  // so the fix has an obvious landing site. They are expected to be rewritten
-  // into positive assertions once `lib/` is corrected.
-  group('DEFECT D-3 — .tr() text does not re-render on a locale switch', () {
-    testWidgets('nav labels and page text stay English after flipping to Lao',
+  // **D-3 is closed for the nine strings B10 measured and OPEN, guarded and
+  // enumerated, for the ~300 that remain** (`B10-AC-59`, GG-2). G-L8 plus
+  // `test/architecture/tr_allowlist.yaml` is the containment. The full
+  // capability suite lives in `d3_language_repaint_test.dart`; the two below
+  // are the ones this file already owned.
+  group('D-3 — .tr() text DOES now re-render on a locale switch', () {
+    testWidgets('nav labels repaint to Lao immediately, with no navigation',
         (WidgetTester tester) async {
       final AppHarness harness = await bootHarness();
       await pumpAssembledApp(tester, harness);
@@ -138,24 +162,30 @@ void main() {
       await tester.tap(find.byType(LanguageToggle));
       await tester.pumpAndSettle();
 
-      // The global table IS Lao …
       expect(Lang.fromCode(harness.store[StorageKeys.lang]), Lang.lo);
       expect(find.text(loLabel), findsOneWidget);
-      // … but nothing built from `.tr()` has re-rendered.
-      expect(find.text('Home'), findsWidgets,
-          reason: 'expected the Lao label ໜ້າຫຼັກ');
-      expect(find.text('ໜ້າຫຼັກ'), findsNothing);
+
+      expect(find.text('ໜ້າຫຼັກ'), findsWidgets,
+          reason: 'D-3 is fixed: `app_bottom_nav.dart` now passes `context:`');
+      expect(find.text('Home'), findsNothing,
+          reason: 'and the English label is gone, not merely joined');
     });
 
-    testWidgets('an unrelated rebuild — any navigation — repaints it in Lao',
+    testWidgets('and a navigation afterwards keeps it Lao — the old '
+        '"repaints on the next rebuild" path is now a no-op',
         (WidgetTester tester) async {
+      // Retained deliberately. The pre-B10 behaviour was "stale until you
+      // navigate", so a fix that somehow only worked *on* navigation would
+      // pass the test above only if the toggle itself triggered one — and
+      // `d3_language_repaint_test.dart`'s `B10-AC-19` proves it does not.
+      // This asserts the other side: navigating does not undo the repaint.
       final AppHarness harness = await bootHarness();
       await pumpAssembledApp(tester, harness);
 
       await tester.tap(find.byType(LanguageToggle));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Wallet').last);
+      await tester.tap(find.text('ກະເປົາເງິນ').last);
       await tester.pumpAndSettle();
 
       expect(find.text('ໜ້າຫຼັກ'), findsWidgets);

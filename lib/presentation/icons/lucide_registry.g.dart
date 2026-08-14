@@ -4,7 +4,7 @@
 //          sources/lcc-app/node_modules/lucide-react — the same package the web
 //          application renders. No network fetch is involved (§ 6.3.2).
 // Command: node tool/generate_lucide_svgs.mjs
-// Entries: 86
+// Entries: 89
 //
 // The key is the web's own component name, which is also the name the
 // catalogue API sends and the SVG's file name — one string end to end, so no
@@ -43,6 +43,7 @@ const Map<String, String> lucideRegistry = <String, String>{
   'ClipboardList': 'assets/icons/lucide/ClipboardList.svg',
   'Clock': 'assets/icons/lucide/Clock.svg',
   'Coins': 'assets/icons/lucide/Coins.svg',
+  'CreditCard': 'assets/icons/lucide/CreditCard.svg',
   'Download': 'assets/icons/lucide/Download.svg',
   'Eye': 'assets/icons/lucide/Eye.svg',
   'EyeOff': 'assets/icons/lucide/EyeOff.svg',
@@ -50,6 +51,7 @@ const Map<String, String> lucideRegistry = <String, String>{
   'FileClock': 'assets/icons/lucide/FileClock.svg',
   'FileText': 'assets/icons/lucide/FileText.svg',
   'Gavel': 'assets/icons/lucide/Gavel.svg',
+  'Globe': 'assets/icons/lucide/Globe.svg',
   'Globe2': 'assets/icons/lucide/Globe2.svg',
   'GraduationCap': 'assets/icons/lucide/GraduationCap.svg',
   'Hammer': 'assets/icons/lucide/Hammer.svg',
@@ -66,6 +68,7 @@ const Map<String, String> lucideRegistry = <String, String>{
   'Landmark': 'assets/icons/lucide/Landmark.svg',
   'LayoutGrid': 'assets/icons/lucide/LayoutGrid.svg',
   'LifeBuoy': 'assets/icons/lucide/LifeBuoy.svg',
+  'LogOut': 'assets/icons/lucide/LogOut.svg',
   'Mail': 'assets/icons/lucide/Mail.svg',
   'Map': 'assets/icons/lucide/Map.svg',
   'MapPin': 'assets/icons/lucide/MapPin.svg',

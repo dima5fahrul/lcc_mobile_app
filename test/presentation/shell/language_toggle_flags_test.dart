@@ -213,19 +213,57 @@ void main() {
     });
   });
 
-  test('B2-AC-25 — the R-25 comment at lines 27-33 survives verbatim', () {
-    // § 6.9 confirmed R-25 (mirroring `preferred_lang` to the account) at B8,
-    // not here. The comment recording that is the only trace of the decision
-    // in the code, and R-24's edit sits four lines away from it.
+  // ── FU-3 / B8-AC-23 — the stale line cite in this test's NAME ─────────────
+  //
+  // This test was named "the R-25 comment at **lines 27-33**". Measured for
+  // B8's spec (specs.md § 2.2 Finding D): lines 27-33 are the paragraph
+  // explaining why the flags are SVG assets rather than a `CustomPainter`; the
+  // R-25 section is further down, pushed there by B2a's own flag
+  // documentation. The assertion was always on the string CONTENT, so the test
+  // passed correctly while its name misreported the location — which is
+  // exactly how the wrong cite propagated into `roadmap.md`:389, `fsd.md`:1018
+  // and B2-AC-25's text. **Those three are not B8's to edit** and are recorded
+  // in specs.md § 8.4 FU-3 for their owners.
+  //
+  // The name now says what it asserts — the section's content — rather than a
+  // line number that moves every time the file above it is edited. That is the
+  // durable fix; a corrected number would be stale again after the next batch.
+  test('B2-AC-25 / B8-AC-22 — the R-25 section survives, rewritten to record '
+      'the closure rather than deleted', () {
+    // § 6.9 confirmed R-25 (mirroring `preferred_lang` to the account) at B8.
+    // **B8a is that batch and the write now ships** — but the section stays:
+    // it is the only trace in the code of why the write exists and of the fact
+    // that P0 shipped without it. B2-AC-25 made keeping it a requirement;
+    // B8-AC-22 makes rewriting-not-deleting one.
     final String source =
         File('lib/presentation/shell/language_toggle.dart').readAsStringSync();
 
+    // Unchanged from B2-AC-25: the section's opening sentence is verbatim.
     expect(
       source,
       contains(
         '- **`me.updateProfile({preferred_lang})`.** The React toggle also mirrors',
       ),
     );
-    expect(source, contains('server-side mirror is deferred to the batch that wires `me.profile`'));
+    // Unchanged: the P0 rationale is still on the record, not overwritten.
+    expect(
+      source,
+      contains(
+        'server-side mirror is deferred to the batch that wires `me.profile`',
+      ),
+    );
+
+    // B8-AC-22, the new half: the section now says the omission is CLOSED and
+    // names the batch that closed it.
+    expect(source, contains('R-25, now CLOSED by B8a'));
+    expect(source, contains('SHIPPED at B8a'));
+    expect(
+      source,
+      contains('B8a is that batch and the omission is\n///   closed'),
+      reason: 'the closure must name the batch, not merely say "done"',
+    );
+
+    // …and it was rewritten, not deleted: the heading is still there.
+    expect(source, contains('## Deliberate omissions from the React source'));
   });
 }

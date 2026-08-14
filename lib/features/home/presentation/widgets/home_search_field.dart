@@ -114,7 +114,7 @@ class _HomeSearchFieldState extends State<HomeSearchField> {
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: AppSpacing.gap8,
                 ),
-                hintText: 'home.searchPlaceholder'.tr(),
+                hintText: 'home.searchPlaceholder'.tr(context: context),
                 hintStyle: const TextStyle(
                   color: AppColors.gray400,
                   fontSize: AppTypography.size14,
@@ -129,7 +129,7 @@ class _HomeSearchFieldState extends State<HomeSearchField> {
                 setState(() {});
                 widget.onCleared();
               },
-              tooltip: 'home.searchClear'.tr(),
+              tooltip: 'home.searchClear'.tr(context: context),
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints(
@@ -140,7 +140,7 @@ class _HomeSearchFieldState extends State<HomeSearchField> {
                 name: 'X',
                 size: AppSpacing.gap16,
                 color: AppColors.gray400,
-                semanticsLabel: 'home.searchClear'.tr(),
+                semanticsLabel: 'home.searchClear'.tr(context: context),
               ),
             ),
         ],

@@ -138,4 +138,37 @@ class AuthRepositoryImpl implements AuthRepository {
       return Left(Failure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await remote.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+      return const Right<Failure, Unit>(unit);
+    } catch (e) {
+      // **No `on ApiException { rethrow; }` here, unlike every other method on
+      // this repository, and the asymmetry is a port decision.**
+      //
+      // The rethrow exists so the register/login forms can read
+      // `ApiException.fieldMap()` for a 422. `handleChangePassword`
+      // (`AccountPage.tsx:283-285`) does no such thing: it catches everything
+      // and renders `(err as Error).message` into one `pwError` slot. There is
+      // no per-field surface on this form to feed, so a typed rethrow would
+      // hand `AccountProfileBloc` a signal it must then discard — and force
+      // `features/account/presentation/` to catch `ApiException`, which is
+      // `core/network/`'s type and not part of the contract account consumes.
+      //
+      // `Failure.message` therefore carries the server's own text, which is
+      // exactly what the source renders. See specs.md § 6.8 item 3: that the
+      // raw server message reaches the UI on a credential endpoint is a
+      // measured property of the oracle, recorded on the security review's
+      // agenda (B8-AC-59 item 2) rather than silently improved here.
+      return Left<Failure, Unit>(Failure(e.toString()));
+    }
+  }
 }

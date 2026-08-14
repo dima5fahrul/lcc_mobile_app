@@ -53,10 +53,20 @@ import 'package:lcc_mobile_app/core/di/dependency_injection.dart';
 import 'package:lcc_mobile_app/core/network/api_client.dart';
 import 'package:lcc_mobile_app/core/network/auth_interceptor.dart';
 import 'package:lcc_mobile_app/core/network/refresh_interceptor.dart';
+import 'package:lcc_mobile_app/core/storage/storage_keys.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
 import 'package:lcc_mobile_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:lcc_mobile_app/features/account/data/datasources/account_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/account/data/repositories/account_repository_impl.dart';
+import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
+import 'package:lcc_mobile_app/features/account/domain/repositories/account_repository.dart';
+import 'package:lcc_mobile_app/features/account/domain/usecases/account_usecases.dart';
+import 'package:lcc_mobile_app/features/account/presentation/bloc/account_documents_bloc.dart';
+import 'package:lcc_mobile_app/features/account/presentation/bloc/account_preferences_bloc.dart';
+import 'package:lcc_mobile_app/features/account/presentation/bloc/account_profile_bloc.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
+import 'package:lcc_mobile_app/features/auth/domain/usecases/change_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/forgot_password.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/login.dart';
@@ -109,7 +119,21 @@ import 'package:lcc_mobile_app/features/session/data/repositories/session_reposi
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
 import 'package:lcc_mobile_app/features/session/domain/repositories/session_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
+import 'package:lcc_mobile_app/features/session/domain/usecases/update_profile.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
+import 'package:lcc_mobile_app/features/application/data/datasources/application_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/application/data/repositories/application_repository_impl.dart';
+import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
+import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
+import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
+import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
+import 'package:lcc_mobile_app/features/history/presentation/bloc/history_bloc.dart';
+import 'package:lcc_mobile_app/features/wallet/data/datasources/wallet_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/wallet/data/repositories/wallet_repository_impl.dart';
+import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/repositories/wallet_repository.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/usecases/wallet_usecases.dart';
+import 'package:lcc_mobile_app/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:lcc_mobile_app/main.dart';
 
 import 'core_test_helper.dart';
@@ -181,8 +205,33 @@ class AppHarness {
 ///
 /// [seed] pre-populates secure storage; pass
 /// `{StorageKeys.accessToken: 'token'}` for a warm-boot scenario.
-Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
-  final Map<String, String> store = <String, String>{...?seed};
+///
+/// ## The two first-run flags are seeded by default (B10)
+///
+/// `lcc.onboarding_seen` and `lcc.tutorial_seen` are pre-set unless [firstRun]
+/// is true, so an assembled test lands on Home as a **returning** citizen. That
+/// is not a convenience — it is the source's own rig behaviour, twice over:
+///
+/// * `e2e/smoke.mjs`:91-96 seeds `lcc_onboarding_seen` before the walk, and
+///   says why: *"the app itself does not mount behind them, so a fresh browser
+///   profile would sit on 'Welcome' and make every screen below look like a
+///   wiring failure … The first-run sequence is covered separately."*
+/// * `manifest.md`:262-264 records that the baseline capture operator set
+///   `lcc_tutorial_seen` explicitly so no overlay could land in a shot.
+///
+/// Pass `firstRun: true` to get the fresh-install path — that is what B10's
+/// boot-phase and tutorial-gate tests do.
+Future<AppHarness> bootHarness({
+  Map<String, String>? seed,
+  bool firstRun = false,
+}) async {
+  final Map<String, String> store = <String, String>{
+    if (!firstRun) ...<String, String>{
+      StorageKeys.onboardingSeen: '1',
+      StorageKeys.tutorialSeen: '1',
+    },
+    ...?seed,
+  };
   final StorageService storage = inMemoryStorageService(store);
 
   final Dio dio = Dio(
@@ -222,6 +271,12 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
   sessionInjection.registerSingleton<GetProfile>(
     GetProfile(repository: sessionRepository),
   );
+  // B8a. The harness is a deliberate mirror of `DependencyInjection.init()`
+  // (see this file's hazard 1), so R-25's `PATCH /me/profile` use case is
+  // registered here too — over the SAME repository, not a second one.
+  sessionInjection.registerSingleton<UpdateProfile>(
+    UpdateProfile(repository: sessionRepository),
+  );
   // Lazy *singleton* on the ROOT container, exactly as the production DI does
   // (CR-3 moved it off `sessionInjection`) — one SessionBloc for the app's
   // lifetime is the F-2 invariant these tests exist to prove.
@@ -230,6 +285,7 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
       storage: storage,
       getProfile: sessionInjection<GetProfile>(),
       repository: sessionRepository,
+      updateProfile: sessionInjection<UpdateProfile>(),
     ),
   );
 
@@ -238,6 +294,12 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     remote: AuthRemoteDatasourceImpl(apiClient: apiClient),
   );
   authInjection.registerSingleton<AuthRepository>(authRepository);
+  // B8a — the account page's credential write, re-exported into
+  // `accountInjection` below exactly as production's
+  // `AccountUsecaseInjection` does.
+  authInjection.registerSingleton<ChangePassword>(
+    ChangePassword(repository: authRepository),
+  );
   // `registerFactory`, as production does: an auth attempt is scoped to one
   // visit to /signin and AuthPage closes the instance it resolved.
   authInjection.registerFactory<AuthBloc>(
@@ -412,8 +474,148 @@ Future<AppHarness> bootHarness({Map<String, String>? seed}) async {
     ),
   );
 
+  // ── Account feature (mirrors AccountFeatureInjection.init) — B8a ──────────
+  //
+  // REQUIRED for exactly the reason the chat block above records, one step
+  // further along: B8a replaces the `/account` route's `const AccountPage()`
+  // with a `MultiBlocProvider` over three `accountInjection` factories, so
+  // **every assembled test that navigates to `/account` now resolves them
+  // while building the route**. `app_flow_test.dart` scenario 2 does exactly
+  // that (`expect(find.byType(AccountPage), findsOneWidget)`), and without this
+  // block it fails at the pump with a GetIt lookup error naming the container
+  // rather than the cause.
+  //
+  // Recorded as a required specs.md § 3.1 deviation in B8a's hand-back, not
+  // slipped in — the table lists `test/features/account/**` but not the harness
+  // the shell and flow tests are built on, which is a gap in the table rather
+  // than a licence.
+  //
+  // `registerFactory` for all three, as production does: each holds one
+  // citizen's profile buffer, preference switches or document wallet.
+  // `GetProfile`/`UpdateProfile` come out of `sessionInjection` and
+  // `ChangePassword` out of `authInjection`, exactly as production's
+  // re-exports do — one repository behind each, never a second parse.
+  final AccountRepository accountRepository = AccountRepositoryImpl(
+    remote: AccountRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  accountInjection.registerSingleton<AccountRepository>(accountRepository);
+  accountInjection
+    ..registerFactory<AccountProfileBloc>(
+      () => AccountProfileBloc(
+        getProfile: sessionInjection<GetProfile>(),
+        updateProfile: sessionInjection<UpdateProfile>(),
+        changePassword: authInjection<ChangePassword>(),
+      ),
+    )
+    ..registerFactory<AccountPreferencesBloc>(
+      () => AccountPreferencesBloc(
+        getPreferences: GetPreferences(repository: accountRepository),
+        savePreferences: SavePreferences(repository: accountRepository),
+      ),
+    )
+    ..registerFactory<AccountDocumentsBloc>(
+      () => AccountDocumentsBloc(
+        getDocuments: GetDocuments(repository: accountRepository),
+      ),
+    );
+
+  // ── Wallet feature (mirrors WalletFeatureInjection.init) — B6a ────────────
+  //
+  // REQUIRED for exactly the reason the account block above records. B6a wraps
+  // the **existing** `/wallet` route's builder in a
+  // `BlocProvider<WalletBloc>(create: walletInjection<WalletBloc>())`
+  // (`app_routes.dart:492-497`, the one edit specs.md § 3.1 allows that file),
+  // so **every assembled test that renders the `/wallet` route now resolves
+  // that factory while building the route**. `app_flow_test.dart` scenario 4
+  // ("/, /service, /wallet are not gated") and `chat_launcher_test.dart`'s
+  // "renders on every one of the five shell routes" both navigate there, and
+  // without this block they fail at the pump with
+  // `Bad state: GetIt: Object/factory with type WalletBloc is not registered`
+  // — a lookup error that names the container and not the cause, which is the
+  // same misleading shape the DI-teardown defect wore five times.
+  //
+  // Recorded as a required specs.md § 3.1 deviation in B6a's hand-back, not
+  // slipped in — the table lists `test/features/wallet/**` but not the harness
+  // the shell and flow tests are built on, which is a gap in the table rather
+  // than a licence. B8a, B9a and B9b each hit and recorded the identical gap.
+  //
+  // `registerFactory`, as production does: `WalletBloc` holds one visit's
+  // money — a balance, an account number, a page of receipts and a page of the
+  // ledger — and a surviving instance would hand all four to whoever signs in
+  // next on the same device (`wallet_feature_injection.dart`'s own rationale).
+  //
+  // The repository is built over `apiClient`, the same root client production
+  // re-exports (DI-3), so the anonymous `/payment-methods` call keeps the one
+  // interceptor chain that knows how to skip itself.
+  final WalletRepository walletRepository = WalletRepositoryImpl(
+    remote: WalletRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  walletInjection.registerSingleton<WalletRepository>(walletRepository);
+  walletInjection.registerFactory<WalletBloc>(
+    () => WalletBloc(
+      getWalletOverview: GetWalletOverview(repository: walletRepository),
+      getWalletEntries: GetWalletEntries(repository: walletRepository),
+      getTransactions: GetTransactions(repository: walletRepository),
+      getPaymentMethods: GetPaymentMethods(repository: walletRepository),
+      topUpWallet: TopUpWallet(repository: walletRepository),
+    ),
+  );
+
+  // ── Application + History (mirrors Application/HistoryFeatureInjection) — B7a
+  //
+  // REQUIRED for the same reason the wallet block above records, and it is the
+  // same § 3.1 gap: B7a's table lists `test/features/{application,history}/**`
+  // but not this harness, which B6a, B8a, B9a and B9b each hit and recorded
+  // before it. **Recorded as a deviation in B7a's hand-back, not slipped in.**
+  //
+  // B7a wraps the **existing** `/history` route's builder in a
+  // `BlocProvider<HistoryBloc>` (`app_routes.dart:463-467`), so every assembled
+  // test that renders that route now resolves the factory while building it.
+  // `app_shell_test.dart`'s two navigation cases and
+  // `chat_launcher_test.dart`'s "five shell routes" case all go there, and
+  // without this block they fail with `Bad state: GetIt: Object/factory with
+  // type HistoryBloc is not registered` — again a lookup error that names the
+  // container rather than the cause.
+  //
+  // TWO containers, because `features/application/` is a **page-less shared
+  // slice** (specs.md § 6.2): it is consumed by history today and by wallet
+  // (B6b) and the certificate pages next, so `historyInjection` resolves the
+  // two use cases *out of* `applicationInjection` rather than building its own
+  // — mirrored here exactly, or the harness would prove a wiring production
+  // does not have.
+  //
+  // `registerFactory` for the bloc, as production does: `HistoryBloc` holds one
+  // visit's filter, search term and page, and a surviving instance would hand
+  // the previous citizen's search back to whoever signs in next.
+  final ApplicationRepository applicationRepository = ApplicationRepositoryImpl(
+    remote: ApplicationRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  applicationInjection
+      .registerSingleton<ApplicationRepository>(applicationRepository);
+  applicationInjection.registerLazySingleton<ListApplications>(
+    () => ListApplications(repository: applicationRepository),
+  );
+  applicationInjection.registerLazySingleton<GetStatusPipeline>(
+    () => GetStatusPipeline(repository: applicationRepository),
+  );
+
+  historyInjection.registerLazySingleton<ListApplications>(
+    () => applicationInjection<ListApplications>(),
+  );
+  historyInjection.registerLazySingleton<GetStatusPipeline>(
+    () => applicationInjection<GetStatusPipeline>(),
+  );
+  historyInjection.registerFactory<HistoryBloc>(
+    () => HistoryBloc(
+      listApplications: historyInjection<ListApplications>(),
+      getStatusPipeline: historyInjection<GetStatusPipeline>(),
+    ),
+  );
+
   stubHomeEndpoints(adapter);
   stubContentEndpoints(adapter);
+  stubAccountEndpoints(adapter);
+  stubWalletEndpoints(adapter);
 
   return AppHarness(
     store: store,
@@ -518,7 +720,119 @@ void stubContentEndpoints(DioAdapter adapter) {
   ok(ApiEndpoint.helpChannels, const <dynamic>[]);
 }
 
-/// Empties all nine GetIt containers. Without this the second test in a file
+/// Answers B8a's two account reads with empty successes — B8a.
+///
+/// **Not politeness — a precondition**, for the reason [stubHomeEndpoints]'
+/// doc gives: `http_mock_adapter` throws on a route it was not told about, and
+/// the throw surfaces inside `pumpAndSettle` as an unrelated-looking failure in
+/// whatever test happened to navigate to `/account`.
+///
+/// `GET /me/profile` is **deliberately absent**: it is the one endpoint whose
+/// content every assembled test cares about, and every such test already stubs
+/// it with the citizen it wants. A blanket stub here would silently win or lose
+/// against theirs depending on registration order.
+///
+/// The empty document list is a **default, not a measurement**. `/me/documents`
+/// has never been called for the live test citizen (specs.md § 6.5, GG-2), so a
+/// test that needs the populated row stubs its own; nothing here should be read
+/// as evidence about what staging returns.
+/// Answers the wallet's reads with the **measured** production shapes — B6a.
+///
+/// Not a convenience: `http_mock_adapter` throws on a route it was not told
+/// about, and `/payment-methods` is fired by `WalletPage` on mount even while
+/// signed out (it is the batch's one `anonymous: true` endpoint), so an
+/// unstubbed wallet route surfaces inside `pumpAndSettle` as an unrelated-
+/// looking failure in whatever test happened to reach the tab.
+///
+/// The bodies are the ones actually observed against staging on 2026-08-13 —
+/// `balance_lak 0`, `recent_entries []`, `entry_count 0`. That is the honest
+/// state of the only available test citizen, and it is why B6a's populated-
+/// state ACs are reported NOT EVALUATED rather than passed against invented
+/// data (specs.md § 6.14's "declared synthetic" rule).
+///
+/// **`POST /me/wallet/topup` is deliberately NOT stubbed.** It moves real money
+/// in staging, § 4.4 forbids executing it, and leaving it unstubbed means any
+/// test that ever reaches it fails loudly instead of quietly appearing to work.
+void stubWalletEndpoints(DioAdapter adapter) {
+  adapter.onGet(
+    ApiEndpoint.meWallet,
+    (dynamic server) => server.reply(200, <String, dynamic>{
+      'success': true,
+      'message': 'ok',
+      'data': const <String, dynamic>{
+        'wallet': <String, dynamic>{
+          'id': '',
+          'account_no': '',
+          'balance_lak': 0,
+          'currency': 'LAK',
+          'status': 'active',
+        },
+        'recent_entries': <dynamic>[],
+        'entry_count': 0,
+        'can_top_up': true,
+        'min_top_up_lak': null,
+        'max_top_up_lak': null,
+      },
+    }),
+  );
+  for (final String paged in <String>[
+    ApiEndpoint.meWalletEntries,
+    ApiEndpoint.meTransactions,
+  ]) {
+    adapter.onGet(
+      paged,
+      (dynamic server) => server.reply(200, <String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': const <dynamic>[],
+        'meta': const <String, dynamic>{
+          'page': 1,
+          'per_page': 20,
+          'total': 0,
+          'total_pages': 0,
+        },
+      }),
+    );
+  }
+  // A plain array, not a paged envelope (specs.md § 5.1).
+  adapter.onGet(
+    ApiEndpoint.paymentMethods,
+    (dynamic server) => server.reply(200, <String, dynamic>{
+      'success': true,
+      'message': 'ok',
+      'data': const <dynamic>[],
+    }),
+  );
+}
+
+void stubAccountEndpoints(DioAdapter adapter) {
+  adapter.onGet(
+    ApiEndpoint.meDocuments,
+    (dynamic server) => server.reply(200, <String, dynamic>{
+      'success': true,
+      'message': 'ok',
+      'data': const <dynamic>[],
+    }),
+  );
+  adapter.onGet(
+    ApiEndpoint.mePreferences,
+    (dynamic server) => server.reply(200, <String, dynamic>{
+      'success': true,
+      'message': 'ok',
+      'data': const <String, dynamic>{
+        'language': 'lo',
+        'notifications': <String, dynamic>{
+          'in_app': true,
+          'email': false,
+          'sms': false,
+        },
+        'biometric_login': false,
+      },
+    }),
+  );
+}
+
+/// Empties all ten GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
 ///
@@ -536,6 +850,20 @@ Future<void> resetHarness() async {
   await helpInjection.reset();
   await notificationsInjection.reset();
   await chatInjection.reset();
+  await accountInjection.reset();
+  // B6a. `test/architecture/di_teardown_completeness_test.dart` guards the
+  // three *feature* teardowns by scanning for `GetIt.asNewInstance()`; it does
+  // not scan this harness, so this line is the one the guard cannot catch for
+  // me. Omitting it is the sixth occurrence of the defect the guard exists for.
+  await walletInjection.reset();
+  // B7a. Same blind spot the line above records, and the same two-container
+  // shape as the registration block: `features/application/` is page-less and
+  // shared, so BOTH containers have to come down. Leaving either registered
+  // makes the *second* test in a file fail with `already registered inside
+  // GetIt` — which points at the container, not at this omission, the same
+  // misleading shape the defect has worn every time.
+  await applicationInjection.reset();
+  await historyInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.
