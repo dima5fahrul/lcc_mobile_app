@@ -54,8 +54,15 @@ import 'dart:io';
 // ignore: depend_on_referenced_packages
 import 'package:characters/characters.dart';
 import 'package:flutter_test/flutter_test.dart';
+// `package:yaml` is transitive (via `flutter_test`), not declared, and
+// specs.md § 4.3 forbids B9 from declaring anything — B9-AC-16 asserts the
+// `pubspec.yaml` diff is empty. Same disposition as the `characters` import
+// above, and for the same reason.
+// ignore: depend_on_referenced_packages
+import 'package:yaml/yaml.dart';
 import 'package:lcc_mobile_app/features/chat/data/models/chat_wire.dart';
 
+import '../../../fidelity/oracle.dart' show kWebCommit;
 import '../chat_test_helper.dart';
 
 /// One row of `chat-tier0-payloads.json`.
@@ -303,33 +310,99 @@ void main() {
       );
     });
 
+    test('the register PARSES — the assertion this test used to skip', () {
+      // THIS TEST EXISTS BECAUSE THE EARLIER ONE WAS VACUOUS, and the failure
+      // is the same shape as the one B9-AC-21 is written to catch.
+      //
+      // The original assertions read the file with `readAsStringSync` and
+      // matched substrings. They passed for the whole batch while the document
+      // **did not parse as YAML**: `title: The tel:/mailto: header shortcuts…`
+      // was unquoted, and `mailto: ` is a `key: value` to any parser, so
+      // `loadYaml` threw on the entire file. Substring matching is evidence
+      // that the TEXT is present; B9-AC-26 requires a machine-readable
+      // divergence RECORD, and nothing in the tree ever loaded it as one.
+      //
+      // That is FACTORY-RULES' Capability Rule applied to a governance
+      // artefact rather than to a font or a transform: *"if the test would
+      // still pass with the underlying resource empty, absent, or inert, it is
+      // not evidence for the criterion"*. An unparseable YAML file is inert.
+      // Caught by another agent running a parser over it while adding
+      // B9B-DIV-8, not by this suite — so the parse is now the gate.
+      final YamlMap doc = _divergences();
+
+      expect(doc['artefact'], 'b9b-divergences');
+      expect(doc['web_commit'], kWebCommit);
+      expect(doc['divergences'], isA<YamlList>());
+      expect((doc['divergences'] as YamlList), isNotEmpty);
+    });
+
     test('the divergence is recorded BY NAME with both citations — reporting '
         'equality without this record is a FAIL', () {
-      final String yaml =
-          _divergences();
+      final YamlMap doc = _divergences();
+      final YamlList all = doc['divergences'] as YamlList;
 
-      expect(yaml, contains('B9B-DIV-1'));
-      expect(yaml, contains('client.ts:234-248'),
+      final YamlMap div1 = all
+          .cast<YamlMap>()
+          .firstWhere((YamlMap d) => d['id'] == 'B9B-DIV-1');
+
+      // Read as STRUCTURE, not as substrings: `bodies_match: true` matching in
+      // the raw text proves the characters are there; reading the key proves a
+      // consumer can act on it.
+      expect(div1['bodies_match'], isTrue);
+      expect(div1['headers_match'], isFalse);
+      expect((div1['web'] as YamlMap)['citation'] as String,
+          contains('client.ts:234-248'),
           reason: 'the web-side citation');
-      expect(yaml, contains('lib/core/network/api_client.dart:257'),
+      expect((div1['flutter'] as YamlMap)['citation'] as String,
+          contains('lib/core/network/api_client.dart:257'),
           reason: 'the Flutter-side citation');
-      expect(yaml, contains('bodies_match: true'));
-      expect(yaml, contains('headers_match: false'));
-      expect(yaml, contains('RECORDED, NOT FIXED'),
+      expect(div1['disposition'] as String, contains('RECORDED, NOT FIXED'),
           reason: 'core/network/** is behaviour-frozen (SSD § 6.6(c)) and '
               'changing it is a § 8.3 BLOCKED condition, not a fix B9b makes');
+      expect((div1['affected_calls'] as YamlList).join(' '),
+          contains('/me/chat/threads/{id}/read'));
+    });
+
+    test('every entry is well-formed — an id, a disposition and an owner', () {
+      // The register only works if a reader can enumerate it. One malformed
+      // entry among eight is invisible to a substring check and fatal to a
+      // consumer.
+      final YamlList all = _divergences()['divergences'] as YamlList;
+
+      for (final YamlMap d in all.cast<YamlMap>()) {
+        expect(d['id'], startsWith('B9B-DIV-'));
+        expect(d['title'], isA<String>(), reason: '${d['id']} has no title');
+        expect(d['owner'], isNotNull, reason: '${d['id']} names no owner');
+        expect(
+          d.containsKey('disposition') || d.containsKey('fixed_not_recorded'),
+          isTrue,
+          reason: '${d['id']} says neither what was done nor why not',
+        );
+      }
+
+      expect(
+        all.cast<YamlMap>().map((YamlMap d) => d['id']).toSet(),
+        hasLength(all.length),
+        reason: 'duplicate ids make the register unciteable',
+      );
     });
   });
 }
 
-String _divergences() {
+/// The divergence register, **parsed**.
+///
+/// Returning a `YamlMap` rather than a `String` is the whole correction: a
+/// caller cannot accidentally assert against raw text, so the parse is
+/// unavoidable and an unparseable register fails loudly here instead of
+/// silently satisfying a `contains`.
+YamlMap _divergences() {
   const String path = 'test/features/chat/fidelity/b9_divergences.yaml';
-  final file = File(path);
+  final File file = File(path);
   if (!file.existsSync()) {
     throw StateError(
       'Missing `$path`. B9-AC-26 makes the Content-Type divergence record '
       'mandatory: reporting Tier 0 equality without it is a FAIL.',
     );
   }
-  return file.readAsStringSync();
+  return loadYaml(file.readAsStringSync()) as YamlMap;
 }

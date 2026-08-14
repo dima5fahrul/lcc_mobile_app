@@ -58,10 +58,36 @@ divergences:
   - id: B9B-DIV-2
     title: clockTime renders a fixed 24-hour HH:mm where the web reads the host locale
     severity: low
+    # CORRECTED TWICE, and the second correction is the interesting one.
+    #
+    # This clause first pointed at an oracle that did not exist. The oracle
+    # exists now and the clause was still wrong, because it conflated TWO
+    # independent dependencies that happen to meet at the same nodes:
+    #
+    #   TIMEZONE — solved. The fixture's `sent_at` values are zone-naive, and
+    #   both ECMAScript and Dart read a zone-less date-time as local, so the
+    #   wall clock is 09:14 on any machine. Nothing to exclude.
+    #
+    #   LOCALE — NOT solved, and zone-naiveness does not touch it. `:24` passes
+    #   `[]` to `toLocaleTimeString`, which is the host LOCALE. The port is
+    #   stable at `HH:mm`; the WEB is not, and an oracle records what the web
+    #   renders. There is no value derivable from the source at `62f8a529` —
+    #   only one derivable from whichever laptop ran the derivation.
+    #
+    # I raised the first as an objection to the second. It was not one: the
+    # entry immediately below is the evidence against my own objection, which is
+    # the argument for keeping these records readable rather than tidy.
     tier_visibility: >-
-      Tier 1 WOULD see it, which is why the fixture pins zone-naive timestamps
-      and the oracle records the expected strings. What no tier can see is the
-      behaviour on a device whose locale is neither of the app's two.
+      Tier 1 sees the bubble BODIES; the timestamp nodes are excluded from
+      `chat.{en,lo}.json` by name (`provenance.not_evaluated["chat.panel.clockTime"]`,
+      `CustomerServiceChat.tsx:24`) because the web's value is
+      host-locale-dependent and therefore not derivable at a pinned commit. The
+      exclusion is COUNTED, not regex-matched — `_splitClocks` takes index 1 of
+      each per-`ChatBubble` dump and asserts 6 stamps against the fixture's 6
+      messages carrying `sent_at`, 0 for `greeting` — so a stamp that stopped
+      rendering fails Tier 1 rather than vanishing into the exclusion. What no
+      tier can see is the behaviour on a device whose locale is neither of the
+      app's two.
     web:
       citation: "lcc-app/src/app/components/CustomerServiceChat.tsx:24"
       behaviour: >-
@@ -106,7 +132,14 @@ divergences:
     owner: nobody — reclassify if the wire format ever changes
 
   - id: B9B-DIV-4
-    title: The tel:/mailto: header shortcuts render but do not open anything
+    # QUOTED, and it has to be: `mailto: ` is a `key: value` to a YAML parser,
+    # so unquoted this line made the WHOLE FILE unparseable. It was unparseable
+    # at `7db61e7` too — found while adding B9B-DIV-8, by running a parser over
+    # it, which is apparently the first time anything has. Nothing in the tree
+    # loads this file, so a governance artefact that B9-AC-26 makes load-bearing
+    # was silently machine-unreadable. That is the Capability Rule's own shape:
+    # the record existed, and the capability it was written to provide did not.
+    title: "The tel:/mailto: header shortcuts render but do not open anything"
     severity: medium
     tier_visibility: >-
       NONE. Tiers 1-3 see the button; none of them taps it. The VISIBILITY rule
@@ -215,3 +248,91 @@ divergences:
       nobody, unless the backend ever sends a non-ISO timestamp — at which point
       the correct fix is on the wire, not in a formatter
 
+
+  - id: B9B-DIV-8
+    title: >-
+      The soft keyboard shrinks the panel's HEIGHT here and covers its BOTTOM on
+      the web — the 520 dp cap is clamped where 520 dp does not exist
+    severity: low
+    tier_visibility: >-
+      NONE, and that is the whole reason this record exists. Tier 0 compares
+      request bodies, Tier 1 compares ordered text, Tier 2 compares colour, and
+      Tier 3 has no reference for any open chat state (§ 6.10). No tier in this
+      programme observes a rect, so the defect this entry documents shipped past
+      1,376 tests and a clean release build.
+    found_by: >-
+      architecture-review.md § 2 BLOCKER-1, by direct measurement — the
+      architect's own § 6.4 seam ruling caused it and the same review ruled the
+      remedy.
+    web:
+      citation: "CustomerServiceChat.tsx:199-202"
+      behaviour: >-
+        `fixed z-50 bottom-24 right-4 … max-h-[520px]`. CSS `position: fixed` is
+        anchored to the LAYOUT viewport, which the soft keyboard does not shrink
+        on either mobile engine. So the panel keeps its full 520 px, the keyboard
+        covers its BOTTOM, and the browser scrolls the focused composer into
+        view. The end the citizen loses is the composer's, and the browser gives
+        it back.
+    flutter:
+      citation: "chat_panel.dart chatPanelAvailableHeight, app_shell.dart:129"
+      behaviour: >-
+        `AppShell.floatingAction` is `Scaffold.floatingActionButton`, positioned
+        by `FloatingActionButtonLocation.endFloat`, which participates in
+        `resizeToAvoidBottomInset`. The framework shrinks the body and pushes the
+        slot UP, so an unclamped 520 dp child loses its TOP — the end holding
+        close, minimise and `endConversation`. Measured before the fix:
+        `LTRB(16, -28, 374, 492)` at 390x844 with a 336 dp keyboard, and
+        `LTRB(16, -196, 344, 324)` at 360x640 with 300. Nothing threw, nothing
+        overflowed, and no scroll recovered it.
+        The port therefore clamps the cap to
+        `min(520, screenHeight - viewInsets.bottom - kFloatingActionButtonMargin)`
+        with the transcript as the flexible region, which makes the origin
+        non-negative by construction. After the fix: `LTRB(16, 0, 374, 492)` and
+        `LTRB(16, 0, 344, 324)`.
+    disposition: >-
+      FIXED as to the origin, RECORDED as to the residue. The residue is that the
+      port's panel is SHORTER with the keyboard up (492 dp / 324 dp) where the
+      web's stays 520 and is merely occluded. That difference cannot be
+      eliminated — it is the platform's, not the port's — but it is bounded: the
+      520 dp cap is preserved wherever 520 dp exists, so every keyboard-down
+      case is byte-for-byte unchanged, including the one that looks like a bug
+      and is not (see below).
+    the_case_that_must_not_be_improved: >-
+      At 360x640 with NO keyboard the panel's top is 24, i.e. 32 dp under a 56 dp
+      app bar. A 640 px web viewport computes the same top of 24 from
+      `bottom-24` + `max-h-520`, so the overlap is FAITHFUL and the clamp
+      deliberately does not touch it — `chatPanelAvailableHeight` does not
+      subtract `padding.top` for exactly this reason. A port that is better than
+      its source is a divergence no fidelity tier can see, which is the same
+      blindness that let BLOCKER-1 ship.
+    a_second_divergence_created_by_the_fix: >-
+      Clamping gave the signed-out branch a problem it did not have: header 60 dp
+      + `ChatSignInPrompt` 304 dp = 364 against a 324 dp clamp at 360x640/300, a
+      40 dp `RenderFlex` overflow. The prompt is now `Flexible` inside a
+      `SingleChildScrollView`. There is no source behaviour being diverged from —
+      the web's cap is measured against a viewport the keyboard does not shrink,
+      so a 364 px prompt never approaches 520 and `overflow-hidden` (`:199`)
+      never fires — so the disposition was chosen on merit: a scroller keeps the
+      sign-in button, the entire purpose of that state, reachable, where clipping
+      would put it under the fold with no way back. Layout-neutral where the room
+      exists; `maxScrollExtent` is 0 at 390x844 and asserted.
+    gated_by: >-
+      test/features/chat/presentation/chat_panel_keyboard_geometry_test.dart —
+      eight tests through the real `AppShell.floatingAction` seam at 390x844 and
+      360x640, at insets 0/336/300. Verified RED against the pre-fix tree on four
+      of them. THE FOURTH IS NOT ONE OF THE NUMBERS ABOVE and is named here
+      because the architecture review's table never measured that state: it is
+      the SIGNED-OUT case at 360x640 with a 300 dp keyboard, whose top was
+      **-40** before the fix — header 60 + `ChatSignInPrompt` 304 = 364 against a
+      contentBottom of 340 — not the -28 or -196 of the signed-in rects. Recorded
+      by the mobile lead who measured it; corrected here on their report because
+      an unnamed fourth reads as a rounding of the three that were tabulated.
+      It also pins the faithful 24 dp overlap and
+      the reason `MediaQuery` is used rather than `LayoutBuilder` (the FAB slot
+      is laid out with `BoxConstraints.loose(<whole Scaffold>)`, so a
+      `LayoutBuilder` there is handed 844 with a 336 dp keyboard up and would
+      have computed the very 520 that produces the defect).
+    owner: >-
+      closed. The residual height difference is inherent; if it is ever
+      revisited, architecture-review.md § 2 BLOCKER-1 item 4 rules that moving
+      the panel to an `Overlay` changes the seam and needs an ADR.

@@ -29,7 +29,17 @@
 /// `:433` is a sibling of the loading/error/rows ternary **inside** the
 /// scrolling div (`:316`-`:463`), not of the div. So it shows during a failed
 /// fetch too, if a send happens to be in flight. Reproduced as written.
+///
+/// ## The panel clamps its own height against the keyboard — BLOCKER-1
+///
+/// See [chatPanelAvailableHeight]. `max-h-520` is a **cap**, not a height, and
+/// on this platform it has to be applied against the space the FAB slot
+/// actually leaves, or the panel's origin goes negative and the header leaves
+/// the screen. The 520 dp cap is preserved wherever 520 dp exists, so the
+/// keyboard-down cases are byte-for-byte what they were.
 library;
+
+import 'dart:math' as math;
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -65,6 +75,51 @@ String chatTelTarget(String phone) =>
 /// asymmetry is the source's, not an oversight here.
 String chatMailtoTarget(String email) => 'mailto:$email';
 
+/// The height the panel may occupy before the FAB slot pushes its origin off
+/// the **top** of the display — architecture-review.md § 2 **BLOCKER-1**.
+///
+/// `AppShell` wires `floatingAction` to `Scaffold.floatingActionButton`
+/// (`app_shell.dart:129`), and `Scaffold` positions that slot with
+/// `FloatingActionButtonLocation.endFloat`, whose vertical origin is
+/// `contentBottom - childHeight - kFloatingActionButtonMargin`. `contentBottom`
+/// participates in `resizeToAvoidBottomInset`, so raising the soft keyboard
+/// shrinks it. A child that keeps its full 520 dp therefore gets a **negative**
+/// origin — measured `LTRB(16, -28, 374, 492)` at 390 × 844 with a 336 dp
+/// keyboard and `LTRB(16, -196, 344, 324)` at 360 × 640 with 300. Nothing
+/// throws, nothing overflows, and no scroll recovers it; the header's close,
+/// minimise and `endConversation` controls are simply not on the display,
+/// during the one interaction that raises the keyboard.
+///
+/// `contentBottom` is never greater than `screenHeight - viewInsets.bottom`, so
+/// capping the child at that minus the slot's own margin makes the origin
+/// `>= 0` **by construction**, without this widget having to know about the app
+/// bar, the bottom nav, or the slot's arithmetic. The seam is untouched: this
+/// is a layout fix, not a layering one (§ 6.4's ruling stands, and G-L7 with
+/// it).
+///
+/// ## Why `MediaQuery` and not `LayoutBuilder`
+///
+/// Measured, not assumed — `chat_panel_keyboard_geometry_test.dart` pins it.
+/// `_ScaffoldLayout` lays the FAB slot out with `BoxConstraints.loose(<the
+/// whole Scaffold size>)`, so a `LayoutBuilder` in this position reports the
+/// **full screen height** even with the keyboard up. The one input that moves
+/// is the inset, and only `MediaQuery` carries it.
+///
+/// ## What this deliberately does NOT do
+///
+/// It does not subtract `padding.top`. At 360 × 640 with **no** keyboard the
+/// panel's top is 24, i.e. 32 dp under a 56 dp app bar — and a 640 px web
+/// viewport computes the same 24 from `fixed bottom-24` + `max-h-520`
+/// (`CustomerServiceChat.tsx:199-202`). That overlap is the source's behaviour,
+/// so removing it would be a divergence no fidelity tier can see. This function
+/// only stops the origin going negative; it does not tidy the layout.
+double chatPanelAvailableHeight(BuildContext context) => math.max(
+      0,
+      MediaQuery.sizeOf(context).height -
+          MediaQuery.viewInsetsOf(context).bottom -
+          kFloatingActionButtonMargin,
+    );
+
 class ChatPanel extends StatelessWidget {
   const ChatPanel({super.key});
 
@@ -74,16 +129,24 @@ class ChatPanel extends StatelessWidget {
         MediaQuery.sizeOf(context).width - kChatPanelHorizontalInset;
     final double width =
         available < kChatPanelMaxWidth ? available : kChatPanelMaxWidth;
+    final double availableHeight = chatPanelAvailableHeight(context);
 
     return BlocBuilder<ChatBloc, ChatState>(
       builder: (BuildContext context, ChatState state) {
         return ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: width,
-            // `style={{ maxHeight: minimized ? "64px" : "520px" }}` — `:202`.
-            maxHeight: state.minimized
-                ? kChatPanelMinimizedHeight
-                : kChatPanelMaxHeight,
+            // `style={{ maxHeight: minimized ? "64px" : "520px" }}` — `:202`,
+            // clamped to the space the FAB slot leaves. Both are CAPS on a
+            // `Column(mainAxisSize: min)`, so where the room exists this is
+            // byte-for-byte the pre-clamp layout; where it does not, the
+            // transcript below is the flexible region that gives way.
+            maxHeight: math.min(
+              state.minimized
+                  ? kChatPanelMinimizedHeight
+                  : kChatPanelMaxHeight,
+              availableHeight,
+            ),
           ),
           child: Container(
             width: width,
@@ -108,8 +171,49 @@ class ChatPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 ChatPanelHeader(state: state),
+                // Flexible for the same reason the transcript below is, and
+                // this branch is NOT optional once the height is clamped.
+                // MEASURED: the prompt is 304 dp and the header 60, so at
+                // 360 x 640 with a 300 dp keyboard the clamp is 324 and the
+                // column overflows by exactly 40 — the clamp would have turned
+                // an off-screen panel into a `RenderFlex` overflow, which is a
+                // different defect, not a fix. The signed-out branch had no
+                // give-way region at all; now it has one.
+                //
+                // There is no source behaviour being diverged from here. The
+                // web's `max-h-520` is measured against the LAYOUT viewport,
+                // which the soft keyboard does not shrink, so a 364 dp prompt
+                // never approaches the cap and `overflow-hidden` (`:199`) never
+                // fires. This state exists only on this platform, so the
+                // disposition is chosen on merit: a scroller keeps the sign-in
+                // button — the entire purpose of the state — reachable, where
+                // clipping would put it under the fold with no way back.
                 if (!state.minimized && !state.isAuthenticated)
-                  const ChatSignInPrompt(),
+                  const Flexible(
+                    child: SingleChildScrollView(
+                      // `primary: false` to match `ChatTranscript` below,
+                      // which records the framework assertion B9a actually
+                      // hit: a second position on the inherited
+                      // `PrimaryScrollController`, read by `Scrollbar`.
+                      //
+                      // Kept for consistency, NOT because it was measured to
+                      // be load-bearing HERE — and the distinction is
+                      // deliberate, because it was claimed to be. Removing it
+                      // and re-running the geometry suite passes 8/8, and it
+                      // still passes with an explicit `PrimaryScrollController`
+                      // ancestor wrapped around `AppShell` and a real
+                      // `ListView` in the body. It does not throw because the
+                      // assertion fires when something READS
+                      // `ScrollController.position`, and on Android
+                      // `MaterialScrollBehavior` builds no `Scrollbar` around
+                      // this scroller, so nothing reads it. The flag costs
+                      // nothing and is right on the merits; the "it will throw
+                      // the first time a signed-out citizen opens the panel"
+                      // claim is the part that did not reproduce.
+                      primary: false,
+                      child: ChatSignInPrompt(),
+                    ),
+                  ),
                 if (!state.minimized && state.isAuthenticated) ...<Widget>[
                   Flexible(child: ChatTranscript(state: state)),
                   if (state.ratingOpen) ChatRatingStrip(state: state),
