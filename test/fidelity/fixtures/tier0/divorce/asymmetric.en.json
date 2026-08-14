@@ -1,0 +1,88 @@
+{
+  "_note": "Tier 0 fixture — Divorce, ASYMMETRIC variant (a) — the canonical one. Divorce's `spousePayload` is 8 keys to Marriage's 13, its mirror is 6 to Marriage's 7 (no `gender`), and `residence_certificate_ref` is renamed `marriage_certificate_ref` — measured by F0-AC-82, and the reason a shared helper is forbidden. hasChildren = true, so `children.custody` is emitted under TWO different keys in TWO different objects (`mediation.custody_arrangement` :805 and `basis.custody_reference` :830) — a required duplication under § 6.5.3 item 3. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.",
+  "_locale": "en",
+  "_reference_no": "DC-2026-000654",
+  "header": {
+    "provinceId": "55555555-5555-4555-8555-555555555555",
+    "districtId": "66666666-6666-4666-8666-666666666666",
+    "villageId": "77777777-7777-4777-8777-777777777777"
+  },
+  "linkedRecord": null,
+  "hasChildren": true,
+  "children": {
+    "list": "Test Child A; Test Child B",
+    "custody": "Test Custody Arrangement"
+  },
+  "mediation": {
+    "propertyDivision": "Test Property Division",
+    "debts": "Test Debt Division",
+    "dateMarriageBegan": "2014-02-02",
+    "reasonsHusband": "Test Reasons Husband",
+    "reasonsWife": "Test Reasons Wife",
+    "outcome": "no-reconciliation",
+    "additionalAssets": "Test Additional Assets",
+    "w1Name": "Mediation Witness One",
+    "w2Name": "Mediation Witness Two"
+  },
+  "husband": {
+    "fullName": "Test Husband Alpha",
+    "dob": "1985-04-17",
+    "nationality": "lao",
+    "idOrPassport": "ID-HUSB-0001",
+    "addrHouseNo": "31",
+    "address": {
+      "provinceId": "11111111-1111-4111-8111-111111111111",
+      "districtId": "22222222-2222-4222-8222-222222222222",
+      "villageId": "33333333-3333-4333-8333-333333333333"
+    },
+    "marriageCertRef": "MC-HUSB-0001"
+  },
+  "wife": {
+    "fullName": "Test Wife Beta",
+    "dob": "1987-12-05",
+    "nationality": "thai",
+    "idOrPassport": "ID-WIFE-0002",
+    "addrHouseNo": "32",
+    "address": {
+      "provinceId": "55555555-5555-4555-8555-555555555555",
+      "districtId": "66666666-6666-4666-8666-666666666666",
+      "villageId": "77777777-7777-4777-8777-777777777777"
+    },
+    "marriageCertRef": "MC-WIFE-0002"
+  },
+  "basis": {
+    "divorceType": "mutual",
+    "dateOfDivorce": "2026-07-09",
+    "placeOfRegistration": "  Test Divorce Office  "
+  },
+  "court": {
+    "name": "Test People's Court",
+    "decisionDate": "2026-06-30"
+  },
+  "_locations": {
+    "11111111-1111-4111-8111-111111111111": {
+      "en": "Test Province One",
+      "lo": "ແຂວງທົດສອບໜຶ່ງ"
+    },
+    "22222222-2222-4222-8222-222222222222": {
+      "en": "Test District Two",
+      "lo": "ເມືອງທົດສອບສອງ"
+    },
+    "33333333-3333-4333-8333-333333333333": {
+      "en": "Test Village Three",
+      "lo": "ບ້ານທົດສອບສາມ"
+    },
+    "55555555-5555-4555-8555-555555555555": {
+      "en": "Test Province Five",
+      "lo": "ແຂວງທົດສອບຫ້າ"
+    },
+    "66666666-6666-4666-8666-666666666666": {
+      "en": "Test District Six",
+      "lo": "ເມືອງທົດສອບຫົກ"
+    },
+    "77777777-7777-4777-8777-777777777777": {
+      "en": "Test Village Seven",
+      "lo": "ບ້ານທົດສອບເຈັດ"
+    }
+  }
+}

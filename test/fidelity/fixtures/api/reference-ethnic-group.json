@@ -1,0 +1,10 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/reference-lists/ethnic-group",
+    "status": 200,
+    "captured_at": "2026-08-13T19:00:00.000Z",
+    "provenance": "synthetic empty envelope — this endpoint is fulfilled so that nothing escapes, and it feeds no Tier 0 leaf.",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+  },
+  "data": []
+}

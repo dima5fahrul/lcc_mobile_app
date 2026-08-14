@@ -1,0 +1,5 @@
+{
+  "_note": "Tier 0 fixture — FamilyBook, baseline variant. The form has no `form_data` envelope key at all (Finding A: THREE payload families, not two) — the body IS `{reason}`. This fixture exists so the derivation has the same shape for all six forms; its only real content is the locale seed. F0-AC-35's Guard A asserts the two `reason` values differ. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.",
+  "_locale": "en",
+  "_note_body": "FamilyBook takes NO form input. Its whole request body is `{ reason }` and `reason` is `say(\"copyReason\")` — read out of the page's own COPY table at FamilyBookPage.tsx:57-60 at submit time (:236). There is therefore nothing for a fixture to seed except the locale itself."
+}

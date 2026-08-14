@@ -1,0 +1,20 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/payment-methods",
+    "status": 200,
+    "captured_at": "2026-08-13T19:00:00.000Z",
+    "provenance": "synthetic — no recording of this endpoint exists in the baseline and this programme has no account that could make one (manifest-authenticated.md). The values are the ones the tier0 fixture matrix selects from, so a mis-driven select cannot silently resolve to a default.",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+  },
+  "data": [
+    {
+      "code": "laoqr",
+      "kind": "qr",
+      "enabled": true,
+      "label": {
+        "en": "Lao QR",
+        "lo": "ລາວ ຄິວອາ"
+      }
+    }
+  ]
+}

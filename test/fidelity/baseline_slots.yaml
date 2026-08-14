@@ -1,0 +1,974 @@
+# baseline_slots.yaml — the fidelity baseline slot register.
+#
+# RULING 11 (GOR-245-f0-form-kernel/specs.md § 6.8.5) and ADR-0006.
+# One row per slot PER LOCALE. `len(register)` is the bound: no
+# cardinality literal appears in any test (F0-AC-99).
+#
+# Provenance is THREE FIELDS, not a two-value class (ADR-0006 § 'Why
+# two provenance classes are not enough'):
+#   build              which build rendered the pixels
+#   session            what the renderer was signed in as
+#   state_conditional  whether the render depends on account state,
+#                      making it one of several valid renders
+#
+# The first hash set is a BASELINE OF RECORD, NOT A VERIFICATION.
+# It establishes immutability prospectively. It cannot prove slots
+# 01-15 were untouched between B2c and today, and nothing can:
+# manifest.md:221 computed 29 SHA-256s and stored none, and the tree
+# is untracked. That gap is F0-NV-9, permanently NOT EVALUATED.
+#
+# Regenerate: see test/fidelity/README.md § Regenerating the register.
+
+slots:
+  - slot: "01-home"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x3929
+    sha256: "ca0bc181cda0084371d95898423a1f8358993da70805d6a80d1ded6250d45c9a"
+  - slot: "02-service"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1404
+    sha256: "700696169a15b53faa2ea235956a434f0b11bb1a05273125e4f77fd291cc357d"
+  - slot: "03-history"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "00185168944d466cfbc4f825bddb760e4f88abcd740ffcfd304cd6542e6321ec"
+  - slot: "04-wallet"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1321
+    sha256: "f6c1527d6f8d33a8788f2a360dee7ca5bc235574f336629af66202792db281b9"
+  - slot: "05-account"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "06-help"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x2396
+    sha256: "c949ea9e995865e3fa8ca079156427ef9feeb4630015a4a6eb5a0566711f71d1"
+  - slot: "07-news"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1514
+    sha256: "0ce1b9b64c3d58c934b4204549c8e3a1e96349dd565d65ef34ba30d48b32f5f7"
+  - slot: "08-signin"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "09-resident-certificate"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "715ff9dfa25801165168d3876b9c51ecad168fea9a4aff87838cd9fa9931e786"
+  - slot: "10-birth-declaration"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "11-death-declaration"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "12-marriage-certificate"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "13-divorce-certificate"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "14-family-book"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x914
+    sha256: "e10ccb96df2e2f9e5f214e7a51610f573154ed4a95e5a7a88ff5e9c429e53115"
+  - slot: "15-news-detail"
+    locale: en
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: GOR-245-b2-readonly-surface/specs.md#3.1
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x844
+    sha256: "6c0adb7484975e0475fc0f09b357fd2b6fee9de1ee326f9e4a269c5582a6f5fe"
+  - slot: "16-resident-certificate-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1369
+    sha256: "ae3d567b01272c27da397f8041a550d9a03a708fd5d69520442007c3521e004e"
+  - slot: "17-resident-certificate-step2"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1084
+    sha256: "e5f415d1b0975bf890aae11635213f8e2d89ad675e652a06eecbaa0cd6385826"
+  - slot: "18-resident-certificate-step3"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "9702758cd233b4465b2771345699986e4ab1950153075c2331c5d8fc26670b22"
+  - slot: "19-resident-certificate-step4"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "520bf1bb75c8efa6011cdd8f50c2992ba658f53964607594675ee19fb5aa3876"
+  - slot: "20-resident-certificate-step5"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x981
+    sha256: "52aa905f6445bca051ef3c9aa980c3f27e239bb669a84477ab08843b77340f18"
+  - slot: "21-resident-certificate-step6"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x917
+    sha256: "efee95853f39481e41679842cde1a8a8f3557e62979ba5f45a8990df4892ced9"
+  - slot: "22-birth-declaration-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x870
+    sha256: "1b396c1304d97ad7c2cd624bf17505254946440aea875cd7e201aa98d7cadc8e"
+  - slot: "23-birth-declaration-step2"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x2092
+    sha256: "601d186b24b2aafd5cfca26e9e8b1304f345227edbfaa2fd91eff1eb5a2d7cdb"
+  - slot: "24-birth-declaration-step3"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1462
+    sha256: "3f54681f2f3eec8adca7e42d68a2b5373fc6a85a6db8cb81204fa290e29d485f"
+  - slot: "25-birth-declaration-step4"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1554
+    sha256: "cfa1cacaaba8370040e1af74722b62a6390bba5a01c8e7eb57e044e3471807c9"
+  - slot: "26-birth-declaration-step5"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1554
+    sha256: "5f7936750cc08314bc8f9224e6487bbbe3bc2b0cd33ffdb12a6bc53f2138e410"
+  - slot: "27-birth-declaration-step6"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1301
+    sha256: "1585633549be8e096d33a2f3222dbcec50170d535bfbb8c49f08caabcac504f3"
+  - slot: "28-death-declaration-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "13d628818bbed4ba2312b71b5a4fde3c1aeb82920b4dd80169d1cd5c1e4338a9"
+  - slot: "29-death-declaration-step2"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x2220
+    sha256: "f8811bada9700a9189fbf2a9386e81360c26c66b8fa4242d72ca6b41f5c50008"
+  - slot: "30-death-declaration-step3"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1610
+    sha256: "e4200a5aa777202d263fe429655d1925c5e4c0e9c54f6b7e423f5d7f7db0de7a"
+  - slot: "31-death-declaration-step4"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1610
+    sha256: "e3ab6ce37e07e3971e23eed1eb0a25118c0a72dc234580547d34ef5d6e8ca1c4"
+  - slot: "32-death-declaration-step5"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1386
+    sha256: "0d56b5122afb785424c99c15ab6362dd7b96abb91aba1a05571fe31ca5ccaa03"
+  - slot: "33-death-declaration-step6"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1241
+    sha256: "424fc93c81405ae902d17a8d9e014ff807728862ed9a9405693c24b8ad0e95fe"
+  - slot: "34-marriage-certificate-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "94f43bcd9c884c74f833795451f9782674c48492da0e548a64644bb533d0955d"
+  - slot: "35-marriage-certificate-step2"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1708
+    sha256: "d7d4c27abb563c5e95cbc2b761d6e1a720c3d800db1cd043bb49765f6784fda1"
+  - slot: "36-marriage-certificate-step3"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1708
+    sha256: "b02d942cdd7d2979ad242fa6f9c36049a3aa02b155bed673cf2dcc8d80f82053"
+  - slot: "37-marriage-certificate-step4"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "055b6869a97adf80ef03062cc38452dd877c385a6d635762e03f30dfc77f90dc"
+  - slot: "38-marriage-certificate-step5"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1021
+    sha256: "2fe2bf030da001493f0142f2d3662067f4924d476409d0e54eba83987e7d9026"
+  - slot: "39-marriage-certificate-step6"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1481
+    sha256: "5044e9dd1890bdd7032488afc1de52f6c1f78c21dc9a71b74c7710fdf06b899c"
+  - slot: "40-marriage-certificate-step7"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "the fee block shows the create-new betrothal branch (200,000 LAK, two line items); a citizen with a linked record sees 100,000 and one line"
+    state_evidence: "MarriageCertificatePage.tsx:764"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1051
+    sha256: "a70442d54370bc09cf8670da1d7cb12fddbe822fc034a185dbd27779fcfa7f82"
+  - slot: "41-divorce-certificate-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "11a9aa884343d3b74eb6b59d066c50788b633b1a4ff8b99dc69aa62035e8195a"
+  - slot: "42-divorce-certificate-step2"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1146
+    sha256: "cd0b77cfae6030c67e69aac2dedd3a9259cf2666e8fc9b5528f85a13538d2dbd"
+  - slot: "43-divorce-certificate-step3"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1146
+    sha256: "39cf032c58395f99849a28d337ccc3161d8970f7f3a83c661b5e02f95cae2da9"
+  - slot: "44-divorce-certificate-step4"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1028
+    sha256: "47ce464058671fa1e26a6cdd115483d50e0609c03a3581090c5626ebde79376e"
+  - slot: "45-divorce-certificate-step5"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1281
+    sha256: "10a6a4e93cf3eaf9f201f341685ebf23eb4ef74856dc46fe2082a7dea8c3db16"
+  - slot: "46-divorce-certificate-step6"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "the fee block shows the create-new mediation branch, for the same reason as slot 40"
+    state_evidence: "DivorceCertificatePage.tsx:125,:732"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x917
+    sha256: "5413ca7fdbb0703ee6ce545d45b72f478a8e01b190476ca9b46f1942aa6a9ffb"
+  - slot: "47-family-book-step1"
+    locale: en
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "family-book renders the empty state: the capture account has no household record, so there is no wizard, no step indicator and no steps 2-3 in the DOM"
+    state_evidence: "FamilyBookPage.tsx:262,:326"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "cad2aee9de7846766ffc27c852e529a18628f8348c738660cc033de7ea5f1dc9"
+  - slot: "01-home"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x3772
+    sha256: "6bbb3038494d090d64b6da18f4c166229b8ac4510f72c08dc325c98c9c2d890e"
+  - slot: "02-service"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1491
+    sha256: "c7a5151209bbc7a85a0fdc59e10a0416baabfdb43557c67214fc3f4db5fcbc49"
+  - slot: "03-history"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "04-wallet"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1376
+    sha256: "216e633f7cf0aa87ae5fb995fa0b1f9dc787a8536110ddb2ea34f0d17d54ded8"
+  - slot: "05-account"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "06-help"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x2383
+    sha256: "98409777167a0fb72d4f36d93743a71d6898ce47d87b36647b0e79eeeedc86c9"
+  - slot: "07-news"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x1490
+    sha256: "115a2e5aaae2d3e6a802fd55de7b7cee3c38b36f3eed30abcf804bb89a56c8a1"
+  - slot: "08-signin"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "fd259900a8476ab420cf4d8269438caa5de62ecd7dfc1146cad0adfc0b8d903a"
+  - slot: "09-resident-certificate"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "10-birth-declaration"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "11-death-declaration"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "12-marriage-certificate"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "13-divorce-certificate"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "14-family-book"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: roadmap.md#1d
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x990
+    sha256: "f69bf87aac9863ab6864dd0bc324bb5af9b246e9e3863cf51a45efed712c40c3"
+  - slot: "15-news-detail"
+    locale: lo
+    build: pinned-62f8a529
+    session: anonymous
+    state_conditional: false
+    authorised_by: GOR-245-b2-readonly-surface/specs.md#3.1
+    captured: 2026-08-13
+    manifest: manifest.md
+    size: 390x844
+    sha256: "4a89158a1abe6adedafe07764fa9a076cd2fb3d96c936e7c2435cd796a8353c0"
+  - slot: "16-resident-certificate-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1384
+    sha256: "863ec6ce975bc8158ab6c3ace5c264b41ff004913c0cfc3820bf8e8524f95fa1"
+  - slot: "17-resident-certificate-step2"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1129
+    sha256: "35a582c4ea4b78afcaecc2bc8c6b03f361c4b4818b22ed5ecb239abf89293564"
+  - slot: "18-resident-certificate-step3"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "661a6a815f5fbf0faf0a6ed02d1678c32a776055c7bf932b5eb197b2790230b2"
+  - slot: "19-resident-certificate-step4"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "015c689fa2e1b2bf6ef4adb4a571a7ea1889eef1c9cbba7871ae9829299bf3ac"
+  - slot: "20-resident-certificate-step5"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1026
+    sha256: "5bfd8e7fabe371fd90f80cfce13ae04f6b972c6a610dad7635339e04ffc0fa21"
+  - slot: "21-resident-certificate-step6"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x958
+    sha256: "e36237df0ba664336b5e404a6d2510a0b70c9a9aa094fe45e4026fd2e652304b"
+  - slot: "22-birth-declaration-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x891
+    sha256: "94aadfd0847fbac9cf9be3008ac24a8194e38a545d98e1e7d8a1d10295b82305"
+  - slot: "23-birth-declaration-step2"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x2199
+    sha256: "3c7c5f6ac7a859135f3c50bc514c669806059bf112d52189b0c50641314a7ae4"
+  - slot: "24-birth-declaration-step3"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1554
+    sha256: "174df40a553d891ac49221bca8613a54c3e4a8c720243989dd80c26e155a8a6d"
+  - slot: "25-birth-declaration-step4"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1653
+    sha256: "558e1a6b8e695dccb617a17b357b05c53985c39c190b65032716cd6837c72b16"
+  - slot: "26-birth-declaration-step5"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1653
+    sha256: "08739003aa5e0fb80ffd1212f5a9266987ccd18aeca56a96c636fde21d2faaae"
+  - slot: "27-birth-declaration-step6"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1343
+    sha256: "1d6e9fc2f9e9cc45811a7d4f019c00b9dd9c62fae556f61b5e1d5a7042fe6be8"
+  - slot: "28-death-declaration-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "c7a25aca78c413c9169b52ab62ebcdd7a7868b7887a8c3d7fb4be8db8345a199"
+  - slot: "29-death-declaration-step2"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x2342
+    sha256: "594c6355b4d3493ce52cae58894f9f083c9661db7364bb71c1f19ddf86c4392d"
+  - slot: "30-death-declaration-step3"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1697
+    sha256: "6b073d822fa28ea3494ba9e41e8b3507538068289e68c3f8fdd01fbae94be598"
+  - slot: "31-death-declaration-step4"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1697
+    sha256: "79c8ea4765bdd1348f624587e9ea1a197de83d05f6d6cf30e20ced8ab6473ab6"
+  - slot: "32-death-declaration-step5"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1455
+    sha256: "96e3be8e356695a6770625014b7c4ac373e59f870acfbc2b67b52c28581ada24"
+  - slot: "33-death-declaration-step6"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1277
+    sha256: "0d69ff0fc95c25bb94edd8ebaaa473663293a6cf81174a1b5430624070f235df"
+  - slot: "34-marriage-certificate-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "431041b8cad96257fd5789eb6f9654d73b9bf2684ecaaa800240f1e80b560622"
+  - slot: "35-marriage-certificate-step2"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1820
+    sha256: "05c50824df6d539d6e7a8e3a2404da65b1d2c83ddc0fe5de88d18ee726f6128f"
+  - slot: "36-marriage-certificate-step3"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1820
+    sha256: "0b94c21c7197460de089ac263b13c6991b073b048b05d79694f7538680356ac1"
+  - slot: "37-marriage-certificate-step4"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x861
+    sha256: "e9dfbcc0a7640f6590ab27acc1ceee978d87b45888e7d07258846bf9e83605c8"
+  - slot: "38-marriage-certificate-step5"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1056
+    sha256: "e7a651c37020915e59c4a772857f36dc898a69635a2ff3c4bf704f0938674960"
+  - slot: "39-marriage-certificate-step6"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1493
+    sha256: "221b683ffb205557f739ee7f59812e842a329e93da725e9099669bee138c05bc"
+  - slot: "40-marriage-certificate-step7"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "the fee block shows the create-new betrothal branch (200,000 LAK, two line items); a citizen with a linked record sees 100,000 and one line"
+    state_evidence: "MarriageCertificatePage.tsx:764"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1081
+    sha256: "de46b11d9c70fecc13269466696eb5ffd5efb8a57f05a7b2a5646f0c6d85987a"
+  - slot: "41-divorce-certificate-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "9d95f07bc744f119d2d7fa8f9074cbd624c4b7ca55b8227f31542bdd5795d6c9"
+  - slot: "42-divorce-certificate-step2"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1214
+    sha256: "5ed06ba56eca5aa8b64124d0cac2c06bbff333ab45778bf82d224928db679c4c"
+  - slot: "43-divorce-certificate-step3"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1214
+    sha256: "844e6ec8f4076bcb2b7ff8938ae38b238ebe9e05b22fefd7713800244fc9f249"
+  - slot: "44-divorce-certificate-step4"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1058
+    sha256: "903dbffe63bb17c7b606092c31adccb72d58eda20ae4aaef179574ee40fc4353"
+  - slot: "45-divorce-certificate-step5"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: false
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x1340
+    sha256: "179f68089bca58deefff25f50d024b7c985f09b1b81929df5632562231a8bc3d"
+  - slot: "46-divorce-certificate-step6"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "the fee block shows the create-new mediation branch, for the same reason as slot 40"
+    state_evidence: "DivorceCertificatePage.tsx:125,:732"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x958
+    sha256: "2a1ace54bb0adb94f1bb32db4d3ef9b728a119a02d39b54fe054c2b321aed84d"
+  - slot: "47-family-book-step1"
+    locale: lo
+    build: deployed-index-BnUTzHsR.js
+    session: authenticated
+    state_conditional: true
+    state_branch: "family-book renders the empty state: the capture account has no household record, so there is no wizard, no step indicator and no steps 2-3 in the DOM"
+    state_evidence: "FamilyBookPage.tsx:262,:326"
+    authorised_by: ADR-0006
+    captured: 2026-08-13
+    manifest: manifest-authenticated.md
+    size: 390x844
+    sha256: "d79a4bdcc27367a6afd3ac4b67279e90574b1d99dfffc5034ef16fb2345d171f"

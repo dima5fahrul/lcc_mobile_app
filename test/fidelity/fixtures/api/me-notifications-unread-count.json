@@ -1,0 +1,12 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/notifications/unread-count",
+    "status": 200,
+    "captured_at": "2026-08-13T19:00:00.000Z",
+    "provenance": "synthetic — no recording of this endpoint exists in the baseline and this programme has no account that could make one (manifest-authenticated.md). CORRECTED BY B9a: this fixture shipped `\"data\": []` — an array — where endpoints.ts:137 types the endpoint `api.get<{ unread: number }>`. THIS ENDPOINT IS NOW DESERIALIZED FOR REAL: B9a's bell reads it through NotificationRemoteDatasourceImpl.getUnreadCount, so the earlier note claiming it fed nothing is dropped rather than corrected in place (specs.md § 2.2 Finding H, § 6.11(b), B9-AC-57). The value 3 is chosen to be > 1 and != the unread row count in me-notifications.json, so a test that mistakes one read for the other fails instead of passing.",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+  },
+  "data": {
+    "unread": 3
+  }
+}

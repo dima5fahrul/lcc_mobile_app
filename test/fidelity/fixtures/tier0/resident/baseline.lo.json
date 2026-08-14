@@ -1,0 +1,28 @@
+{
+  "_note": "Tier 0 fixture — Resident, baseline variant, lo. Resident has NO locale-dependent payload key (Finding E lists header.legal_basis on Birth/Death, address_text on Marriage/Divorce, and FamilyBook's reason — none on Resident), so every value here is IDENTICAL to the en fixture BY DESIGN. That is what F0-AC-36's complement guard asserts: any difference would be over-localisation. The state is nested under `form` because that is the page's own state object (`ResidentCertificatePage.tsx` reads `form.province`, `form.citizenName`, …): the fixture mirrors the source's state tree so the transcription is auditable key by key against it.",
+  "_locale": "lo",
+  "_reference_no": "RC-2026-000123",
+  "form": {
+    "province": "11111111-1111-4111-8111-111111111111",
+    "district": "22222222-2222-4222-8222-222222222222",
+    "villageName": "33333333-3333-4333-8333-333333333333",
+    "villageChiefName": "Chief Test One",
+    "certifyingJurisdiction": "Test Certifying District",
+    "citizenName": "Test Citizen",
+    "age": "34",
+    "occupation": "Test Occupation",
+    "nationality": "lao",
+    "currentVillage": "44444444-4444-4444-8444-444444444444",
+    "groupKhum": "Test Group Khum",
+    "unitNuayBan": "Test Unit Nuay",
+    "houseNo": "123",
+    "censusBookNo": "CB-987654",
+    "censusBookDate": "2019-04-02",
+    "censusDistrictProvince": "Test Census District",
+    "fatherName": "Test Father",
+    "motherName": "Test Mother",
+    "nativePlace": "Test Native Place",
+    "purpose": "school-enrolment",
+    "purposeOther": ""
+  }
+}

@@ -59,6 +59,9 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))   # …/lcc_mobile_app/test/fidelity
+
+sys.path.insert(0, HERE)
+import i18n_parse  # noqa: E402 — needs the path bootstrap above
 PKG = os.path.dirname(os.path.dirname(HERE))        # …/sources/lcc_mobile_app
 PROJECT = os.path.dirname(os.path.dirname(PKG))     # …/projects/lcc-mobile-app
 WEB = os.path.join(PROJECT, "sources", "lcc-app")
@@ -90,32 +93,27 @@ def read(*parts):
 # ── i18n ─────────────────────────────────────────────────────────────────────
 
 def parse_ns(source, lang):
-    """Pull `{ key: "value", … }` out of one `ns({ en: {...}, lo: {...} })`."""
-    start = source.index(f"{lang}: {{")
-    depth, i = 0, source.index("{", start)
-    begin = i
-    while True:
-        if source[i] == "{":
-            depth += 1
-        elif source[i] == "}":
-            depth -= 1
-            if depth == 0:
-                break
-        i += 1
-    body = source[begin + 1 : i]
+    """Pull `{ key: "value", … }` out of one `ns({ en: {...}, lo: {...} })`.
 
-    out = {}
-    for m in re.finditer(r'(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"', body):
-        # Unescape by hand rather than via `unicode_escape`: these files hold
-        # literal UTF-8 Lao, and `unicode_escape` round-trips through latin-1,
-        # which turns every Lao code point into mojibake. The only escapes the
-        # dictionaries actually use are `\"` and `\'`.
-        out[m.group(1)] = re.sub(
-            r"\\(.)",
-            lambda mm: {"n": "\n", "t": "\t"}.get(mm.group(1), mm.group(1)),
-            m.group(2),
-        )
-    return out
+    Delegates to `i18n_parse`, shared with the other derivations, which asserts
+    it recovered every declared key.
+
+    The scanner this replaced brace-matched the locale block correctly, so
+    multi-line entries were fine, but matched DOUBLE-QUOTED values only. It
+    dropped any single-quoted entry — and single quotes are what a dictionary
+    reaches for when the value itself contains a double quote, as
+    `service.ts resultsFor` does: `'{count} result(s) for "{q}"'`.
+
+    Measured: on the three namespaces this script reads (`home`, `hero`,
+    `common`) the old scanner lost nothing, so this change is output-neutral
+    here. It was latently wrong, not actively wrong — fixed anyway, because the
+    defect it shares with the others is silence, and the next single-quoted
+    entry would have been dropped without a word.
+    """
+    try:
+        return i18n_parse.parse_locale(source, lang, origin="i18n/ns")
+    except i18n_parse.I18nParseError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def dictionaries():

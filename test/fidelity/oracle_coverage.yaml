@@ -1,0 +1,256 @@
+# oracle_coverage.yaml — RULING 10's coverage register (§ 6.5.5, `F0-AC-105`).
+#
+# Owner:  qa-lcc-mobile-app-greenfield (agentId agent-1786630209903-djc1y5)
+# Batch:  F0a — GOR-245-f0-form-kernel
+# Pin:    62f8a529aaa024a8b35b0af50a8fbd4850a63962
+#
+# WHAT THIS REGISTER IS FOR
+#
+# Tier 0 has two entries. Entry A (`execute_forms_oracle.mjs`) boots the pinned
+# application and reads the serialised request body off the wire; Entry B
+# (`derive_forms_oracles.py`) re-transcribes the same builders from source
+# text. Every leaf Entry A does not cover is listed HERE, and each entry must
+# carry a `file:line` establishing that the branch is **structurally
+# unreachable** — not merely undriven.
+#
+# THE DISTINCTION THIS FILE EXISTS TO HOLD
+#
+# "We did not test it" and "it is not testable" are different claims, and this
+# register is the one F0 artefact that can quietly convert the first into the
+# second. There is deliberately NO numeric cap: a cap invites gaming the count,
+# where an evidence requirement makes every entry falsifiable by a reviewer.
+# § 11 item 4 puts a human on this file for that reason.
+#
+# A leaf that some future fixture could reach, but nobody has driven yet, is
+# NOT eligible. It is reported as NOT EVALUATED in `qa-report.md` instead.
+
+schema: oracle_coverage/1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Structurally unreachable — the register proper
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Two entries, and both were already named by § 6.5.5. Nothing has been added
+# to this list by this batch: the four Entry A drivers written since produced
+# no new *unreachable* leaf, only executed coverage and one BLOCKED
+# disagreement (below). That is the expected shape — driving a form should
+# shrink the undriven set, never grow the unreachable one.
+unreachable:
+  - leaf: /linked_reference_no
+    scope: createEnvelope
+    forms: [marriage, divorce]
+    state: present
+    carried_by: B
+    why: >-
+      `linked_reference_no` is emitted as `linkedRecord?.record_no`, and
+      `linkedRecord` is populated from `GET /prerequisite-records`. That
+      endpoint answers `data: []` for all three valid `kind` values on every
+      account available to this programme, so `linkedRecord` is always
+      `undefined`, `JSON.stringify` DROPS the key, and the PRESENT inhabitant
+      of this envelope slot cannot be produced by any input a fixture can
+      supply. The ELIDED inhabitant is oracled and asserted (`F0-AC-79`).
+    evidence:
+      - manifest-authenticated.md:230-232
+      - MarriageCertificatePage.tsx:963
+      - DivorceCertificatePage.tsx:859
+    verified_by_qa: >-
+      Re-measured for this batch. `grep -rn linked_reference_no src/` in the
+      pinned tree returns exactly four hits: the two emission sites above and
+      two optional-typed declarations (`api/types.ts:490`, `:506`). Both
+      emission sites are `linkedRecord?.record_no` — an optional chain, so the
+      key is dropped rather than sent empty. `manifest-authenticated.md`:230-232
+      records all three `kind` values answering `200 data: [] total: 0`, and
+      names that as the complete valid domain.
+    note: >-
+      This is a data-availability limit, not a fixture-effort limit: the rig
+      fulfils `/prerequisite-records` itself and could return a row, but that
+      row would be the rig's invention rather than anything the pinned app has
+      ever been observed to receive, and an oracle whose value came from the
+      test harness is not an oracle.
+
+  - leaf: /reason
+    scope: request body
+    forms: [family-book]
+    state: the whole body
+    carried_by: B
+    leaves: 2               # family-book.request.{en,lo} — one leaf each
+    why: >-
+      `me.familyBook()` is gated on `isAuthenticated`, and when it resolves to
+      no household the page returns its empty state — which renders no CTA at
+      all. `requestCopy` is therefore never invoked and there is no
+      `POST /me/family-book/request-copy` to intercept. Reaching it needs a
+      real account that is linked to a real household, which is precisely the
+      credential this programme does not have and § 3.2 forbids using.
+    evidence:
+      - FamilyBookPage.tsx:200-202
+      - FamilyBookPage.tsx:204
+      - FamilyBookPage.tsx:326
+    verified_by_qa: >-
+      Re-measured for this batch. The only invocation is
+      `requestCopy.run(say("copyReason"))` at `FamilyBookPage.tsx:236`; every
+      other `requestCopy` reference (`:514`, `:517`, `:571`, `:574`, `:575`,
+      `:578`) reads `.error` or `.pending` for rendering and calls nothing.
+      `:236` sits past the `if (!book) return <empty state>` guard at `:326`,
+      and `:200-202` gates the `me.familyBook()` query itself on
+      `isAuthenticated`. `GET /me/family-book` answers `404 family book not
+      found` on the only account available (`manifest-authenticated.md`:229),
+      so `book` is always falsy and `:236` is unreachable.
+    note: >-
+      Entry B transcribes both locale values out of the page's own COPY table
+      (`FamilyBookPage.tsx:57-60`) and `F0-AC-35`'s Guard A asserts they
+      differ, so the leaf is oracled — it is only the EXECUTION of it that is
+      unreachable.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# What Entry A actually covers, measured
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Stated as a fraction, in this file, because "A covered 1488 leaves" reads as
+# full coverage to anyone who does not know the denominator.
+executed:
+  documents: 24           # of 50 Entry B documents (22 canonical + 28 variant)
+  leaves: 1488            # of 2690 across the whole matrix — 55.3 %
+  forms: [resident, birth, death]
+  variants_covered:
+    - birth.father-unknown
+    - death.father-skip
+    - death.mother-skip
+  locales: [en, lo]
+  bodies: [create, update]
+  evidence: >-
+    docs/fidelity-baseline/2026-08-13/oracle/tier0/executed/. Each document
+    carries `provenance.entry: A`, `leaf_provenance: executed`, and
+    `raw_bytes` — the exact `route.request().postData()` string. The harness
+    re-derives `form_data` from `raw_bytes` and fails if the two disagree, so a
+    hand-edited capture cannot pass as evidence.
+  qa_recount: >-
+    Counted independently of the four driver agents' reports, by reading
+    `provenance.entry` off all 74 documents on disk: 24 carry `A`, 50 carry
+    `B`. Leaf totals are `len(paths)` per document, NOT `len(form_data)` —
+    Marriage and Divorce are the NESTED payload family (Finding A), so
+    top-level `form_data` keys undercount their leaves roughly twelve-fold.
+    The Dart harness reports the same two numbers: `F0-AC-104: 1488 leaves
+    compared A vs B across 24 documents`.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BLOCKED — a live A-vs-B disagreement, held open per § 8.3
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This is NOT a coverage gap and must not be read as one: Entry A DOES cover
+# this leaf. It is recorded here because it is the one place the two entries
+# contradict each other, and § 8.3 forbids resolving that by editing either
+# side. It is why `F0-AC-104` is FAIL rather than PASS.
+blocked:
+  - leaf: /deceased.place_of_death_country
+    forms: [death]
+    documents: 12         # every death document, both bodies, both locales,
+                          # baseline + father-skip + mother-skip
+    executed_value: "Laos"        # 22 4c 61 6f 73 22
+    transcribed_value: "LA"       # 22 4c 41 22
+    b_cites: DeathDeclarationPage.tsx:807
+    diagnosis: >-
+      Neither a rig defect nor, strictly, a transcription defect: the leaf is
+      DRIVER-INERT. `podCountry` occurs exactly three times in the pinned tree
+      — the type (`DeathDeclarationPage.tsx:85`), the blank-state initialiser
+      `podCountry: "Laos"` (`:224`), and the payload read (`:807`). None is a
+      write, and no JSX renders a control for it, so no user action on the
+      pinned build can make this leaf hold anything but `"Laos"`. Entry B
+      faithfully evaluated the fixture's declared `"podCountry": "LA"`, which
+      is a value the application cannot emit.
+    qa_verification: >-
+      Confirmed independently: `grep -rn podCountry src/` in the pinned tree at
+      62f8a529 returns exactly those three lines and no setter.
+    resolution_owner: software-architect
+    permitted_resolutions:
+      - correct the death fixtures' `podCountry` to the constant `"Laos"`
+      - declare the leaf driver-inert and exempt it from `F0-AC-104`
+    forbidden_resolution: >-
+      Editing Entry A's capture or Entry B's transcription so the two agree.
+      That is the double entry deleting itself, and § 8.3 names it explicitly.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NOT in the register, and the reason is the whole point of the register
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# `F0-AC-105` clause (ii) — "every `transcribed` leaf in every oracle appears
+# in the register" — is NOT satisfied, and it is recorded here as FAIL rather
+# than closed by adding rows.
+#
+# 26 of the 50 Entry B documents have no Entry A coverage. Two of them
+# (family-book) are registered as structurally unreachable above. The other
+# 24 — 1200 leaves — are UNDRIVEN or BLOCKED ON A DEFECTIVE FIXTURE, and not
+# one of them could carry the `file:line` proving otherwise. Resident, Birth
+# and Death are the proof: all three looked exactly as uncovered as Marriage
+# does now, until drivers were written for them, and all three are executed
+# end to end today. That substitution — effort recorded as impossibility — is
+# the single failure mode this register was written to make impossible.
+not_eligible:
+  total_documents: 24     # 26 uncovered, minus family-book's 2 (registered above)
+  total_leaves: 1200      # 2690 − 1488 executed − 2 family-book registered
+
+  forms:
+  - form: marriage
+    documents: 12         # marriage.{create,update}.{en,lo}
+                          # + variants blank-b / whitespace, both bodies, both locales
+    leaves: 648
+    reason: undriven-no-driver-exists
+    detail: >-
+      `execute_forms_oracle.mjs`'s `DRIVERS` table (`:789-794`) registers
+      resident, birth, death and divorce. There is no `marriage` entry, so the
+      rig exits `NO_DRIVER_FOR_marriage` (`:1694`) and captures nothing. No
+      structural claim is made or available: nobody has driven this form.
+    remaining_work: >-
+      A `marriageSteps` / `driveMarriage` pair on the pattern the other four
+      follow. Marriage is a NESTED-family page sharing `both()` and the spouse
+      mirror with Divorce, so the divorce driver is the closest worked example.
+      It will also need the `READ_SHAPED_POSTS` fulfilment already added for
+      `catalog.quote` — Marriage is the other page that POSTs it at mount.
+
+  - form: divorce
+    documents: 12         # divorce.{create,update}.{en,lo}
+                          # + variants blank-b / whitespace, both bodies, both locales
+    leaves: 552
+    reason: blocked-on-defective-fixture
+    detail: >-
+      A complete `driveDivorce` EXISTS (`:793` in `DRIVERS`) and is not the
+      blocker. All six divorce fixtures declare
+      `basis.divorceType: "mutual"`, but `DivorceCertificatePage.tsx:745-746`
+      branches on the string literals `"voluntary"` and `"contested"`, so a
+      third code leaves both `isVoluntary` and `isContested` false and step 1
+      renders only the type `<select>` — no header, no mediation block, no
+      court block, and no click sequence that advances. The same fixtures also
+      carry mediation content AND court content, which `:745-746` makes
+      mutually exclusive, so they are unreachable whatever code is set.
+    why_not_eligible: >-
+      This is the OPPOSITE of unreachable and must not be filed as such. The
+      divorce agent demonstrated, against a minimally corrected fixture in a
+      scratch copy, that the existing driver captures all 46 leaves per body in
+      both locales with zero missing and zero unexpected keys. The leaves are
+      provably reachable; the fixture is the defect. Registering them here
+      would be the exact substitution this file forbids.
+    resolution_owner: software-architect
+    remaining_work: >-
+      Amend the divorce fixture matrix: set `basis.divorceType` to a code the
+      page branches on, and split the co-existing mediation and court content
+      into two variants. That changes Entry B's divorce oracles on at least
+      three leaves, so it is an amendment to the transcription's INPUTS and
+      outside an implementer's authority under § 8.3. Once amended, the driver
+      needs no further change.
+
+  criteria_affected:
+    - F0-AC-104   # FAIL (BLOCKED, § 8.3) — 1488 leaves compared across 24
+                  #      documents, 1 distinct disagreeing leaf in 12 of them.
+                  #      Not NOT EVALUATED: the comparison ran on a real,
+                  #      non-zero leaf count.
+    - F0-AC-105   # clause (i) PASS — both registered entries carry a
+                  #      re-verified file:line.
+                  # clause (ii) FAIL — 24 documents / 1200 leaves are
+                  #      transcribed-only and none is register-eligible.
+    - F0-AC-106   # (a) PASS — a one-character drift in a driven input is
+                  #     caught and names the leaf; verified non-inert on
+                  #     resident, birth and death.
+                  # (b) PASS — a zero-capture run reports NOT EVALUATED and
+                  #     exits non-zero rather than passing vacuously.
+                  # (a) is NOT EVALUATED for marriage and divorce: neither can
+                  #     currently be driven, so a drift arm for either would
+                  #     assert coverage the form cannot exercise.

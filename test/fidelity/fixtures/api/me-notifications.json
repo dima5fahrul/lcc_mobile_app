@@ -1,0 +1,162 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/notifications?per_page=8",
+    "status": 200,
+    "captured_at": "2026-08-14T00:00:00.000Z",
+    "provenance": "SYNTHETIC — NOT A RECORDING. No recording of this endpoint exists in the baseline and this programme has no account that could make one: manifest-authenticated.md § Session records that the slot 16-47 capture seeded tokens into localStorage because 'the sign-in form was not scripted: it carries a randomised arithmetic captcha and an SMS OTP, and re-running it burns a real SMS'. B2-AC-36's 'real recorded staging payloads' standard therefore CANNOT be met for any /me/* endpoint and is reported NOT EVALUATED with that reason, never PASS (specs.md § 2.2 Finding I, § 6.11, B9-AC-57).",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host",
+    "chosen_to_discriminate": "The rows are picked to make a wrong implementation FAIL, not to look plausible (§ 6.11). (1) All seven NOTIF_STYLE categories appear — application, case, certificate, document, payment, wallet, announcement — so a mapping that collapses the four dressings cannot pass. (2) Row 8 carries category 'maintenance', which is in NO map, so the announcement fallback is exercised rather than assumed (B9-AC-33); a fixture whose rows all resolved could not fail that test. (3) read_at is present on three rows and absent on five, so both the unread dot and the mark-read branch are reachable. (4) The five unread rows are NOT 3, the value me-notifications-unread-count.json reports: the count endpoint and the row list are different reads and a test that derived one from the other would pass vacuously. (5) sent_at spans minutes, hours, days and months so every relativeTime step below 'year' is reachable. Row 6 lands on a numeric:auto special form ('last month' / 'ເດືອນແລ້ວ'). Row 5 is pinned to exactly -2 days against the oracle's 2026-08-14T00:00:00Z clock, which is the ONE case where the two locales' auto tables disagree: en-GB says '2 days ago' but lo-LA says 'ມື້ກ່ອນ', because Lao names the day before yesterday as one word and English does not. An implementation that handled ±1 auto forms — the obvious reading of numeric:'auto' — passes Tier 1 in English and fails it in Lao on this row alone. (6) Row 8's sent_at is deliberately unparseable, to exercise the empty-string guard the source has at Layout.tsx:76 where Dart's DateTime.parse would throw.",
+    "shape_source": "types.ts:752-767 for the row, client.ts Envelope + PageMeta for the wrapper. Paged (api.paged, endpoints.ts:136), called with per_page: 8 (Layout.tsx:117).",
+    "envelope_note": "This file carries `_capture`, `data` and `meta` and NOT `success`/`message`, matching every sibling in this directory. The rig (test/fidelity/execute_forms_oracle.mjs) and B9a's tests build the envelope around `data` when they answer; a fixture that carried its own would be unwrapped twice. `meta` is here because /me/notifications is PAGED (api.paged, endpoints.ts:136) and ApiClient.requestPaged reads the block — it is part of the recorded shape, not part of the envelope."
+  },
+  "data": [
+    {
+      "id": "ntf-0001",
+      "template": "application.submitted",
+      "title": {
+        "en": "Residence Certificate submitted",
+        "lo": "ສົ່ງໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສແລ້ວ"
+      },
+      "body": {
+        "en": "RC-2026-004821 is now with the district office.",
+        "lo": "RC-2026-004821 ຢູ່ກັບຫ້ອງການເມືອງແລ້ວ."
+      },
+      "channel": "in_app",
+      "category": "application",
+      "severity": "info",
+      "ref_type": "application",
+      "ref_id": "RC-2026-004821",
+      "action_url": "/history/RC-2026-004821",
+      "read_at": null,
+      "sent_at": "2026-08-13T23:50:00.000Z"
+    },
+    {
+      "id": "ntf-0002",
+      "template": "case.assigned",
+      "title": {
+        "en": "An officer is reviewing your case",
+        "lo": "ພະນັກງານກຳລັງກວດສອບຄຳຮ້ອງຂອງທ່ານ"
+      },
+      "body": {
+        "en": "Case CS-2026-0177 was assigned this morning.",
+        "lo": "ຄຳຮ້ອງ CS-2026-0177 ຖືກມອບໝາຍໃນຕອນເຊົ້ານີ້."
+      },
+      "channel": "in_app",
+      "category": "case",
+      "severity": "info",
+      "ref_type": "case",
+      "ref_id": "CS-2026-0177",
+      "read_at": null,
+      "sent_at": "2026-08-13T21:00:00.000Z"
+    },
+    {
+      "id": "ntf-0003",
+      "template": "certificate.issued",
+      "title": {
+        "en": "Birth Certificate ready",
+        "lo": "ໃບແຈ້ງເກີດພ້ອມແລ້ວ"
+      },
+      "body": {
+        "en": "BC-2026-000914 is ready to download.",
+        "lo": "BC-2026-000914 ພ້ອມດາວໂຫຼດແລ້ວ."
+      },
+      "channel": "in_app",
+      "category": "certificate",
+      "severity": "success",
+      "read_at": "2026-08-13T20:15:00.000Z",
+      "sent_at": "2026-08-13T12:00:00.000Z"
+    },
+    {
+      "id": "ntf-0004",
+      "template": "document.updated",
+      "title": {
+        "en": "Family Book copy attached",
+        "lo": "ຕິດຄັດສຳເນົາປຶ້ມສຳມະໂນຄົວແລ້ວ"
+      },
+      "body": {
+        "en": "A scanned copy was added to your documents.",
+        "lo": "ເພີ່ມສຳເນົາສະແກນເຂົ້າໃນເອກະສານຂອງທ່ານແລ້ວ."
+      },
+      "channel": "email",
+      "category": "document",
+      "severity": "info",
+      "read_at": "2026-08-12T09:30:00.000Z",
+      "sent_at": "2026-08-11T09:30:00.000Z"
+    },
+    {
+      "id": "ntf-0005",
+      "template": "payment.received",
+      "title": {
+        "en": "Payment received",
+        "lo": "ໄດ້ຮັບການຊຳລະເງິນແລ້ວ"
+      },
+      "body": {
+        "en": "Electricity bill 145,000 ₭ paid successfully.",
+        "lo": "ຄ່າໄຟຟ້າ 145,000 ₭ ຊຳລະສຳເລັດ."
+      },
+      "channel": "in_app",
+      "category": "payment",
+      "severity": "success",
+      "read_at": null,
+      "sent_at": "2026-08-12T00:00:00.000Z"
+    },
+    {
+      "id": "ntf-0006",
+      "template": "wallet.topup",
+      "title": {
+        "en": "Wallet topped up",
+        "lo": "ຕື່ມເງິນເຂົ້າກະເປົາແລ້ວ"
+      },
+      "body": {
+        "en": "500,000 ₭ was added to your wallet.",
+        "lo": "ຕື່ມ 500,000 ₭ ເຂົ້າກະເປົາເງິນຂອງທ່ານແລ້ວ."
+      },
+      "channel": "sms",
+      "category": "wallet",
+      "severity": "info",
+      "read_at": "2026-08-01T08:00:00.000Z",
+      "sent_at": "2026-07-05T08:00:00.000Z"
+    },
+    {
+      "id": "ntf-0007",
+      "template": null,
+      "title": {
+        "en": "New service available",
+        "lo": "ມີບໍລິການໃໝ່"
+      },
+      "body": {
+        "en": "Vehicle registration renewal is now online.",
+        "lo": "ການຕໍ່ທະບຽນລົດ ສາມາດເຮັດອອນລາຍໄດ້ແລ້ວ."
+      },
+      "channel": "in_app",
+      "category": "announcement",
+      "severity": "info",
+      "read_at": null,
+      "sent_at": "2026-06-14T00:00:00.000Z"
+    },
+    {
+      "id": "ntf-0008",
+      "title": {
+        "en": "Scheduled maintenance on Sunday",
+        "lo": "ບຳລຸງຮັກສາຕາມກຳນົດໃນວັນອາທິດ"
+      },
+      "body": {
+        "en": "Some services will be unavailable from 01:00 to 04:00.",
+        "lo": "ບາງບໍລິການຈະໃຊ້ບໍ່ໄດ້ແຕ່ເວລາ 01:00 ຫາ 04:00."
+      },
+      "channel": "in_app",
+      "category": "maintenance",
+      "severity": "warning",
+      "read_at": null,
+      "sent_at": "not-a-timestamp"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 8,
+    "total": 8,
+    "total_pages": 1,
+    "has_next": false,
+    "has_prev": false
+  }
+}

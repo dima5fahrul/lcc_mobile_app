@@ -1,0 +1,91 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/chat/threads/th-open-1/messages?per_page=100",
+    "status": 200,
+    "captured_at": "2026-08-14T00:00:00.000Z",
+    "provenance": "SYNTHETIC — no recording of this endpoint exists in the baseline and this programme has no account that could make one. manifest-authenticated.md § Session records that re-authenticating 'carries a randomised arithmetic captcha and an SMS OTP, and re-running it burns a real SMS', and a transcript capture would additionally need a message WRITTEN to a live account, which the slot 16-47 session explicitly refused ('This capture performed ZERO writes to the account'). B2-AC-36's 'real recorded staging payloads' standard is reported NOT EVALUATED with that reason and never PASS (specs.md § 2.2 Finding I, § 6.11, B9-AC-57).",
+    "credential": "none — no host was contacted to build this file",
+    "envelope": "PAGED. endpoints.ts:157 is api.paged<ChatMessage>, called with per_page: 100 (CustomerServiceChat.tsx:82).",
+    "chosen_to_discriminate": "All FOUR sender_type values appear (citizen, agent, bot, system) — a transcript with only citizen and bot cannot fail the four-sender rendering test, and only `citizen` flips the row direction and the bubble colours (:365). `suggestions` is null on one bot message, [] on another and a two-item list on the LAST — the chips read messages[messages.length-1]?.suggestions (:192), so which one is last is the whole behaviour. Message 2 carries a **bold** run and a \\n, exercising both of formatText's two rules (:171-180). read_at and attachment_url are present on some rows and MUST render nothing (B9-AC-44).",
+    "timestamps_are_zone_naive": "sent_at carries NO `Z` and no offset, deliberately. clockTime renders in the HOST timezone on both sides (new Date(...).toLocaleTimeString / DateTime.toLocal), so a `Z` payload would make the Tier 1 oracle a function of the machine running the test. ECMAScript and Dart agree that a date-TIME form without a zone marker is local, so these render as the same wall clock everywhere. See clock_time.dart for the two divergences this does not paper over."
+  },
+  "data": [
+    {
+      "id": "m1",
+      "thread_id": "th-open-1",
+      "sender_type": "bot",
+      "sender_name": "LCC Assistant",
+      "body": "ສະບາຍດີ! ພວກເຮົາຊ່ວຍຫຍັງທ່ານໄດ້ແດ່?",
+      "suggestions": null,
+      "attachment_url": null,
+      "read_at": "2026-08-13T09:14:30",
+      "sent_at": "2026-08-13T09:14:00"
+    },
+    {
+      "id": "m2",
+      "thread_id": "th-open-1",
+      "sender_type": "citizen",
+      "sender_name": "Citizen",
+      "body": "ຂ້ອຍຕ້ອງການ **ໃບຢັ້ງຢືນການເກີດ**\nສຳລັບລູກຂອງຂ້ອຍ",
+      "suggestions": null,
+      "attachment_url": null,
+      "read_at": null,
+      "sent_at": "2026-08-13T09:15:00"
+    },
+    {
+      "id": "m3",
+      "thread_id": "th-open-1",
+      "sender_type": "agent",
+      "sender_name": "ນາງ ສົມສີ ພົມມະຈັນ",
+      "body": "Good morning. I can help with that.",
+      "suggestions": null,
+      "attachment_url": "https://cdn.example.invalid/never-rendered.pdf",
+      "read_at": null,
+      "sent_at": "2026-08-13T09:16:00"
+    },
+    {
+      "id": "m4",
+      "thread_id": "th-open-1",
+      "sender_type": "system",
+      "sender_name": "system",
+      "body": "ການສົນທະນາຖືກມອບໝາຍໃຫ້ເຈົ້າໜ້າທີ່",
+      "suggestions": [],
+      "attachment_url": null,
+      "read_at": null,
+      "sent_at": "2026-08-13T09:17:00"
+    },
+    {
+      "id": "m5",
+      "thread_id": "th-open-1",
+      "sender_type": "bot",
+      "sender_name": "LCC Assistant",
+      "body": "ເອກະສານທີ່ຕ້ອງການ:\n- ບັດປະຈຳຕົວ\n- ໃບແຈ້ງເກີດ",
+      "suggestions": [],
+      "attachment_url": null,
+      "read_at": null,
+      "sent_at": "2026-08-13T09:18:00"
+    },
+    {
+      "id": "m6",
+      "thread_id": "th-open-1",
+      "sender_type": "bot",
+      "sender_name": "LCC Assistant",
+      "body": "ມີຫຍັງໃຫ້ຊ່ວຍອີກບໍ່?",
+      "suggestions": [
+        "Track my application",
+        "ເວລາເຮັດການ"
+      ],
+      "attachment_url": null,
+      "read_at": null,
+      "sent_at": "2026-08-13T09:19:00"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 100,
+    "total": 6,
+    "total_pages": 1,
+    "has_next": false,
+    "has_prev": false
+  }
+}

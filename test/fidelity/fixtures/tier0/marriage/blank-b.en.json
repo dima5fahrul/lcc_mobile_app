@@ -1,0 +1,92 @@
+{
+  "_note": "Tier 0 fixture — Marriage, BLANK-B variant (b) — spouseB's seven mirrored inputs are empty, so every `both()` mirror collapses to \"\" while `spouse_a.*` still carries A's values and `spouse_b.*` carries the blanks. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.",
+  "_locale": "en",
+  "_reference_no": "MC-2026-000321",
+  "header": {
+    "provinceId": "11111111-1111-4111-8111-111111111111",
+    "districtId": "22222222-2222-4222-8222-222222222222",
+    "villageId": "33333333-3333-4333-8333-333333333333"
+  },
+  "betrothalMode": "new",
+  "linkedRecord": null,
+  "betrothal": {
+    "householdHead": "Test Household Head",
+    "bridePriceCash": "5000000",
+    "bridePriceGold": "2",
+    "housing": "with-groom-family",
+    "w1Name": "Betrothal Witness One",
+    "w2Name": "Betrothal Witness Two"
+  },
+  "spouseA": {
+    "fullName": "Test Spouse Alpha",
+    "dob": "1994-03-11",
+    "gender": "male",
+    "nationality": "lao",
+    "ethnicity": "lao-loum",
+    "ethnicGroup": "Alpha Ethnic Group",
+    "religion": "buddhist",
+    "occupation": "Alpha Occupation",
+    "idOrPassport": "ID-ALPHA-0001",
+    "addrHouseNo": "11",
+    "address": {
+      "provinceId": "11111111-1111-4111-8111-111111111111",
+      "districtId": "22222222-2222-4222-8222-222222222222",
+      "villageId": "33333333-3333-4333-8333-333333333333"
+    },
+    "residenceCertRef": "RC-ALPHA-0001"
+  },
+  "spouseB": {
+    "fullName": "",
+    "dob": "",
+    "gender": "",
+    "nationality": "",
+    "ethnicity": "hmong",
+    "ethnicGroup": "Beta Ethnic Group",
+    "religion": "christian",
+    "occupation": "Beta Occupation",
+    "idOrPassport": "",
+    "addrHouseNo": "22",
+    "address": {
+      "provinceId": "55555555-5555-4555-8555-555555555555",
+      "districtId": "66666666-6666-4666-8666-666666666666",
+      "villageId": ""
+    },
+    "residenceCertRef": ""
+  },
+  "reg": {
+    "dateOfMarriage": "2026-05-18",
+    "placeOfRegistration": "  Test Registration Office  ",
+    "w1Name": "Witness One",
+    "w1Id": "W-0001",
+    "w2Name": "Witness Two",
+    "w2Id": "W-0002",
+    "w3Name": "Witness Three",
+    "w3Id": "W-0003"
+  },
+  "_locations": {
+    "11111111-1111-4111-8111-111111111111": {
+      "en": "Test Province One",
+      "lo": "ແຂວງທົດສອບໜຶ່ງ"
+    },
+    "22222222-2222-4222-8222-222222222222": {
+      "en": "Test District Two",
+      "lo": "ເມືອງທົດສອບສອງ"
+    },
+    "33333333-3333-4333-8333-333333333333": {
+      "en": "Test Village Three",
+      "lo": "ບ້ານທົດສອບສາມ"
+    },
+    "55555555-5555-4555-8555-555555555555": {
+      "en": "Test Province Five",
+      "lo": "ແຂວງທົດສອບຫ້າ"
+    },
+    "66666666-6666-4666-8666-666666666666": {
+      "en": "Test District Six",
+      "lo": "ເມືອງທົດສອບຫົກ"
+    },
+    "77777777-7777-4777-8777-777777777777": {
+      "en": "Test Village Seven",
+      "lo": "ບ້ານທົດສອບເຈັດ"
+    }
+  }
+}

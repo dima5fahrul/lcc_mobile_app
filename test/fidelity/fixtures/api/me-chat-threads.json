@@ -1,0 +1,61 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/chat/threads",
+    "status": 200,
+    "captured_at": "2026-08-14T00:00:00.000Z",
+    "provenance": "SYNTHETIC — no recording of this endpoint exists in the baseline and this programme has no account that could make one. manifest-authenticated.md § Session records that re-authenticating 'carries a randomised arithmetic captcha and an SMS OTP, and re-running it burns a real SMS', and a chat capture would additionally need a real thread WRITTEN to a live account, which the slot 16-47 session explicitly refused. B2-AC-36's 'real recorded staging payloads' standard is reported NOT EVALUATED with that reason and never PASS (specs.md § 2.2 Finding I, § 6.11, B9-AC-57).",
+    "credential": "none — no host was contacted to build this file",
+    "envelope": "PLAIN ARRAY, not paged. endpoints.ts:155 is api.get<ChatThread[]>, unlike /me/notifications and /me/chat/.../messages which are api.paged. Three envelope shapes across four GETs in one batch (specs.md § 5), and guessing the wrong one is what produced the shape-wrong me-notifications-unread-count.json (§ 2.2 Finding H).",
+    "chosen_to_discriminate": "All four `status` values appear, so a port that treats `resolved` or `closed` as active picks a different activeThread (:68 admits only open|pending). The CLOSED thread carries unread_citizen: 5 — the launcher badge sums EVERY thread's count regardless of status (:127), so a port that filtered to active threads would render 2 where the source renders 7. assigned_name is null on the first active thread and set on the second, which is what selects the header title (:217) AND suppresses the bot suggestion chips (:190-191)."
+  },
+  "data": [
+    {
+      "id": "th-open-1",
+      "subject": "ຂ້ອຍຢາກສອບຖາມກ່ຽວກັບໃບຢັ້ງຢືນການເກີດ",
+      "topic": "general",
+      "status": "open",
+      "assigned_name": null,
+      "application_id": null,
+      "last_message_at": "2026-08-13T09:19:00",
+      "unread_citizen": 2,
+      "rating": null,
+      "created_at": "2026-08-13T09:14:00"
+    },
+    {
+      "id": "th-pending-2",
+      "subject": "Passport renewal question",
+      "topic": "general",
+      "status": "pending",
+      "assigned_name": "ນາງ ສົມສີ ພົມມະຈັນ",
+      "application_id": "AP-2026-0042",
+      "last_message_at": "2026-08-12T14:02:00",
+      "unread_citizen": 0,
+      "rating": null,
+      "created_at": "2026-08-12T13:55:00"
+    },
+    {
+      "id": "th-closed-3",
+      "subject": "ບັດປະຈຳຕົວ",
+      "topic": "general",
+      "status": "closed",
+      "assigned_name": "ທ້າວ ບຸນມີ",
+      "application_id": null,
+      "last_message_at": "2026-08-01T10:30:00",
+      "unread_citizen": 5,
+      "rating": 4,
+      "created_at": "2026-08-01T10:00:00"
+    },
+    {
+      "id": "th-resolved-4",
+      "subject": "Wallet top-up failed",
+      "topic": "general",
+      "status": "resolved",
+      "assigned_name": null,
+      "application_id": null,
+      "last_message_at": "2026-07-20T08:10:00",
+      "unread_citizen": 0,
+      "rating": 5,
+      "created_at": "2026-07-20T08:00:00"
+    }
+  ]
+}

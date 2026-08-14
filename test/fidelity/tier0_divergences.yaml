@@ -1,0 +1,196 @@
+# tier0_divergences.yaml — ADR-0005's CLOSED divergence register.
+#
+# The port's `todayLocal()` resolves in LOCAL time; the web's `today()` is UTC
+# (five byte-identical definitions: ResidentCertificatePage.tsx:148,
+# BirthDeclarationPage.tsx:164, DeathDeclarationPage.tsx:169,
+# MarriageCertificatePage.tsx:678, DivorceCertificatePage.tsx:584). Laos is
+# UTC+7, so for the first seven hours of every local day the web emits
+# YESTERDAY. That is a live defect (fsd.md D-Q) and ADR-0005 rules the port
+# diverges deliberately rather than reproducing it.
+#
+# EVERY key listed here is exempt from Tier 0's byte comparison. EVERY key not
+# listed is compared byte-for-byte (F0-AC-30). The register is closed: adding a
+# ninth registered WIRE KEY requires an ADR-0005 amendment with architect
+# approval (ADR-0005 O-5).
+#
+# ── THREE DENOMINATORS, none interchangeable ────────────────────────────────
+#
+# This is the counting v1.0 got wrong, v1.1 corrected wrongly, and v1.2
+# corrected again — each time by reaching for a different denominator:
+#
+#   8   registered WIRE KEYS      (page, key) pairs — ADR-0005's own table
+#   11  SOURCE CALL SITES         textual `today()` occurrences
+#   16  REGISTER ROWS             (page, body, key) — what THIS file holds
+#
+# The register keys on (page, body, key) because the create and update bodies
+# are separately oracled (§ 6.5.1), so Resident's create `event_date` and its
+# update `event_date` are two distinct rows. A flat page reaches BOTH bodies
+# from ONE call site inside `buildFormData`; Marriage and Divorce reach two
+# bodies from one textual site by invoking the builder TWICE (§ 6.2.6 item 1).
+#
+#   page      | rows | sites | why
+#   Resident  |  4   |  3    | 2 keys x 2 bodies; :481 feeds both bodies
+#   Birth     |  4   |  3    | same shape
+#   Death     |  4   |  3    | same shape
+#   Marriage  |  2   |  1    | 1 key x 2 bodies; :900 invoked twice
+#   Divorce   |  2   |  1    | same shape
+#   TOTAL     | 16   | 11    | over 8 registered wire keys
+#
+# The ADR-0005 O-5 amendment trigger is a ninth registered WIRE KEY, not a
+# seventeenth row: a seventeenth row would appear the moment a page grew a third
+# body, which is a shape change and not a new divergence (FU-14).
+#
+# `location` distinguishes a form_data leaf from an ENVELOPE key. `event_date`
+# is an envelope key (client.ts:242 serialises the envelope too, and its order
+# is wire order — Finding I); `purpose.issue_date` and `header.dated` are
+# form_data leaves. A register that conflated them would exempt the wrong key.
+
+meta:
+  registered_wire_keys: 8
+  source_call_sites: 11
+  register_rows: 16
+  adr: ADR-0005
+  clock: "2026-08-14T02:00:00+07:00"
+  # At that instant local time is 2026-08-14 and UTC is 2026-08-13. Every row
+  # below therefore has a DIFFERENT expected value per side, which is what makes
+  # the divergence observable rather than hidden by a convenient fixture
+  # (ADR-0005 point 5, F0-AC-28).
+  expected_local: "2026-08-14"
+  expected_web_utc: "2026-08-13"
+
+divergences:
+  # ── Resident — 2 keys x 2 bodies = 4 rows, from 3 call sites ──────────────
+  - page: resident
+    body: create
+    key: "purpose.issue_date"
+    location: form_data
+    pointer: "/purpose.issue_date"
+    src: "ResidentCertificatePage.tsx:481"
+    note: "inside buildFormData; the single :481 site reaches both bodies
+           because the flat family binds the payload once (:501) and reuses it"
+  - page: resident
+    body: update
+    key: "purpose.issue_date"
+    location: form_data
+    pointer: "/purpose.issue_date"
+    src: "ResidentCertificatePage.tsx:481"
+    note: "same object, spread at :522 with header.ref_no appended"
+  - page: resident
+    body: create
+    key: "event_date"
+    location: envelope
+    src: "ResidentCertificatePage.tsx:512"
+    note: "unconditional today() — Resident never falls back to a form field"
+  - page: resident
+    body: update
+    key: "event_date"
+    location: envelope
+    src: "ResidentCertificatePage.tsx:523"
+
+  # ── Birth — 2 keys x 2 bodies = 4 rows, from 3 call sites ─────────────────
+  - page: birth
+    body: create
+    key: "header.dated"
+    location: form_data
+    pointer: "/header.dated"
+    src: "BirthDeclarationPage.tsx:760"
+  - page: birth
+    body: update
+    key: "header.dated"
+    location: form_data
+    pointer: "/header.dated"
+    src: "BirthDeclarationPage.tsx:760"
+  - page: birth
+    body: create
+    key: "event_date"
+    location: envelope
+    src: "BirthDeclarationPage.tsx:825"
+    note: "child.dob || today() — today() only when the fixture leaves dob
+           blank. A fixture that always sets dob makes this row UNREACHABLE and
+           the divergence invisible; F0-AC-30's fixture must exercise both."
+  - page: birth
+    body: update
+    key: "event_date"
+    location: envelope
+    src: "BirthDeclarationPage.tsx:836"
+    note: "child.dob || today()"
+
+  # ── Death — 2 keys x 2 bodies = 4 rows, from 3 call sites ─────────────────
+  - page: death
+    body: create
+    key: "header.dated"
+    location: form_data
+    pointer: "/header.dated"
+    src: "DeathDeclarationPage.tsx:788"
+  - page: death
+    body: update
+    key: "header.dated"
+    location: form_data
+    pointer: "/header.dated"
+    src: "DeathDeclarationPage.tsx:788"
+  - page: death
+    body: create
+    key: "event_date"
+    location: envelope
+    src: "DeathDeclarationPage.tsx:849"
+    note: "deceased.dateOfDeath || today()"
+  - page: death
+    body: update
+    key: "event_date"
+    location: envelope
+    src: "DeathDeclarationPage.tsx:860"
+    note: "deceased.dateOfDeath || today()"
+
+  # ── Marriage — 1 key x 2 bodies = 2 rows, from 1 call site ────────────────
+  #
+  # NOTE the pointer: Marriage nests, so the wire bytes are
+  # {"header":{"dated":...}} and the pointer is /header/dated. Birth emits the
+  # LITERAL FLAT KEY "header.dated", pointer /header.dated. Those two strings
+  # are different and § 6.5.1's JSON-Pointer list exists precisely to keep them
+  # apart — a dotted flattener collapses them and reports the families equal.
+  - page: marriage
+    body: create
+    key: "header.dated"
+    location: form_data
+    pointer: "/header/dated"
+    src: "MarriageCertificatePage.tsx:900"
+    note: "buildFormData(\"\") at :964 — the FIRST of two invocations"
+  - page: marriage
+    body: update
+    key: "header.dated"
+    location: form_data
+    pointer: "/header/dated"
+    src: "MarriageCertificatePage.tsx:900"
+    note: "buildFormData(reference) at :981 — the SECOND invocation, which
+           independently re-evaluates today(). A port that caches the payload
+           and mutates the document number is MORE deterministic than the web
+           and fails this register rather than satisfying it (§ 6.2.6 item 1)."
+
+  # ── Divorce — 1 key x 2 bodies = 2 rows, from 1 call site ─────────────────
+  - page: divorce
+    body: create
+    key: "header.dated"
+    location: form_data
+    pointer: "/header/dated"
+    src: "DivorceCertificatePage.tsx:800"
+    note: "buildFormData(\"\") at :860"
+  - page: divorce
+    body: update
+    key: "header.dated"
+    location: form_data
+    pointer: "/header/dated"
+    src: "DivorceCertificatePage.tsx:800"
+    note: "buildFormData(reference) at :877 — second invocation, re-clocked"
+
+# ── What is NOT here, and why ────────────────────────────────────────────────
+#
+# `event_date` on Marriage and Divorce is ABSENT from this register on purpose.
+# Both write `reg.dateOfMarriage || undefined` / `basis.dateOfDivorce ||
+# undefined` (MarriageCertificatePage.tsx:962,:982; DivorceCertificatePage.tsx
+# :858,:878) — they NEVER call today() for it, and `|| undefined` makes the key
+# elidable rather than clock-derived. It is an EnvelopeShape optionality fact
+# (F0-AC-19), not a divergence. Registering it would exempt a key from byte
+# comparison that has no clock in it at all.
+#
+# `fsd.md` D-M and D-J are also deliberately absent — they are backend
+# conversations (FU-9), not client divergences.

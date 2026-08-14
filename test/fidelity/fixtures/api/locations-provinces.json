@@ -1,0 +1,25 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/locations/provinces",
+    "status": 200,
+    "captured_at": "2026-08-13T19:00:00.000Z",
+    "provenance": "synthetic — no recording of this endpoint exists in the baseline and this programme has no account that could make one (manifest-authenticated.md). The values are the ones the tier0 fixture matrix selects from, so a mis-driven select cannot silently resolve to a default.",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+  },
+  "data": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "name": {
+        "en": "Test Province One",
+        "lo": "ແຂວງທົດສອບໜຶ່ງ"
+      }
+    },
+    {
+      "id": "55555555-5555-4555-8555-555555555555",
+      "name": {
+        "en": "Test Province Five",
+        "lo": "ແຂວງທົດສອບຫ້າ"
+      }
+    }
+  ]
+}

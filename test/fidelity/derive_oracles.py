@@ -52,6 +52,9 @@ import re
 import sys
 from collections import OrderedDict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import i18n_parse  # noqa: E402 — needs the path bootstrap above
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 PKG = os.path.abspath(os.path.join(HERE, "..", ".."))          # …/lcc_mobile_app
 COMPONENT = os.path.abspath(os.path.join(PKG, "..", ".."))     # …/lcc-mobile-app
@@ -85,33 +88,24 @@ def read(path: str) -> str:
 def parse_ns(name: str) -> dict:
     """Parse `src/app/i18n/ns/<name>.ts` into {locale: {key: value}}.
 
-    The files are `ns({ en: {...}, lo: {...} })` object literals with string
-    values only — no interpolation, no nesting — so a scanner is enough and a
-    JS parser would be a dependency for nothing.
+    Delegates to `i18n_parse`, shared with the other derivations, which asserts
+    that it recovered every declared key and raises instead of returning a
+    short dictionary.
+
+    The scanner this replaced was LINE-ANCHORED: it required each value to sit
+    on its key's own line and end in a comma, so it silently dropped every
+    multi-line entry — 84 across `ns/*.ts`. This script reads `service.ts` and
+    `home.ts`; `service.ts` has no multi-line entries, which is the only reason
+    the shipped service oracle was correct and the defect went unseen. `home.ts`
+    was losing `actionRequiredDesc` and `dismissDesc` — neither of which this
+    script consumes (it takes only `applyNow`), so the output was unaffected,
+    but nothing said so. See `i18n_parse.py`'s docstring.
     """
     src = read(os.path.join(WEB, "src", "app", "i18n", "ns", f"{name}.ts"))
-    out: dict = {}
-    locale = None
-
-    for line in src.splitlines():
-        head = re.match(r"\s*(en|lo)\s*:\s*\{\s*$", line)
-        if head:
-            locale = head.group(1)
-            out[locale] = OrderedDict()
-            continue
-        if locale is None:
-            continue
-        entry = re.match(r"""\s*(\w+)\s*:\s*(['"])(.*)\2\s*,\s*$""", line)
-        if entry:
-            out[locale][entry.group(1)] = entry.group(3).replace('\\"', '"')
-            continue
-        if re.match(r"\s*\}\s*,?\s*$", line):
-            locale = None
-
-    missing = [loc for loc in LOCALES if loc not in out]
-    if missing:
-        raise SystemExit(f"ns/{name}.ts: no {missing} block found")
-    return out
+    try:
+        return i18n_parse.parse_namespace(src, LOCALES, origin=f"ns/{name}.ts")
+    except i18n_parse.I18nParseError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def parse_category_seeds() -> dict:

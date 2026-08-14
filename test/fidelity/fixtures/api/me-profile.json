@@ -1,0 +1,33 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/me/profile",
+    "status": 200,
+    "captured_at": "2026-08-13T19:00:00.000Z",
+    "provenance": "synthetic — no recording of this endpoint exists in the baseline and this programme has no account that could make one (manifest-authenticated.md). The values are the ones the tier0 fixture matrix selects from, so a mis-driven select cannot silently resolve to a default.",
+    "credential": "none — the rig seeds a synthetic token and never authenticates against any host"
+  },
+  "data": {
+    "account": {
+      "id": "00000000-0000-4000-8000-000000000000",
+      "name": "Test Citizen",
+      "uin": "TEST-UIN",
+      "phone": "02055500000",
+      "email": "test.citizen@example.test"
+    },
+    "place": {
+      "province_name": {
+        "en": "Test Province One",
+        "lo": "ແຂວງທົດສອບໜຶ່ງ"
+      },
+      "district_name": {
+        "en": "Test District Two",
+        "lo": "ເມືອງທົດສອບສອງ"
+      },
+      "village_name": {
+        "en": "Test Village Three",
+        "lo": "ບ້ານທົດສອບສາມ"
+      }
+    },
+    "household_no": "CB-987654"
+  }
+}

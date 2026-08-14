@@ -1,0 +1,92 @@
+{
+  "_note": "Tier 0 fixture — Marriage, WHITESPACE variant (c) — the variant a no-trim transcription fails and (a)/(b) both pass. `both()` trims; the sub-object mostly does not. A's dob / nationality / address.villageId carry surrounding whitespace, so the MIRROR emits the trimmed value while `spouse_a.dob` (:915), `.nationality` (:917) and `.current_address` (:919) emit it UNTRIMMED. A's gender is whitespace-only (\"  \"), which makes `a.trim()` falsy: the mirror collapses to \"\" while `spouse_a.gender` still emits \"  \". The three both-sides-trimmed CONTROL keys — name (:875), id_number (:884), residence_certificate_ref (:891) — carry whitespace too and must appear trimmed in BOTH places, or the fixture would be testing a uniform rule rather than an asymmetric one. betrothalMode = \"existing\", so this variant carries the boolean's OTHER literal, `false`. NOTE: a whitespace-padded villageId matches no row, so `nameOf` returns \"\" and A's `address_text` loses its village segment — that is what the source does with this state, and it is an artefact of the planted whitespace rather than a claim about reachable app state. Synthetic throughout: no real citizen data, no real UIN, no token (F0-AC-70 item 2). Values are DISTINCT wherever the source permits distinctness (§ 6.5.3 item 3), so a transposition of two keys is caught by value as well as by the ordered paths[] list. Locale seed: en.",
+  "_locale": "en",
+  "_reference_no": "MC-2026-000321",
+  "header": {
+    "provinceId": "11111111-1111-4111-8111-111111111111",
+    "districtId": "22222222-2222-4222-8222-222222222222",
+    "villageId": "33333333-3333-4333-8333-333333333333"
+  },
+  "betrothalMode": "existing",
+  "linkedRecord": null,
+  "betrothal": {
+    "householdHead": "Test Household Head",
+    "bridePriceCash": "5000000",
+    "bridePriceGold": "2",
+    "housing": "with-groom-family",
+    "w1Name": "Betrothal Witness One",
+    "w2Name": "Betrothal Witness Two"
+  },
+  "spouseA": {
+    "fullName": "  Test Spouse Alpha  ",
+    "dob": " 1994-03-11 ",
+    "gender": "  ",
+    "nationality": " lao ",
+    "ethnicity": "lao-loum",
+    "ethnicGroup": "Alpha Ethnic Group",
+    "religion": "buddhist",
+    "occupation": "Alpha Occupation",
+    "idOrPassport": "  ID-ALPHA-0001  ",
+    "addrHouseNo": "11",
+    "address": {
+      "provinceId": "11111111-1111-4111-8111-111111111111",
+      "districtId": "22222222-2222-4222-8222-222222222222",
+      "villageId": " 33333333-3333-4333-8333-333333333333 "
+    },
+    "residenceCertRef": "  RC-ALPHA-0001  "
+  },
+  "spouseB": {
+    "fullName": "Test Spouse Beta",
+    "dob": "1996-08-22",
+    "gender": "female",
+    "nationality": "thai",
+    "ethnicity": "hmong",
+    "ethnicGroup": "Beta Ethnic Group",
+    "religion": "christian",
+    "occupation": "Beta Occupation",
+    "idOrPassport": "ID-BETA-0002",
+    "addrHouseNo": "22",
+    "address": {
+      "provinceId": "55555555-5555-4555-8555-555555555555",
+      "districtId": "66666666-6666-4666-8666-666666666666",
+      "villageId": "77777777-7777-4777-8777-777777777777"
+    },
+    "residenceCertRef": "RC-BETA-0002"
+  },
+  "reg": {
+    "dateOfMarriage": "2026-05-18",
+    "placeOfRegistration": "  Test Registration Office  ",
+    "w1Name": "Witness One",
+    "w1Id": "W-0001",
+    "w2Name": "Witness Two",
+    "w2Id": "W-0002",
+    "w3Name": "Witness Three",
+    "w3Id": "W-0003"
+  },
+  "_locations": {
+    "11111111-1111-4111-8111-111111111111": {
+      "en": "Test Province One",
+      "lo": "ແຂວງທົດສອບໜຶ່ງ"
+    },
+    "22222222-2222-4222-8222-222222222222": {
+      "en": "Test District Two",
+      "lo": "ເມືອງທົດສອບສອງ"
+    },
+    "33333333-3333-4333-8333-333333333333": {
+      "en": "Test Village Three",
+      "lo": "ບ້ານທົດສອບສາມ"
+    },
+    "55555555-5555-4555-8555-555555555555": {
+      "en": "Test Province Five",
+      "lo": "ແຂວງທົດສອບຫ້າ"
+    },
+    "66666666-6666-4666-8666-666666666666": {
+      "en": "Test District Six",
+      "lo": "ເມືອງທົດສອບຫົກ"
+    },
+    "77777777-7777-4777-8777-777777777777": {
+      "en": "Test Village Seven",
+      "lo": "ບ້ານທົດສອບເຈັດ"
+    }
+  }
+}

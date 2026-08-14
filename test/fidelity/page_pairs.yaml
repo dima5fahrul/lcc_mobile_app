@@ -90,3 +90,254 @@ addenda:
       ARTICLE render, because no image of it can exist at this commit. Tiers 1
       and 2 are unaffected and remain blocking -- they read the source, not a
       screenshot (§ 6.5.2(b)'s own reasoning).
+
+# ── F0a APPEND (RULING 7 / RULING 11) ────────────────────────────────────
+# Slots 16-47, the 2026-08-13 authenticated capture. APPEND-ONLY: slots 01-15
+# above are untouched (F0-AC-49).
+#
+# Every row carries `provenance: deployed-build` because the images come from
+# the DEPLOYED staging bundle, which is NOT 62f8a529 (Finding H). Tiers 0, 1
+# and 2 are unaffected and remain fully binding -- they read the source, not a
+# screenshot (§ 6.8.1). Only Tier 3 pairs against these.
+#
+# The authoritative per-slot record is baseline_slots.yaml, which carries the
+# SHA-256, the three provenance fields and the authorising ADR. These rows are
+# the Tier 3 PAIRING; that file is the integrity register.
+authenticated_capture:
+  - slot: 16-resident-certificate-step1
+    web_route: "#/service/resident-certificate (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 17-resident-certificate-step2
+    web_route: "#/service/resident-certificate (step 2)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: >-
+      NOT EVALUATED -- deployed-build divergence. The deployed bundle
+      prefills citizenName/age/nationality from a demo constant the pinned
+      source lacks. See deployed_divergence.yaml; the port MUST render
+      empty fields and this must not be filed as a bug (§ 6.8.2).
+  - slot: 18-resident-certificate-step3
+    web_route: "#/service/resident-certificate (step 3)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 19-resident-certificate-step4
+    web_route: "#/service/resident-certificate (step 4)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 20-resident-certificate-step5
+    web_route: "#/service/resident-certificate (step 5)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 21-resident-certificate-step6
+    web_route: "#/service/resident-certificate (step 6)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 22-birth-declaration-step1
+    web_route: "#/service/birth-declaration (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 23-birth-declaration-step2
+    web_route: "#/service/birth-declaration (step 2)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 24-birth-declaration-step3
+    web_route: "#/service/birth-declaration (step 3)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 25-birth-declaration-step4
+    web_route: "#/service/birth-declaration (step 4)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 26-birth-declaration-step5
+    web_route: "#/service/birth-declaration (step 5)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 27-birth-declaration-step6
+    web_route: "#/service/birth-declaration (step 6)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 28-death-declaration-step1
+    web_route: "#/service/death-declaration (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 29-death-declaration-step2
+    web_route: "#/service/death-declaration (step 2)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 30-death-declaration-step3
+    web_route: "#/service/death-declaration (step 3)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 31-death-declaration-step4
+    web_route: "#/service/death-declaration (step 4)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 32-death-declaration-step5
+    web_route: "#/service/death-declaration (step 5)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 33-death-declaration-step6
+    web_route: "#/service/death-declaration (step 6)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 34-marriage-certificate-step1
+    web_route: "#/service/marriage-certificate (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 35-marriage-certificate-step2
+    web_route: "#/service/marriage-certificate (step 2)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 36-marriage-certificate-step3
+    web_route: "#/service/marriage-certificate (step 3)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 37-marriage-certificate-step4
+    web_route: "#/service/marriage-certificate (step 4)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 38-marriage-certificate-step5
+    web_route: "#/service/marriage-certificate (step 5)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 39-marriage-certificate-step6
+    web_route: "#/service/marriage-certificate (step 6)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 40-marriage-certificate-step7
+    web_route: "#/service/marriage-certificate (step 7)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: >-
+      GATED, but the render is STATE-CONDITIONAL: it is one of several
+      valid renders, not the canonical one. See baseline_slots.yaml for
+      the branch and its file:line (ADR-0006 field 3).
+  - slot: 41-divorce-certificate-step1
+    web_route: "#/service/divorce-certificate (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 42-divorce-certificate-step2
+    web_route: "#/service/divorce-certificate (step 2)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 43-divorce-certificate-step3
+    web_route: "#/service/divorce-certificate (step 3)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 44-divorce-certificate-step4
+    web_route: "#/service/divorce-certificate (step 4)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 45-divorce-certificate-step5
+    web_route: "#/service/divorce-certificate (step 5)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: GATED for F1-F4 against the locale-matching image.
+  - slot: 46-divorce-certificate-step6
+    web_route: "#/service/divorce-certificate (step 6)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: >-
+      GATED, but the render is STATE-CONDITIONAL: it is one of several
+      valid renders, not the canonical one. See baseline_slots.yaml for
+      the branch and its file:line (ADR-0006 field 3).
+  - slot: 47-family-book-step1
+    web_route: "#/service/family-book (step 1)"
+    flutter_route: null   # F1-F4 build these; no pair exists yet
+    provenance: deployed-build
+    owner: qa-lcc-mobile-app-greenfield
+    manifest: manifest-authenticated.md
+    tier3: >-
+      GATED, but the render is STATE-CONDITIONAL: it is one of several
+      valid renders, not the canonical one. See baseline_slots.yaml for
+      the branch and its file:line (ADR-0006 field 3).

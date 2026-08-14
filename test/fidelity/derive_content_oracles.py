@@ -59,6 +59,9 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+sys.path.insert(0, HERE)
+import i18n_parse  # noqa: E402 — needs the path bootstrap above
 PKG = os.path.dirname(os.path.dirname(HERE))
 PROJECT = os.path.dirname(os.path.dirname(PKG))
 WEB = os.path.join(PROJECT, "sources", "lcc-app")
@@ -101,30 +104,26 @@ def api(name):
 
 
 def parse_ns(source, lang):
-    """Pull `{ key: "value", … }` out of one `ns({ en: {...}, lo: {...} })`."""
-    start = source.index(f"{lang}: {{")
-    depth, i = 0, source.index("{", start)
-    begin = i
-    while True:
-        if source[i] == "{":
-            depth += 1
-        elif source[i] == "}":
-            depth -= 1
-            if depth == 0:
-                break
-        i += 1
-    body = source[begin + 1 : i]
+    """Pull `{ key: "value", … }` out of one `ns({ en: {...}, lo: {...} })`.
 
-    out = {}
-    for m in __import__("re").finditer(r'(\w+)\s*:\s*"((?:[^"\\]|\\.)*)"', body):
-        # Unescaped by hand rather than via `unicode_escape`, which round-trips
-        # through latin-1 and turns every Lao code point into mojibake.
-        out[m.group(1)] = __import__("re").sub(
-            r"\\(.)",
-            lambda mm: {"n": "\n", "t": "\t"}.get(mm.group(1), mm.group(1)),
-            m.group(2),
-        )
-    return out
+    Delegates to `i18n_parse`, shared with the other derivations, which asserts
+    it recovered every declared key.
+
+    The scanner this replaced brace-matched the locale block correctly, so
+    multi-line entries were fine, but matched DOUBLE-QUOTED values only. It
+    dropped any single-quoted entry — and single quotes are what a dictionary
+    reaches for when the value itself contains a double quote, as
+    `service.ts resultsFor` does: `'{count} result(s) for "{q}"'`.
+
+    Measured: on the three namespaces this script reads (`news`, `help`,
+    `common`) the old scanner lost nothing, so this change is output-neutral
+    here. It was latently wrong, not actively wrong — fixed anyway, because the
+    defect it shares with the others is silence.
+    """
+    try:
+        return i18n_parse.parse_locale(source, lang, origin="i18n/ns")
+    except i18n_parse.I18nParseError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def dictionaries():

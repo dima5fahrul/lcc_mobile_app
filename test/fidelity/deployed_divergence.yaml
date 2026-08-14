@@ -1,0 +1,109 @@
+# deployed_divergence.yaml — RULING 7 (§ 6.8), Finding H's register.
+#
+# The Tier 3 baseline for slots 16-47 was captured from the DEPLOYED staging
+# bundle, which is measurably NOT the pinned commit 62f8a529. This register
+# holds every place where that difference is known to change what the image
+# shows, so a port built from the pinned source is not filed as defective for
+# being correct.
+#
+# ── SCOPE: this register does NOT relax anything ────────────────────────────
+#
+# Tiers 0, 1 and 2 remain FULLY BINDING and unchanged. They read the SOURCE at
+# 62f8a529 — markup structure, string tables, CSS values — not a screenshot
+# (§ 6.8.1, quoting GOR-245-b2-readonly-surface/specs.md:817-822). Only Tier 3
+# pairs against an image, so only Tier 3 is affected. The opposite reading —
+# "the reference is from a different build, so the fidelity gates are soft" —
+# would dissolve the whole instrument on a provenance note, and is refused.
+#
+# It also does not apply to slots 01-15 (a different capture, a different
+# pipeline, `build: pinned-62f8a529` in baseline_slots.yaml), and it does not
+# authorise re-capturing anything: extending is permitted, re-capturing an
+# existing slot is an automatic FAIL (B2-AC-38).
+#
+# ── THE CAP ─────────────────────────────────────────────────────────────────
+#
+# At most THREE entries per form. The fourth means the reference is not usable
+# for that form: Tier 3 is reported NOT EVALUATED for the whole form and the
+# batch escalates for a re-capture decision. Adding an entry needs architect
+# approval and BUNDLE-LEVEL evidence — "it looks different" is not an entry.
+#
+# A Tier 3 MAJOR is triaged against this register FIRST. Three outcomes, and the
+# third is the one ADR-0006 added:
+#   1. a new deployed-vs-pinned delta with bundle evidence  -> a new entry here
+#   2. neither of the below                                 -> a PORT DEFECT
+#   3. an ACCOUNT-STATE branch                              -> NOT this register.
+#      Slots 40, 46 and 47 are `state_conditional: true` in baseline_slots.yaml
+#      with the branch named. Filing one of those here would spend a capped
+#      register on something that is not a build delta at all.
+#
+# `F0-AC-100` enforces structurally that only `deployed-build` slots may appear.
+
+meta:
+  register: deployed_divergence
+  cap_per_form: 3
+  applies_to_slots: "16-47"
+  pinned_commit: 62f8a529aaa024a8b35b0af50a8fbd4850a63962
+  deployed_bundle: /assets/index-BnUTzHsR.js
+  tiers_affected: [3]
+  tiers_unaffected: [0, 1, 2]
+
+divergences:
+  - id: DD-1
+    slot: 17-resident-certificate-step2
+    locales: [en, lo]
+    form: resident-certificate
+
+    observed_deployed_behaviour: >-
+      Resident step 2 arrives with the applicant block ALREADY FILLED IN —
+      CITIZEN'S NAME "Somchai Vongkhamphanh", AGE "34", NATIONALITY "Lao" —
+      under a green banner reading "Auto-filled from your ID — please review and
+      correct if anything is wrong."
+
+    pinned_source_contradiction: >-
+      The pinned source clears those fields instead. `handleFrontId`
+      (ResidentCertificatePage.tsx:396-425) calls `me.digitalID()` ->
+      GET /me/digital-id (endpoints.ts:113). That endpoint returns 404 for the
+      capture account, so the catch branch runs: `setDetected(false)` and the
+      fields stay as initialised — `citizenName: ""`, `age: ""`,
+      `nationality: ""` at :353-356, cleared again at :410-425. The pinned
+      component contains the name nowhere.
+
+    bundle_evidence: >-
+      The deployed bundle /assets/index-BnUTzHsR.js contains a constant the
+      pinned source does not:
+      Lb = {citizenName:"Somchai Vongkhamphanh", age:"34", nationality:"lao"}
+      — a demo fallback used when the registry lookup fails. In the pinned tree
+      that string exists only as onboarding/tutorial illustration copy
+      (i18n/ns/onboarding.ts:44, i18n/ns/tutorial.ts:28), never as form state.
+      Live response, captured 2026-08-13:
+      404 {"success":false,"message":"your registry record not found",
+      "code":"NOT_FOUND"}
+
+    why_it_matters_beyond_this_slot: >-
+      `resident.ts` measured 100% i18n literal coverage against the deployed
+      bundle and the component STILL behaves differently. This slot is the
+      standing demonstration that string-table parity does not imply logic
+      parity — the limit the coverage table states about itself
+      (manifest-authenticated.md:63-72) and the reason the i18n table may never
+      be cited as structural proof.
+
+    tier3_disposition: >-
+      NOT EVALUATED for slots lo/17 and en/17. Not PASS, not FAIL, and not
+      "NOT APPLICABLE" — that would be a fourth gate status on a blocking tier.
+
+    # F0-AC-51: byte-identical to § 6.8.2's two assertions. Verified by script,
+    # because a counter-assertion that drifts from the ruling it enforces is
+    # worse than none: it reads as agreement.
+    required_port_behaviour: >-
+      After `GET /me/digital-id` returns 404, Resident step 2 renders
+      `citizenName`, `age` and `nationality` empty, and the "auto-filled from
+      your ID" banner is absent, matching `detected = false`
+      (ResidentCertificatePage.tsx:353-356, :410-425); and
+      `grep -rn "Somchai Vongkhamphanh" lib/` returns zero hits.
+
+    discharged_by: >-
+      F1, as named F1-AC-n (§ 6.12 Q-8, FU-15). F0 STATES this and cannot
+      discharge it: F0 builds no page, so the grep is zero by construction and
+      proves nothing (F0-AC-51). A bare NOT EVALUATED here would be a hole — it
+      would excuse the comparison without saying what the port should do, and a
+      port that ALSO prefilled would sail through.
