@@ -33,6 +33,7 @@ import 'package:get_it/get_it.dart';
 import '../../features/account/di/account_feature_injection.dart';
 import '../../features/application/di/application_feature_injection.dart';
 import '../../features/auth/di/auth_feature_injection.dart';
+import '../../features/certificates/di/certificates_feature_injection.dart';
 import '../../features/chat/di/chat_feature_injection.dart';
 import '../../features/help/di/help_feature_injection.dart';
 import '../../features/history/di/history_feature_injection.dart';
@@ -314,5 +315,31 @@ class DependencyInjection {
     //     ordering rule and the append-only constraint on this file agree; no
     //     deviation to record.
     await WalletFeatureInjection.init();
+
+    // 17. Certificates (DI-6, F1). One line — **and the third that is
+    //     deliberately not alphabetical.**
+    //
+    //     Ordering: **after step 13 (Reference), step 14 (Application), step 6
+    //     (Service) and step 16 (Wallet), and all four are hard requirements.**
+    //     `CertificatesBlocInjection` builds `ResidentFormCubit` out of
+    //     `GetLookupOptions`, the four write usecases, `GetServices` and
+    //     `GetPaymentMethods` — four containers, resolved through closures,
+    //     which is the `ChatUsecaseInjection` -> `helpInjection` shape and the
+    //     only sanctioned cross-container form (`ssd.md` § 5.1). DI-6's "one
+    //     alphabetical line" would put `certificates` before every one of them
+    //     and break all four. **The alphabetical rule yields and the deviation
+    //     is stated here**, as steps 11 and 12 already do for theirs.
+    //
+    //     It registers **no repository and no datasource**: `features/certificates/`
+    //     has no `data/` and must not grow one (`F1-AC-17`). The wire work is
+    //     step 14's. That makes this the first feature in the tree that is
+    //     BLoC-only — the exact inverse of steps 13 and 14, which are
+    //     page-less.
+    //
+    //     The registration is a **factory**, not a lazy singleton, and that is
+    //     the one DI-2 exception in this file besides `AuthBloc`'s. See
+    //     `certificates_bloc_injection.dart` for why a shared submission state
+    //     would PATCH the previous citizen's case.
+    await CertificatesFeatureInjection.init();
   }
 }

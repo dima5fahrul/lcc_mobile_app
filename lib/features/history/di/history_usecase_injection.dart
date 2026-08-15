@@ -34,6 +34,13 @@ class HistoryUsecaseInjection {
       )
       ..registerLazySingleton<GetStatusPipeline>(
         () => applicationInjection<GetStatusPipeline>(),
+      )
+      // B7b — the detail's two queries, re-exported on the same terms.
+      ..registerLazySingleton<GetApplication>(
+        () => applicationInjection<GetApplication>(),
+      )
+      ..registerLazySingleton<GetApplicationTimeline>(
+        () => applicationInjection<GetApplicationTimeline>(),
       );
   }
 }

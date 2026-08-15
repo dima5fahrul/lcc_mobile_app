@@ -1,0 +1,86 @@
+{
+  "_provenance": "DECLARED SYNTHETIC — NOT A RECORDED PAYLOAD. specs.md § 6.12. Hand-built from `lcc-app/src/app/api/types.ts:462-474` (CaseEvent) and `:493-498` (CaseTimeline). Two timelines. `rejectedTrail` ends on `to_status: \"returned\"` — a rejected-bucket status per § 6.15's table, which is the arrangement that exercises `HistoryDetailPage.tsx:544`'s isError branch: the red XCircle dot, the #DC2626 label, and the BROKEN (#E5E7EB) connector rather than the green one (B7-AC-64). It is deliberately NOT last-and-current, so B7-AC-65's `isCurrent = isLast && !isError` can be asserted false on a last event. `rejectedTrail`'s events also cover the actor/note join arms of `:577` — both present, actor only, note only, neither. `emptyTrail` is the `events: []` answer that must NOT fall through to the detail's inline timeline (`:249`, B7-AC-62 arrangement 1); an empty array is an answer, not an absence. `status_label` is absent on `ev-304` so B7-AC-66's fallback to the raw `to_status` has a fixture. Every criterion discharged against this file is evidence that the PORT is correct GIVEN a payload; it is NOT evidence that staging sends this payload, and must be reported NOT EVALUATED against live data (§ 6.4). /applications/:id/timeline is shared with B4 and returns nothing on the only test account.",
+
+  "rejectedTrail": {
+    "success": true,
+    "message": "timeline retrieved",
+    "data": {
+      "application_id": "app-202",
+      "reference_no": "LCC-2026-000202",
+      "status": "rejected",
+      "events": [
+        {
+          "id": "ev-301",
+          "action": "submit",
+          "to_status": "submitted",
+          "status_label": {
+            "en": "Submitted",
+            "lo": "ສົ່ງແລ້ວ"
+          },
+          "actor_id": "citizen-0001",
+          "actor_name": "Somchai Vongsa",
+          "actor_role": "citizen",
+          "note": "Submitted from the mobile app",
+          "occurred_at": "2026-08-02T03:00:00Z"
+        },
+        {
+          "id": "ev-302",
+          "action": "review",
+          "from_status": "submitted",
+          "to_status": "under-review",
+          "status_label": {
+            "en": "Under review",
+            "lo": "ກຳລັງກວດສອບ"
+          },
+          "actor_name": "Officer Khamla Sisouk",
+          "occurred_at": "2026-08-04T08:10:00Z"
+        },
+        {
+          "id": "ev-303",
+          "action": "annotate",
+          "from_status": "under-review",
+          "to_status": "under-review",
+          "status_label": {
+            "en": "Under review",
+            "lo": "ກຳລັງກວດສອບ"
+          },
+          "note": "Awaiting a clearer scan of the family book",
+          "occurred_at": "2026-08-07T04:25:00Z"
+        },
+        {
+          "id": "ev-304",
+          "action": "return",
+          "from_status": "under-review",
+          "to_status": "returned",
+          "occurred_at": "2026-08-09T06:00:00Z"
+        },
+        {
+          "id": "ev-305",
+          "action": "reject",
+          "from_status": "returned",
+          "to_status": "rejected",
+          "status_label": {
+            "en": "Rejected",
+            "lo": "ຖືກປະຕິເສດ"
+          },
+          "actor_name": "Officer Khamla Sisouk",
+          "actor_role": "officer",
+          "reason_code": "ILLEGIBLE_DOCUMENT",
+          "note": "Rescan pages 2 and 3 and resubmit",
+          "occurred_at": "2026-08-11T07:40:00Z"
+        }
+      ]
+    }
+  },
+
+  "emptyTrail": {
+    "success": true,
+    "message": "timeline retrieved",
+    "data": {
+      "application_id": "app-203",
+      "reference_no": "LCC-2026-000203",
+      "status": "submitted",
+      "events": []
+    }
+  }
+}

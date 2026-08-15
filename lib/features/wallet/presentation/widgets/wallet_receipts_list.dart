@@ -107,7 +107,9 @@ class _ReceiptRow extends StatelessWidget {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isIn ? AppColors.categoryTintFinance : AppColors.primarySoft,
+              color: isIn
+                  ? AppColors.categoryTintFinance
+                  : AppColors.primarySoft,
               borderRadius: BorderRadius.circular(12),
             ),
             child: isIn

@@ -52,6 +52,7 @@ import '../../../../core/session/bloc/session_bloc.dart';
 import '../../../../presentation/icons/lucide_icon.dart';
 import '../../../../presentation/theme/app_colors.dart';
 import '../../../../utils/routes/app_name_routes.dart';
+import '../../../application/domain/entities/application_row.dart';
 import '../../domain/usecases/wallet_usecases.dart';
 import '../../domain/wallet_formatting.dart';
 import '../bloc/wallet_bloc.dart';
@@ -83,8 +84,7 @@ import '../widgets/wallet_top_up_sheet.dart';
 ///
 /// The encoding pairs with `AppRoutes`' own decode (`app_routes.dart:279`), so
 /// the two ends of `?from=` stay symmetric.
-const String kWalletSignInLocation =
-    '${AppNameRoutes.signin}?from=%2Fwallet';
+const String kWalletSignInLocation = '${AppNameRoutes.signin}?from=%2Fwallet';
 
 class WalletPage extends StatefulWidget {
   const WalletPage({super.key});
@@ -115,10 +115,10 @@ class _WalletPageState extends State<WalletPage> {
       return;
     }
     context.read<WalletBloc>().add(
-          WalletAuthChanged(
-            isAuthenticated: session.status == SessionStatus.authenticated,
-          ),
-        );
+      WalletAuthChanged(
+        isAuthenticated: session.status == SessionStatus.authenticated,
+      ),
+    );
   }
 
   /// `const act = () => { if (!isAuthenticated) onRequireAuth(); }` — `:140-142`.
@@ -197,7 +197,29 @@ class _WalletPageState extends State<WalletPage> {
                   const SizedBox(height: 24),
                   WalletBillsDueSection(
                     isAuthenticated: auth,
-                    onViewAll: () => _act(auth),
+                    // `isAuthenticated ? billsQuery.refetch() : onRequireAuth()`
+                    // — `:279`. B6a had no query, so signed-in taps did
+                    // nothing; B6b restores the refetch the split deferred.
+                    onViewAll: () => auth
+                        ? bloc.add(const WalletBillsRetried())
+                        : _act(auth),
+                    bills: state.bills,
+                    loading: state.billsLoading,
+                    // `{isAuthenticated && billsQuery.error && …}` — `:300`.
+                    // Signed out the query never fires, so a stale error from
+                    // a previous session must not survive the sign-out.
+                    error: auth ? state.billsError : null,
+                    onRetry: () => bloc.add(const WalletBillsRetried()),
+                    onPay: (ApplicationRow bill) => showWalletPaySheet(
+                      context,
+                      bloc: bloc,
+                      bill: bill,
+                      // `setPaying(null); setTopUpOpen(true)` — `:544-547`.
+                      // The sheet pops itself, then this runs; `_openTopUp`
+                      // needs `state.overview`'s bounds, which only the page
+                      // holds.
+                      onTopUp: () => _openTopUp(state),
+                    ),
                   ),
                   const SizedBox(height: 24),
                   _transactionsSection(state, auth, bloc),

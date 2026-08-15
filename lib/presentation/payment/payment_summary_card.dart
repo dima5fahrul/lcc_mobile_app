@@ -99,7 +99,11 @@ class PaymentSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.gray100),
         boxShadow: const <BoxShadow>[
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 2, offset: Offset(0, 1)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: Column(
@@ -114,7 +118,10 @@ class PaymentSummaryCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       'payment.serviceFee'.tr(context: context),
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -136,7 +143,10 @@ class PaymentSummaryCard extends StatelessWidget {
                   children: <Widget>[
                     Text(
                       'payment.service'.tr(context: context),
-                      style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted,
+                      ),
                       textAlign: TextAlign.right,
                     ),
                     const SizedBox(height: 2),
@@ -166,7 +176,10 @@ class PaymentSummaryCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         item.label,
-                        style: const TextStyle(fontSize: 14, color: AppColors.muted),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.muted,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),

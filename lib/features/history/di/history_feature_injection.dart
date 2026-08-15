@@ -21,6 +21,7 @@ library;
 
 import '../../application/domain/usecases/application_usecases.dart';
 import '../presentation/bloc/history_bloc.dart';
+import '../presentation/bloc/history_detail_bloc.dart';
 import 'history_injection.dart';
 import 'history_usecase_injection.dart';
 
@@ -28,11 +29,22 @@ class HistoryFeatureInjection {
   static Future<void> init() async {
     HistoryUsecaseInjection.inject();
 
-    historyInjection.registerFactory<HistoryBloc>(
-      () => HistoryBloc(
-        listApplications: historyInjection<ListApplications>(),
-        getStatusPipeline: historyInjection<GetStatusPipeline>(),
-      ),
-    );
+    historyInjection
+      ..registerFactory<HistoryBloc>(
+        () => HistoryBloc(
+          listApplications: historyInjection<ListApplications>(),
+          getStatusPipeline: historyInjection<GetStatusPipeline>(),
+        ),
+      )
+      // B7b's second and last BLoC. `registerFactory` for the same reason the
+      // list's is one, and one more: it carries the open case's id and two
+      // generation counters, so a surviving instance would hand the next case
+      // the previous one's in-flight answers (`hooks.ts:73`).
+      ..registerFactory<HistoryDetailBloc>(
+        () => HistoryDetailBloc(
+          getApplication: historyInjection<GetApplication>(),
+          getApplicationTimeline: historyInjection<GetApplicationTimeline>(),
+        ),
+      );
   }
 }

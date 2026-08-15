@@ -48,7 +48,32 @@
 /// so this function calls [DateTime.toLocal] to reproduce that. Every test
 /// that asserts a formatted date must therefore **pin a timezone** or it
 /// passes in Vientiane and fails in CI (specs.md § 6.7, `B7-AC-79`).
+///
+/// ## B7b adds the second formatter and imports the third (§ 6.7)
+///
+/// [formatApplicationDateTime] is `formatDateTime`
+/// (`HistoryDetailPage.tsx:96-104`) — the date above plus a **locale-invariant**
+/// 24-hour `HH:MM`. § 6.7 names this file as its home, which is why it lands
+/// here rather than in `features/history/`.
+///
+/// `formatLak` is **imported from `features/home/domain/home_formatting.dart`
+/// and re-exported**, not copied. That is `wallet_formatting.dart:32-35`'s
+/// ruling verbatim — G-L3 permits `features/A → features/B/domain/**`, the
+/// money format already has two copies in this tree (`home_formatting.dart:50`
+/// and `service_fee.dart:68`) and a third would be the one that drifts. Note
+/// this is the **opposite** disposition from the date table above, and
+/// deliberately so: there the alternative was a dependency on `features/news/`
+/// for a table `application` could own outright, here `wallet` has already
+/// pointed the identical arrow at `home` and `wallet_formatting.dart:29` names
+/// B7 as a coming consumer.
 library;
+
+/// `formatLak(n, lang)` — `serviceConfig.ts:38-43`, re-exported.
+///
+/// `HistoryDetailPage.tsx:346`, `:407` and `:641` all render it, and `:641`'s
+/// zero case is the one with a surprise in it: **`formatLak(0)` is `Free` /
+/// `ຟຣີ`, not `0 LAK`** (`B7-AC-56`).
+export '../../home/domain/home_formatting.dart' show formatLak, groupThousands;
 
 /// `'lo'` selects Lao; anything else is English. Mirrors the source's
 /// `lang === "lo" ? … : …` rather than an exhaustive switch it does not do.
@@ -106,4 +131,44 @@ String formatApplicationDate(String? value, String languageCode) {
       : kApplicationShortMonthsEn;
   final String day = local.day.toString().padLeft(2, '0');
   return '$day ${months[local.month - 1]} ${local.year}';
+}
+
+/// `formatDateTime(value, lang)` — `HistoryDetailPage.tsx:96-104`.
+///
+/// ```ts
+/// return `${formatDate(value, lang)}, ${d.toLocaleTimeString(
+///   lang === "lo" ? "lo-LA" : "en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+/// ```
+///
+/// `"2026-08-14T14:05:00Z"` → `"14 Aug 2026, 21:05"` / `"14 ສ.ຫ. 2026, 21:05"`
+/// at UTC+7.
+///
+/// ## The time part is LOCALE-INVARIANT, and that is a measurement
+///
+/// specs.md § 6.7 probed ICU live rather than inferring: `{hour: "2-digit",
+/// minute: "2-digit"}` resolves to the same zero-padded 24-hour `HH:MM` under
+/// both `en-GB` and `lo-LA`. There is therefore **no Lao time table here, and
+/// an AC that "verified" one would be verifying nothing** (`B7-AC-79`). Only
+/// the month name differs between the two renders, and that difference lives in
+/// [formatApplicationDate].
+///
+/// The two fallbacks are the date formatter's, reached the same way and for the
+/// same reason — absent → `"—"`, unparseable → the input **verbatim**
+/// (`:97-99`, `B7-AC-78`). They are re-derived here rather than delegated
+/// because the source re-derives them: `formatDateTime`'s guards run *before*
+/// it calls `formatDate`, so an unparseable input returns the raw value with no
+/// `", HH:MM"` appended.
+///
+/// Local zone, like the date — see the library doc's timezone note. A test that
+/// asserts a time without pinning `TZ` passes in Vientiane and fails in CI.
+String formatApplicationDateTime(String? value, String languageCode) {
+  if (value == null || value.isEmpty) return kAbsentDate;
+
+  final DateTime? parsed = DateTime.tryParse(value);
+  if (parsed == null) return value;
+
+  final DateTime local = parsed.toLocal();
+  final String hour = local.hour.toString().padLeft(2, '0');
+  final String minute = local.minute.toString().padLeft(2, '0');
+  return '${formatApplicationDate(value, languageCode)}, $hour:$minute';
 }

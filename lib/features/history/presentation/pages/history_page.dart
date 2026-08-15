@@ -20,14 +20,27 @@
 /// B7 keeps it. The consequence for the queries is that the BLoC carries no
 /// `enabled` flag: it fetches on `HistoryStarted`.
 ///
-/// ## The detail is B7b's
+/// ## The detail is in-page state, and B7b filled the seam (§ 6.6)
 ///
-/// § 6.6 rules the detail **in-page state, not a route** — the web swaps the
-/// body on `selectedId` and never changes the URL. B7a therefore adds no route
-/// and no `PopScope`; [_onRowTapped] is the seam B7b fills, and
-/// `HistoryReturnedFromDetail` (which refetches the list **and** the counts,
-/// `HistoryPage.tsx:120-124`) is already implemented and already tested by
-/// counting requests, so B7b inherits a working `onBack` rather than a stub.
+/// The web swaps the body on `selectedId` (`HistoryPage.tsx:72`) and never
+/// changes the URL, so B7b added **no route**: this widget holds a nullable
+/// [_HistoryPageState._selectedId] and renders [HistoryDetailPage] in place of
+/// its own body. `app_routes.dart` is untouched, and `B7-AC-74` asserts the
+/// location stays `/history` across the swap.
+///
+/// **The hardware back button is intercepted, and only while a detail is open.**
+/// The web's equivalent — browser back — leaves `/history` entirely, because the
+/// detail never pushed a history entry. Reproducing that faithfully would drop
+/// the citizen out of the tab, which is a bad enough mobile experience that
+/// shipping it silently would be its own defect. § 6.6 therefore rules a
+/// `PopScope` that returns to the list, and calls it what it is: a
+/// *platform-affordance adaptation*, not a feature. There is no web behaviour to
+/// diverge from because the web has no hardware back button. With the list
+/// showing, `canPop` is true and the tab behaves exactly as it did (`B7-AC-75`).
+///
+/// `HistoryReturnedFromDetail` — which refetches the list **and** the counts
+/// (`:120-124`) — was already implemented and tested by B7a, so closing the
+/// detail dispatches it rather than reimplementing the refetch (`B7-AC-76`).
 ///
 /// ## Where the numbers come from
 ///
@@ -47,6 +60,7 @@ import '../../../../presentation/theme/app_spacing.dart';
 import '../../../application/domain/application_formatting.dart';
 import '../../../application/domain/entities/application_row.dart';
 import '../bloc/history_bloc.dart';
+import '../bloc/history_detail_bloc.dart';
 import '../widgets/history_filter_chips.dart';
 import '../widgets/history_header.dart';
 import '../widgets/history_labels.dart';
@@ -54,17 +68,85 @@ import '../widgets/history_pager.dart';
 import '../widgets/history_panels.dart';
 import '../widgets/history_row_card.dart';
 import '../widgets/history_stat_tiles.dart';
+import 'history_detail_page.dart';
 
 /// `[0, 1, 2].map(...)` — exactly three skeleton rows (`:236`, `B7-AC-34`).
 const int kHistorySkeletonRows = 3;
 
-class HistoryPage extends StatelessWidget {
-  const HistoryPage({super.key});
+class HistoryPage extends StatefulWidget {
+  const HistoryPage({super.key, required this.detailBlocFactory});
+
+  /// Builds the BLoC for one opened case.
+  ///
+  /// **A factory passed in, not a container read.** G-L5 forbids a
+  /// `presentation/` file resolving from a global locator, and importing
+  /// `history_injection.dart` here fails it — measured, not assumed. The route
+  /// supplies this (`app_routes.dart`), which is where every other BLoC in the
+  /// app is resolved, so this page never learns that a container exists and a
+  /// widget test can hand it a fake without registering anything.
+  ///
+  /// Called **once per open**, so each case gets a fresh BLoC — see the
+  /// `registerFactory` note in `history_feature_injection.dart`.
+  final HistoryDetailBloc Function() detailBlocFactory;
+
+  @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  /// `const [selectedId, setSelectedId] = useState<string | null>(null)` —
+  /// `HistoryPage.tsx:72`. Null is the list; non-null is the detail.
+  String? _selectedId;
+
+  void _openDetail(String id) => setState(() => _selectedId = id);
+
+  /// `onBack` — clears the selection **and** refetches both queries (`:120-124`).
+  ///
+  /// The order matters only in that the event must reach the still-mounted list
+  /// BLoC; `context.read` is resolved before `setState` rebuilds.
+  void _closeDetail() {
+    context.read<HistoryBloc>().add(const HistoryReturnedFromDetail());
+    setState(() => _selectedId = null);
+  }
 
   @override
   Widget build(BuildContext context) {
     final Lang lang = Lang.fromCode(context.locale.languageCode);
 
+    return PopScope(
+      // Only intercept while a detail is open. With the list showing this is
+      // `true` and the shell's own back handling is untouched (`B7-AC-75`).
+      canPop: _selectedId == null,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (didPop) return;
+        _closeDetail();
+      },
+      child: _selectedId == null ? _list(context, lang) : _detail(context),
+    );
+  }
+
+  /// The detail's BLoC comes from [HistoryPage.detailBlocFactory] and is owned
+  /// by this `BlocProvider`, which closes it on the way out.
+  ///
+  /// `HistoryDetailStarted` is dispatched in `create:` rather than in a
+  /// `BlocListener` or an `initState`, so the first frame the citizen sees is
+  /// already `loading` and never the not-found card — which is why
+  /// `HistoryDetailState.showSkeleton` counts `initial` as loading.
+  Widget _detail(BuildContext context) {
+    final HistoryState state = context.read<HistoryBloc>().state;
+
+    return BlocProvider<HistoryDetailBloc>(
+      create: (_) => widget.detailBlocFactory()
+        ..add(HistoryDetailStarted(_selectedId!)),
+      child: HistoryDetailPage(
+        pipeline: state.pipeline,
+        onBack: _closeDetail,
+        // § 6.1 — all four seams null in B7b. B5 and B6 fill them.
+      ),
+    );
+  }
+
+  Widget _list(BuildContext context, Lang lang) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: BlocBuilder<HistoryBloc, HistoryState>(
@@ -114,7 +196,11 @@ class HistoryPage extends StatelessWidget {
                               .add(HistoryFilterPicked(id)),
                         ),
                         const SizedBox(height: AppSpacing.gap20),
-                        _ListRegion(state: state, lang: lang),
+                        _ListRegion(
+                          state: state,
+                          lang: lang,
+                          onOpen: _openDetail,
+                        ),
                         if (state.showPager) ...<Widget>[
                           const SizedBox(height: AppSpacing.gap20),
                           HistoryPager(
@@ -153,10 +239,17 @@ class HistoryPage extends StatelessWidget {
 /// rows**. Checking `rows.isEmpty` before `error` would render "No applications
 /// found" for a failed request, which is a different and much worse sentence.
 class _ListRegion extends StatelessWidget {
-  const _ListRegion({required this.state, required this.lang});
+  const _ListRegion({
+    required this.state,
+    required this.lang,
+    required this.onOpen,
+  });
 
   final HistoryState state;
   final Lang lang;
+
+  /// `setSelectedId(item.id)` — `HistoryPage.tsx:291`.
+  final ValueChanged<String> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -255,10 +348,10 @@ class _ListRegion extends StatelessWidget {
                 'sla': '${row.slaDays}',
               },
             ),
-      // The detail is B7b's (§ 6.6). Tapping a row does nothing in B7a, and
-      // that is the seam rather than a stub: B7b points this at its in-page
-      // state and dispatches `HistoryReturnedFromDetail` on the way back.
-      onTap: () {},
+      // `onClick={() => setSelectedId(item.id)}` — `HistoryPage.tsx:291`. The
+      // id, not the reference number: `/applications/{id}` is keyed on the
+      // former and the two are different strings on every row.
+      onTap: () => onOpen(row.id),
     );
   }
 }

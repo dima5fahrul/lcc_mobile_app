@@ -55,6 +55,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/envelope.dart';
 import '../../domain/entities/paged.dart';
 import '../../domain/entities/payment_method.dart';
+import '../../domain/entities/payment_result.dart';
 import '../../domain/entities/transaction.dart';
 import '../../domain/entities/wallet_entry.dart';
 import '../../domain/entities/wallet_overview.dart';
@@ -78,6 +79,22 @@ abstract class WalletRemoteDatasource {
   Future<Wallet> topUp({required int amountLak, required String methodCode});
 
   Future<List<PaymentMethod>> getPaymentMethods();
+
+  /// POST `/applications/{id}/pay` — **B6b, and the second write.**
+  ///
+  /// It lives on the *wallet's* datasource and not on
+  /// `features/application/data/`, which is deliberate and is B7a's ruling as
+  /// much as B6's: `ApplicationRepository`'s own doc parks every write —
+  /// `create`, `update`, `submit`, `addAttachment`, **`pay`** — for B4, and
+  /// says no write path may be added to that interface. specs.md § 3.1 puts
+  /// *"the pay POST only"* in `features/wallet/data/**` for exactly that
+  /// reason. The `/applications` **read** goes the other way: it is B7a's, and
+  /// B6b reaches it through a DI closure over `applicationInjection` rather
+  /// than adding a second datasource for one endpoint (§ 2.3, amended v1.1).
+  Future<PaymentResult> payApplication({
+    required String applicationId,
+    required String methodCode,
+  });
 }
 
 class WalletRemoteDatasourceImpl implements WalletRemoteDatasource {
@@ -162,6 +179,30 @@ class WalletRemoteDatasourceImpl implements WalletRemoteDatasource {
     return rowsOf(data, paymentMethodFrom);
   }
 
+  @override
+  Future<PaymentResult> payApplication({
+    required String applicationId,
+    required String methodCode,
+  }) async {
+    // **Exactly one key** (`B6-AC-36`) — `endpoints.ts:356` sends
+    // `{method_code}` and nothing else, and it is the method's **code**, never
+    // its id, its label or its kind. The three near-misses are named because
+    // all four are strings on `PaymentMethod` and a mix-up is a 422 at best
+    // and a charge against the wrong rail at worst.
+    //
+    // No idempotency key. Adding one would be a *better* client than the web
+    // has, on the one request in this app that moves a citizen's money —
+    // exactly the class of silent improvement specs.md § 6.11 forbids, and
+    // invisible to every fidelity tier that does not read the request body.
+    // Tier 0 reads it (`B6-AC-36`).
+    final dynamic data = await apiClient.post<dynamic>(
+      ApiEndpoint.applicationPay(applicationId),
+      body: <String, dynamic>{'method_code': methodCode},
+    );
+
+    return paymentResultFrom(_object(data, 'POST /applications/:id/pay'));
+  }
+
   /// The one place this datasource refuses to be total.
   ///
   /// `wallet_wire.dart`'s readers tolerate every missing *field*, because no
@@ -172,8 +213,10 @@ class WalletRemoteDatasourceImpl implements WalletRemoteDatasource {
   /// state the only available test citizen produces anyway.
   Map<String, dynamic> _object(dynamic data, String what) {
     if (data is Map<String, dynamic>) return data;
-    throw FormatException('$what answered a non-object payload: '
-        '${data.runtimeType}');
+    throw FormatException(
+      '$what answered a non-object payload: '
+      '${data.runtimeType}',
+    );
   }
 
   /// `Paged<dynamic>` (data) → [PagedRows] (domain).

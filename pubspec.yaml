@@ -42,6 +42,21 @@ dependencies:
   hive_flutter: ^1.1.0
   flutter_secure_storage: ^9.2.2
 
+  # File picking (F1 — specs.md § 4.3, and F1 adds exactly ONE dependency)
+  #
+  # Resident has four mandatory upload controls plus the applicant photo, and
+  # nothing already here can open a picker. F0 § 4.3 adds none and defers this
+  # by name: *"F1 adds it, with its own justification."*
+  #
+  # **`FileType.custom` + `allowedExtensions` is FORBIDDEN** (specs.md § 6.7,
+  # `F1-AC-44`). R-21: the web's `accept="image/*"` filters the picker's default
+  # view and rejects nothing — `handleFile` (`ResidentCertificatePage.tsx:213-221`)
+  # inspects neither `type` nor `size`, so **a `.pdf` picked on the Resident
+  # form must reach the attachment list**. `FileType.custom` is a hard filter
+  # with no escape hatch and would introduce a rejection the web does not have,
+  # on the one page where doing so is most tempting.
+  file_picker: ^8.1.7
+
   # Code-gen annotations
   freezed_annotation: ^3.1.0
   json_annotation: ^4.12.0

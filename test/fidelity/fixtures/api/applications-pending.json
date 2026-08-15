@@ -1,0 +1,232 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/applications/?page=1&per_page=50",
+    "status": 200,
+    "captured_at": "2026-08-15T00:40:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). No recording exists and none can be made: `GET /applications/` answers `total 0, rows 0` for the only available test citizen (measured 2026-08-14, specs.md § 2.1), and § 4.4 forbids creating a case to populate it — that loophole is named and closed in the same section and again as security-review item 6. The Bills Due card's POPULATED branch is therefore unreachable against live data, and every criterion that needs it is NOT EVALUATED with that reason.",
+    "credential": "none — no citizen token was obtained or seeded (§ 4.4; security-review.md item 6)",
+    "field_discipline": "Rows are shaped against `types.ts:421-448` (`ApplicationRow`) and match `applications-page.json`'s field set exactly, because B7a's `applicationRowFrom` is the one parser both go through — B6b adds no second wire mapping (§ 2.3 as amended at v1.1). No field appears here that `types.ts` does not declare.",
+    "synthetic_values": "Ids are the obviously-synthetic `app-9xx` shape, reference numbers use the reserved `LCC-2026-9000xx` block, and `subject_name` is a placeholder. No real receipt number, account number, UIN or name appears (§ 7.9 items 4 and 5).",
+    "selection": "Four rows, chosen to reach every branch of the due chip's three-way palette and BOTH halves of `ListPendingBills`'s filter. `app-901` is overdue by the server's own `is_overdue` flag; `app-902` is due inside the 3-day amber threshold; `app-903` is far out and therefore grey; `app-904` carries NO `due_at` at all, which `daysUntil` answers `null` for and which renders `formatDay`'s output rather than a day count. `app-905` and `app-906` are the two NEGATIVE controls the filter must drop — one `payment_state: \"paid\"` with a real fee, one `payment_state: \"pending\"` with `fee_lak: 0`. A fixture without those two would let a filter that dropped either half of `payment_state === \"pending\" && fee_lak > 0` pass."
+  },
+  "success": true,
+  "message": "OK",
+  "data": [
+    {
+      "id": "app-901",
+      "reference_no": "LCC-2026-900001",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject A",
+      "status": "awaiting_payment",
+      "status_label": {
+        "en": "Awaiting payment",
+        "lo": "ລໍຖ້າການຊຳລະ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 9,
+      "days_overdue": 4,
+      "is_overdue": true,
+      "submitted_at": "2026-08-01T02:15:00Z",
+      "due_at": "2026-08-11T02:15:00Z",
+      "created_at": "2026-08-01T02:15:00Z",
+      "updated_at": "2026-08-11T02:15:00Z"
+    },
+    {
+      "id": "app-902",
+      "reference_no": "LCC-2026-900002",
+      "service_code": "birth-cert",
+      "service_name": {
+        "en": "Birth Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject B",
+      "status": "awaiting_payment",
+      "status_label": {
+        "en": "Awaiting payment",
+        "lo": "ລໍຖ້າການຊຳລະ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 20000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 2,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-13T02:15:00Z",
+      "due_at": "2026-08-17T00:00:00Z",
+      "created_at": "2026-08-13T02:15:00Z",
+      "updated_at": "2026-08-13T02:15:00Z"
+    },
+    {
+      "id": "app-903",
+      "reference_no": "LCC-2026-900003",
+      "service_code": "marriage-cert",
+      "service_name": {
+        "en": "Marriage Certificate",
+        "lo": "ໃບຢັ້ງຢືນການແຕ່ງງານ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject C",
+      "status": "awaiting_payment",
+      "status_label": {
+        "en": "Awaiting payment",
+        "lo": "ລໍຖ້າການຊຳລະ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 120000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 10,
+      "days_waiting": 1,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-14T02:15:00Z",
+      "due_at": "2026-09-01T00:00:00Z",
+      "created_at": "2026-08-14T02:15:00Z",
+      "updated_at": "2026-08-14T02:15:00Z"
+    },
+    {
+      "id": "app-904",
+      "reference_no": "LCC-2026-900004",
+      "service_code": "death-cert",
+      "service_name": {
+        "en": "Death Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເສຍຊີວິດ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject D",
+      "status": "awaiting_payment",
+      "status_label": {
+        "en": "Awaiting payment",
+        "lo": "ລໍຖ້າການຊຳລະ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 35000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 1,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-14T02:15:00Z",
+      "created_at": "2026-08-14T02:15:00Z",
+      "updated_at": "2026-08-14T02:15:00Z"
+    },
+    {
+      "id": "app-905",
+      "reference_no": "LCC-2026-900005",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject E",
+      "status": "processing",
+      "status_label": {
+        "en": "Processing",
+        "lo": "ກຳລັງດຳເນີນການ"
+      },
+      "payment_state": "paid",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 3,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-12T02:15:00Z",
+      "due_at": "2026-08-16T00:00:00Z",
+      "created_at": "2026-08-12T02:15:00Z",
+      "updated_at": "2026-08-12T02:15:00Z"
+    },
+    {
+      "id": "app-906",
+      "reference_no": "LCC-2026-900006",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-9001",
+      "subject_name": "Test Subject F",
+      "status": "awaiting_payment",
+      "status_label": {
+        "en": "Awaiting payment",
+        "lo": "ລໍຖ້າການຊຳລະ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 0,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "sla_days": 5,
+      "days_waiting": 1,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-14T02:15:00Z",
+      "due_at": "2026-08-18T00:00:00Z",
+      "created_at": "2026-08-14T02:15:00Z",
+      "updated_at": "2026-08-14T02:15:00Z"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "per_page": 50,
+    "total": 6,
+    "total_pages": 1
+  },
+  "request_id": "synthetic-b6b-applications-pending"
+}

@@ -14,6 +14,7 @@ import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/core/storage/storage_service.dart';
 import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
+import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
@@ -70,6 +71,15 @@ void main() {
     // `test/features/{application,history}/**`, not this file.
     await applicationInjection.reset();
     await historyInjection.reset();
+    // F1's. NINTH occurrence of the same omission — and the third caught by
+    // `di_teardown_completeness_test.dart` rather than by an `ApiClient is
+    // already registered inside GetIt` cascade. ONE container, not two:
+    // `features/certificates/` is BLoC-only and has no `data/` (`F1-AC-17`),
+    // the inverse of B7a's page-less pair. F1's § 3.1 table names
+    // `test/features/certificates/**` and not this file; the edit is a recorded
+    // scope deviation on exactly B9a's, B9b's, B8a's, F0b's, B6a's and B7a's
+    // grounds.
+    await certificatesInjection.reset();
   });
 
   test('DI-6: one line in init() populates the whole feature', () {

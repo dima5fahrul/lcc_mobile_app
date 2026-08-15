@@ -1,0 +1,46 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/applications/app-901/pay",
+    "status": 200,
+    "captured_at": "2026-08-15T00:40:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). **§ 4.4 forbids executing `POST /applications/{id}/pay` against any host**, absolutely, and forbids the tempting workaround of creating a case so that there is something to pay for — named as the one thing most forbidden and audited as security-review item 6. specs.md § 8.5 gap G-2 records the consequence: NO pay response has ever been observed from any host, so this body is shaped from the declared type and the component that reads it, not from traffic. Every Tier 3 verdict for the surfaces it drives is NOT EVALUATED with that reason.",
+    "credential": "none — no citizen token was obtained or seeded, and no POST was issued to any host (§ 4.4; security-review.md item 6)",
+    "field_discipline": "The union of `types.ts:573-582` and `PaymentSection.tsx:43-57` (specs.md § 5.3). The two documented shapes disagree and the source reads BOTH — the component says so in its own comment — so the fixtures cover both arms rather than picking one. No field appears that neither source declares.",
+    "synthetic_values": "Receipt numbers use the reserved `RCPT-9000xx` block and account numbers the all-zero `000-00-00-00000` shape. No real receipt number, account number, UIN or name appears (§ 7.9 items 4 and 5).",
+    "exercises": "The SETTLE-ELSEWHERE arm (`PaymentSection.tsx:52-56`) — a bank rail that answers with steps instead of a receipt. `settled` is absent and `payment_state` is not `paid`, so § 6.9(4)'s SECOND branch renders: the centred grey \"we will confirm\" sentence, and no charge button. Carries `reference_no`, so the instruction panel's three-deep fallback (`:416`) stops at its first step; `qr_payload` is ABSENT, which is what makes `application-pay-instruction-qr.json` a distinct case rather than a duplicate."
+  },
+  "success": true,
+  "message": "OK",
+  "data": {
+    "receipt_no": "",
+    "amount_lak": 120000,
+    "status": "pending",
+    "payment_state": "processing",
+    "method_code": "bcel-transfer",
+    "instruction": {
+      "account": "000-00-00-00000",
+      "reference_no": "REF-900003",
+      "amount_lak": 120000,
+      "expires_at": "2026-08-18T00:00:00Z",
+      "steps": [
+        {
+          "en": "Open your banking app and choose Transfer.",
+          "lo": "ເປີດແອັບທະນາຄານຂອງທ່ານ ແລະ ເລືອກໂອນເງິນ."
+        },
+        {
+          "en": "Enter the account number and the exact amount.",
+          "lo": "ໃສ່ເລກບັນຊີ ແລະ ຈຳນວນເງິນທີ່ຖືກຕ້ອງ."
+        },
+        {
+          "en": "Put the reference number in the note field.",
+          "lo": "ໃສ່ເລກອ້າງອີງໃນຊ່ອງໝາຍເຫດ."
+        }
+      ],
+      "note": {
+        "en": "Transfers made after 16:00 settle the next working day.",
+        "lo": "ການໂອນຫຼັງ 16:00 ຈະຖືກຢືນຢັນໃນວັນເຮັດວຽກຖັດໄປ."
+      }
+    }
+  },
+  "request_id": "synthetic-b6b-application-pay-instruction"
+}

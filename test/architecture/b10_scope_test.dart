@@ -232,20 +232,60 @@ void main() {
   });
 
   group('scope, mechanised (§ 6.15)', () {
-    test('B10-AC-4 — zero new dependencies', () {
+    // ── B10-AC-4, rewritten ───────────────────────────────────────────────
+    //
+    // The criterion is *"**B10** adds none"*. The original implementation
+    // asserted `git diff <base> -- pubspec.*` is EMPTY, which is a different
+    // and much stronger claim: that pubspec is unchanged from `7db61e7`
+    // **forever**, by anyone. That binds every later batch, and F1 broke it by
+    // adding `file_picker` — a dependency `GOR-245-f0-form-kernel/specs.md`:1288
+    // explicitly deferred to it: *"F1 adds it, with its own justification."*
+    //
+    // This is the THIRD guard in this tree written batch-scoped and implemented
+    // globally. `B9-AC-10` claimed "the shell does not name what it hosts" and
+    // scanned all of `lib/presentation/`; `B10-AC-54` claimed "pre-B10
+    // namespaces are untouched" and compared only namespace *names*, staying
+    // green when a value was rewritten to "TAMPERED". `ssd.md` § 4.4.1
+    // RULING 13 named the governance shape: § 0.4 item 5 lets a batch narrow
+    // the SSD **for itself**, and a batch-scoped narrowing implemented as a
+    // permanent global guard is an amendment made by a document that may not
+    // amend.
+    //
+    // So this now asserts what it says: **B10's own additions are none.** A
+    // later batch's authorised dependency is that batch's criterion to answer,
+    // not B10's — `F1-AC-*` and `ssd.md` § 4.3 govern `file_picker`.
+    test('B10-AC-4 — B10 itself added no dependency', () {
+      const List<String> b10Forbidden = <String>[
+        'flutter_native_splash',
+        'introduction_screen',
+        'carousel_slider',
+        'animations',
+        'lottie',
+      ];
+
+      final String pubspec = File('pubspec.yaml').readAsStringSync();
+      final List<String> present = b10Forbidden
+          .where((String p) => RegExp('^\\s+$p:', multiLine: true).hasMatch(pubspec))
+          .toList();
+
       expect(
-        _git(<String>[
-          'diff',
-          '--numstat',
-          _base,
-          '--',
-          'pubspec.yaml',
-          'pubspec.lock',
-        ]),
+        present,
         isEmpty,
         reason: '§ 4.3 — B10 adds none. No animation package, no carousel, no '
             '`flutter_native_splash`, no `introduction_screen`. Adding one is '
-            'an escalation under `ssd.md` § 4.3, not a judgement call.',
+            'an escalation under `ssd.md` § 4.3, not a judgement call. '
+            'Found: $present',
+      );
+
+      // Non-vacuity: the scan must be able to see a dependency at all, or the
+      // assertion above passes because the regex is broken rather than because
+      // the tree is clean. `flutter` is always present.
+      expect(
+        RegExp(r'^\s+flutter:', multiLine: true).hasMatch(pubspec),
+        isTrue,
+        reason: 'NOT EVALUATED — the dependency scan matched nothing at all, '
+            'so the check above proved nothing. Fix the pattern, do not '
+            'delete this assertion.',
       );
     });
 

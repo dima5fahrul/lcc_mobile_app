@@ -22,8 +22,10 @@ library;
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../domain/entities/paged.dart';
 import '../../domain/entities/payment_method.dart';
+import '../../domain/entities/payment_result.dart';
 import '../../domain/entities/transaction.dart';
 import '../../domain/entities/wallet_entry.dart';
 import '../../domain/entities/wallet_overview.dart';
@@ -51,15 +53,13 @@ class WalletRepositoryImpl implements WalletRepository {
   Future<Either<Failure, PagedRows<WalletEntry>>> getEntries({
     required int page,
     required int perPage,
-  }) =>
-      _guard(() => remote.getEntries(page: page, perPage: perPage));
+  }) => _guard(() => remote.getEntries(page: page, perPage: perPage));
 
   @override
   Future<Either<Failure, PagedRows<Transaction>>> getTransactions({
     required int page,
     required int perPage,
-  }) =>
-      _guard(() => remote.getTransactions(page: page, perPage: perPage));
+  }) => _guard(() => remote.getTransactions(page: page, perPage: perPage));
 
   @override
   Future<Either<Failure, Transaction>> getTransaction(String receiptNo) =>
@@ -75,4 +75,43 @@ class WalletRepositoryImpl implements WalletRepository {
   @override
   Future<Either<Failure, List<PaymentMethod>>> getPaymentMethods() =>
       _guard(remote.getPaymentMethods);
+
+  /// The one call on this repository that does **not** go through [_guard].
+  ///
+  /// `_guard` folds every throw into `Failure(e.toString())`, which is right
+  /// for the six reads: each has exactly one rendered outcome, a message and a
+  /// retry. The charge has **two** — `PaymentSection.tsx:219` swaps the generic
+  /// red line for an amber panel with a top-up button on
+  /// `INSUFFICIENT_FUNDS` — and the code is the only thing that distinguishes
+  /// them. Reaching it through `e.toString()` would mean substring-matching a
+  /// message the server writes and localises.
+  ///
+  /// [ApiCode.networkError] is the fallback for a non-[ApiException] throw
+  /// (a `FormatException` from the parser, say): it is never
+  /// `INSUFFICIENT_FUNDS`, so the branch stays closed, and it keeps the `Left`
+  /// a [PaymentFailure] so no caller has to type-test.
+  ///
+  /// **`.message` is what reaches the screen** (`:384`), unchanged and
+  /// uncomposed — security-review item 2. Nothing here builds a string out of a
+  /// balance, a receipt number or an amount.
+  @override
+  Future<Either<Failure, PaymentResult>> payApplication({
+    required String applicationId,
+    required String methodCode,
+  }) async {
+    try {
+      return Right<Failure, PaymentResult>(
+        await remote.payApplication(
+          applicationId: applicationId,
+          methodCode: methodCode,
+        ),
+      );
+    } on ApiException catch (e) {
+      return Left<Failure, PaymentResult>(PaymentFailure(e.message, e.code));
+    } catch (e) {
+      return Left<Failure, PaymentResult>(
+        PaymentFailure(e.toString(), ApiCode.networkError),
+      );
+    }
+  }
 }

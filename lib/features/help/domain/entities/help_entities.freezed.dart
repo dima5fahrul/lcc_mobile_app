@@ -633,11 +633,25 @@ $BilingualCopyWith<$Res> get answer {
 /// @nodoc
 mixin _$HelpArticle {
 
- String get id; String get slug; Bilingual get title;/// **Null on the list endpoint.** The source says so in as many words at
-/// `:443`: *"The body only comes with the single-article endpoint."* — and
-/// that is exactly what makes the expanded guide show a skeleton until the
-/// second request lands. An empty `Bilingual` could not express the
-/// difference between "no body yet" and "a guide with an empty body".
+ String get id; String get slug; Bilingual get title;/// Null when the row carries no body.
+///
+/// ## The source's claim about when that happens is WRONG, and it is
+/// recorded rather than relied on
+///
+/// `HelpCenterPage.tsx:443` states it as fact — *"The body only comes with
+/// the single-article endpoint."* Measured against the 2026-08-13 recording
+/// of `GET /help/articles`: **both rows carry a full `body`**
+/// (`test/features/help/data/help_wire_test.dart` asserts the measurement).
+///
+/// The port keeps the lazy second request anyway, because that is what the
+/// source does and because `guide.data?.slug === g.slug` — not the list
+/// row — is what gates the rendered body. Reading the list body instead
+/// would be a behaviour change justified only by an assumption about an API
+/// that has already proved wrong once, in this very comment.
+///
+/// The nullability still earns its keep: an empty `Bilingual` could not
+/// express the difference between "no body yet" (skeleton) and "a guide
+/// with an empty body" (blank prose).
  Bilingual? get body;
 /// Create a copy of HelpArticle
 /// with the given fields replaced by the non-null parameter values.
@@ -860,11 +874,25 @@ class _HelpArticle implements HelpArticle {
 @override@JsonKey() final  String id;
 @override@JsonKey() final  String slug;
 @override@JsonKey() final  Bilingual title;
-/// **Null on the list endpoint.** The source says so in as many words at
-/// `:443`: *"The body only comes with the single-article endpoint."* — and
-/// that is exactly what makes the expanded guide show a skeleton until the
-/// second request lands. An empty `Bilingual` could not express the
-/// difference between "no body yet" and "a guide with an empty body".
+/// Null when the row carries no body.
+///
+/// ## The source's claim about when that happens is WRONG, and it is
+/// recorded rather than relied on
+///
+/// `HelpCenterPage.tsx:443` states it as fact — *"The body only comes with
+/// the single-article endpoint."* Measured against the 2026-08-13 recording
+/// of `GET /help/articles`: **both rows carry a full `body`**
+/// (`test/features/help/data/help_wire_test.dart` asserts the measurement).
+///
+/// The port keeps the lazy second request anyway, because that is what the
+/// source does and because `guide.data?.slug === g.slug` — not the list
+/// row — is what gates the rendered body. Reading the list body instead
+/// would be a behaviour change justified only by an assumption about an API
+/// that has already proved wrong once, in this very comment.
+///
+/// The nullability still earns its keep: an empty `Bilingual` could not
+/// express the difference between "no body yet" (skeleton) and "a guide
+/// with an empty body" (blank prose).
 @override final  Bilingual? body;
 
 /// Create a copy of HelpArticle

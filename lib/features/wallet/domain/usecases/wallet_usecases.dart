@@ -70,8 +70,7 @@ class GetWalletEntries
   @override
   Future<Either<Failure, PagedRows<WalletEntry>>> call(
     WalletPageParams params,
-  ) =>
-      repository.getEntries(page: params.page, perPage: params.perPage);
+  ) => repository.getEntries(page: params.page, perPage: params.perPage);
 }
 
 /// `GET /me/transactions?page=1&per_page=10` — the receipts list.
@@ -84,8 +83,7 @@ class GetTransactions
   @override
   Future<Either<Failure, PagedRows<Transaction>>> call(
     WalletPageParams params,
-  ) =>
-      repository.getTransactions(page: params.page, perPage: params.perPage);
+  ) => repository.getTransactions(page: params.page, perPage: params.perPage);
 }
 
 /// `GET /me/transactions/{receiptNo}`.
@@ -131,9 +129,9 @@ class TopUpWallet implements UseCase<Wallet, TopUpParams> {
 
   @override
   Future<Either<Failure, Wallet>> call(TopUpParams params) => repository.topUp(
-        amountLak: params.amountLak,
-        methodCode: params.methodCode,
-      );
+    amountLak: params.amountLak,
+    methodCode: params.methodCode,
+  );
 }
 
 /// `GET /payment-methods` — the public catalogue, sent **without** a bearer.

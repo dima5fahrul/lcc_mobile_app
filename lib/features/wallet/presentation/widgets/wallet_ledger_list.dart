@@ -115,7 +115,9 @@ class WalletLedgerList extends StatelessWidget {
                 _PagerButton(
                   label: 'common.back'.tr(context: context),
                   // `onPage(Math.max(1, page - 1))` — `:687`.
-                  onTap: page <= 1 ? null : () => onPage(page > 1 ? page - 1 : 1),
+                  onTap: page <= 1
+                      ? null
+                      : () => onPage(page > 1 ? page - 1 : 1),
                 ),
                 Expanded(
                   child: Text(
@@ -183,7 +185,9 @@ class _LedgerRow extends StatelessWidget {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isIn ? AppColors.categoryTintFinance : AppColors.primarySoft,
+              color: isIn
+                  ? AppColors.categoryTintFinance
+                  : AppColors.primarySoft,
               borderRadius: BorderRadius.circular(12),
             ),
             // lucide `ArrowDownLeft` / `ArrowUpRight`, both unbundled — see

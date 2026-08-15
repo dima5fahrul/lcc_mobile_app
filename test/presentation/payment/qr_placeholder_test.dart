@@ -45,7 +45,8 @@ void main() {
           expect(
             kQrPattern[y][x],
             anyOf(0, 1),
-            reason: 'cell ($x,$y) is ${kQrPattern[y][x]}; the source pushes '
+            reason:
+                'cell ($x,$y) is ${kQrPattern[y][x]}; the source pushes '
                 'only truthy 1s into `cells`',
           );
         }

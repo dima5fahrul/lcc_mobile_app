@@ -27,7 +27,11 @@ import 'package:lcc_mobile_app/features/wallet/domain/entities/paged.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/entities/payment_method.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/entities/transaction.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/entities/wallet_entry.dart';
+import 'package:lcc_mobile_app/features/application/domain/entities/application_row.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/entities/payment_result.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/entities/wallet_overview.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/usecases/list_pending_bills.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/usecases/pay_application.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/wallet_usecases.dart';
 import 'package:lcc_mobile_app/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:mocktail/mocktail.dart';
@@ -44,17 +48,28 @@ class _MockGetPaymentMethods extends Mock implements GetPaymentMethods {}
 
 class _MockTopUpWallet extends Mock implements TopUpWallet {}
 
+// ── B6b ──────────────────────────────────────────────────────────────────────
+
+class _MockListPendingBills extends Mock implements ListPendingBills {}
+
+class _MockPayApplication extends Mock implements PayApplication {}
+
 void main() {
   late _MockGetWalletOverview getOverview;
   late _MockGetWalletEntries getEntries;
   late _MockGetTransactions getTransactions;
   late _MockGetPaymentMethods getMethods;
   late _MockTopUpWallet topUp;
+  late _MockListPendingBills listBills;
+  late _MockPayApplication payApplication;
 
   setUpAll(() {
     registerFallbackValue(NoParams());
     registerFallbackValue(const WalletPageParams(page: 1));
     registerFallbackValue(const TopUpParams(amountLak: 1, methodCode: 'x'));
+    registerFallbackValue(
+      const PayApplicationParams(applicationId: 'x', methodCode: 'x'),
+    );
   });
 
   setUp(() {
@@ -63,10 +78,12 @@ void main() {
     getTransactions = _MockGetTransactions();
     getMethods = _MockGetPaymentMethods();
     topUp = _MockTopUpWallet();
+    listBills = _MockListPendingBills();
+    payApplication = _MockPayApplication();
 
-    when(() => getOverview(any())).thenAnswer(
-      (_) async => Right<Failure, WalletOverview>(tOverview()),
-    );
+    when(
+      () => getOverview(any()),
+    ).thenAnswer((_) async => Right<Failure, WalletOverview>(tOverview()));
     when(() => getEntries(any())).thenAnswer(
       (_) async => Right<Failure, PagedRows<WalletEntry>>(
         tPage<WalletEntry>(<WalletEntry>[tEntry()]),
@@ -83,15 +100,27 @@ void main() {
     when(() => topUp(any())).thenAnswer(
       (_) async => Right<Failure, Wallet>(tWallet(balanceLak: 70000)),
     );
+    // B6b. Empty by default — the reachable state on the only test account
+    // (`GET /applications/` answers `total 0`), so the default here is the
+    // measured one and a group that wants rows says so explicitly.
+    when(() => listBills(any())).thenAnswer(
+      (_) async =>
+          const Right<Failure, List<ApplicationRow>>(<ApplicationRow>[]),
+    );
+    when(() => payApplication(any())).thenAnswer(
+      (_) async => const Right<Failure, PaymentResult>(PaymentResult()),
+    );
   });
 
   WalletBloc build() => WalletBloc(
-        getWalletOverview: getOverview,
-        getWalletEntries: getEntries,
-        getTransactions: getTransactions,
-        getPaymentMethods: getMethods,
-        topUpWallet: topUp,
-      );
+    getWalletOverview: getOverview,
+    getWalletEntries: getEntries,
+    getTransactions: getTransactions,
+    getPaymentMethods: getMethods,
+    topUpWallet: topUp,
+    listPendingBills: listBills,
+    payApplication: payApplication,
+  );
 
   /// Asserts the whole call surface at once — every AC in § 7.4 is a claim
   /// about which of these five moved and which did not.
@@ -238,53 +267,57 @@ void main() {
   // ───────────────────────────────────────────────────────────────────────────
   // B6-AC-27 / B6-DIV-5 — the deliberately stale first frame
   // ───────────────────────────────────────────────────────────────────────────
-  group('B6-AC-27 the ledger renders stale rows and suppresses the skeleton',
-      () {
-    test('ledgerEntries falls back to overview.recentEntries — `:130`', () {
-      final WalletState s = WalletState(
-        overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
-      );
+  group(
+    'B6-AC-27 the ledger renders stale rows and suppresses the skeleton',
+    () {
+      test('ledgerEntries falls back to overview.recentEntries — `:130`', () {
+        final WalletState s = WalletState(
+          overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
+        );
 
-      expect(s.ledger, isNull);
-      expect(s.ledgerEntries, hasLength(1));
-    });
+        expect(s.ledger, isNull);
+        expect(s.ledgerEntries, hasLength(1));
+      });
 
-    test('the skeleton is SUPPRESSED while the stale list has something', () {
-      // `ledgerQuery.loading && entries.length === 0` — `:418`. Loading is
-      // true and the skeleton is still false, which is the whole divergence.
-      final WalletState s = WalletState(
-        overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
-        ledgerLoading: true,
-      );
+      test('the skeleton is SUPPRESSED while the stale list has something', () {
+        // `ledgerQuery.loading && entries.length === 0` — `:418`. Loading is
+        // true and the skeleton is still false, which is the whole divergence.
+        final WalletState s = WalletState(
+          overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
+          ledgerLoading: true,
+        );
 
-      expect(s.ledgerSkeleton, isFalse);
-    });
+        expect(s.ledgerSkeleton, isFalse);
+      });
 
-    test('and appears when the stale list is empty', () {
-      const WalletState s = WalletState(ledgerLoading: true);
-      expect(s.ledgerSkeleton, isTrue);
-    });
+      test('and appears when the stale list is empty', () {
+        const WalletState s = WalletState(ledgerLoading: true);
+        expect(s.ledgerSkeleton, isTrue);
+      });
 
-    test('a loaded page WINS over the stale rows', () {
-      final WalletState s = WalletState(
-        overview: tOverview(recentEntries: <WalletEntry>[tEntry(id: 'stale')]),
-        ledger: tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'fresh')]),
-      );
+      test('a loaded page WINS over the stale rows', () {
+        final WalletState s = WalletState(
+          overview: tOverview(
+            recentEntries: <WalletEntry>[tEntry(id: 'stale')],
+          ),
+          ledger: tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'fresh')]),
+        );
 
-      expect(s.ledgerEntries.single.id, 'fresh');
-    });
+        expect(s.ledgerEntries.single.id, 'fresh');
+      });
 
-    test('an EMPTY loaded page also wins — `??` not `isEmpty`', () {
-      // The distinction `PagedRows?` exists to carry: a genuinely empty ledger
-      // must not fall back to showing the overview's rows again.
-      final WalletState s = WalletState(
-        overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
-        ledger: tPage<WalletEntry>(const <WalletEntry>[]),
-      );
+      test('an EMPTY loaded page also wins — `??` not `isEmpty`', () {
+        // The distinction `PagedRows?` exists to carry: a genuinely empty ledger
+        // must not fall back to showing the overview's rows again.
+        final WalletState s = WalletState(
+          overview: tOverview(recentEntries: <WalletEntry>[tEntry()]),
+          ledger: tPage<WalletEntry>(const <WalletEntry>[]),
+        );
 
-      expect(s.ledgerEntries, isEmpty);
-    });
-  });
+        expect(s.ledgerEntries, isEmpty);
+      });
+    },
+  );
 
   // ───────────────────────────────────────────────────────────────────────────
   // B6-AC-28 — the toggle
@@ -365,84 +398,94 @@ void main() {
   // The generation guard — `hooks.ts:55-83`, ported and load-bearing
   // ───────────────────────────────────────────────────────────────────────────
   group('the generation guard — a newer request wins', () {
-    test('two overlapping ledger fetches: the SLOWER one does not overwrite',
-        () async {
-      // `bloc` 9.2.1's default event transformer is CONCURRENT, so two taps on
-      // the pager start two fetches. Without `const mine = ++generation.current`
-      // the slower one lands last and the citizen sees page 1 while the pager
-      // reads 2. Four B2 BLoCs shipped without this; B9 ported it.
-      final List<Completer<Either<Failure, PagedRows<WalletEntry>>>> pending =
-          <Completer<Either<Failure, PagedRows<WalletEntry>>>>[];
+    test(
+      'two overlapping ledger fetches: the SLOWER one does not overwrite',
+      () async {
+        // `bloc` 9.2.1's default event transformer is CONCURRENT, so two taps on
+        // the pager start two fetches. Without `const mine = ++generation.current`
+        // the slower one lands last and the citizen sees page 1 while the pager
+        // reads 2. Four B2 BLoCs shipped without this; B9 ported it.
+        final List<Completer<Either<Failure, PagedRows<WalletEntry>>>> pending =
+            <Completer<Either<Failure, PagedRows<WalletEntry>>>>[];
 
-      when(() => getEntries(any())).thenAnswer((_) {
-        final Completer<Either<Failure, PagedRows<WalletEntry>>> c =
-            Completer<Either<Failure, PagedRows<WalletEntry>>>();
-        pending.add(c);
-        return c.future;
-      });
+        when(() => getEntries(any())).thenAnswer((_) {
+          final Completer<Either<Failure, PagedRows<WalletEntry>>> c =
+              Completer<Either<Failure, PagedRows<WalletEntry>>>();
+          pending.add(c);
+          return c.future;
+        });
 
-      final WalletBloc bloc = build();
-      bloc.emit(const WalletState(
-        isAuthenticated: true,
-        showLedger: true,
-        ledgerPage: 1,
-      ));
+        final WalletBloc bloc = build();
+        bloc.emit(
+          const WalletState(
+            isAuthenticated: true,
+            showLedger: true,
+            ledgerPage: 1,
+          ),
+        );
 
-      bloc.add(const WalletLedgerPageChanged(2));
-      await Future<void>.delayed(const Duration(milliseconds: 5));
-      bloc.add(const WalletLedgerPageChanged(3));
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        bloc.add(const WalletLedgerPageChanged(2));
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        bloc.add(const WalletLedgerPageChanged(3));
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      expect(pending, hasLength(2), reason: 'both fetches should be in flight');
+        expect(
+          pending,
+          hasLength(2),
+          reason: 'both fetches should be in flight',
+        );
 
-      // The NEWER request (page 3) answers first…
-      pending[1].complete(
-        Right<Failure, PagedRows<WalletEntry>>(
-          tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'page-3')], page: 3),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        // The NEWER request (page 3) answers first…
+        pending[1].complete(
+          Right<Failure, PagedRows<WalletEntry>>(
+            tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'page-3')], page: 3),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      // …then the stale one arrives late.
-      pending[0].complete(
-        Right<Failure, PagedRows<WalletEntry>>(
-          tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'page-2')], page: 2),
-        ),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        // …then the stale one arrives late.
+        pending[0].complete(
+          Right<Failure, PagedRows<WalletEntry>>(
+            tPage<WalletEntry>(<WalletEntry>[tEntry(id: 'page-2')], page: 2),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      expect(bloc.state.ledger?.rows.single.id, 'page-3');
-      expect(bloc.state.ledgerLoading, isFalse);
-      await bloc.close();
-    });
+        expect(bloc.state.ledger?.rows.single.id, 'page-3');
+        expect(bloc.state.ledgerLoading, isFalse);
+        await bloc.close();
+      },
+    );
   });
 
   // ───────────────────────────────────────────────────────────────────────────
   // B6-AC-29 (state half) — the balance placeholder
   // ───────────────────────────────────────────────────────────────────────────
-  group('B6-AC-29 balanceIsPlaceholder — `walletQuery.loading && !overview`',
-      () {
-    test('loading with NO overview is a placeholder', () {
-      const WalletState s = WalletState(overviewLoading: true);
-      expect(s.balanceIsPlaceholder, isTrue);
-    });
+  group(
+    'B6-AC-29 balanceIsPlaceholder — `walletQuery.loading && !overview`',
+    () {
+      test('loading with NO overview is a placeholder', () {
+        const WalletState s = WalletState(overviewLoading: true);
+        expect(s.balanceIsPlaceholder, isTrue);
+      });
 
-    test('a REFETCH with an overview in hand is NOT', () {
-      // § 6.8(7): the old balance stays on screen through a refetch. Showing
-      // the ellipsis here would flicker the number on every `refreshMoney`.
-      final WalletState s = WalletState(
-        overviewLoading: true,
-        overview: tOverview(balanceLak: 20000),
-      );
+      test('a REFETCH with an overview in hand is NOT', () {
+        // § 6.8(7): the old balance stays on screen through a refetch. Showing
+        // the ellipsis here would flicker the number on every `refreshMoney`.
+        final WalletState s = WalletState(
+          overviewLoading: true,
+          overview: tOverview(balanceLak: 20000),
+        );
 
-      expect(s.balanceIsPlaceholder, isFalse);
-      expect(s.balanceLak, 20000);
-    });
+        expect(s.balanceIsPlaceholder, isFalse);
+        expect(s.balanceLak, 20000);
+      });
 
-    test('balanceLak is 0 when there is no overview — `?? 0`, `:122`', () {
-      expect(const WalletState().balanceLak, 0);
-    });
-  });
+      test('balanceLak is 0 when there is no overview — `?? 0`, `:122`', () {
+        expect(const WalletState().balanceLak, 0);
+      });
+    },
+  );
 
   // ───────────────────────────────────────────────────────────────────────────
   // B6-AC-53 — two filters over one catalogue
@@ -491,8 +534,13 @@ void main() {
       verify: (WalletBloc b) {
         // `refreshMoney` refetches the ledger ONLY when the ledger is open
         // (`:136`). Closed here, so entries must stay at zero.
-        expectCalls(overview: 1, entries: 0, transactions: 1, methods: 0,
-            topUps: 1);
+        expectCalls(
+          overview: 1,
+          entries: 0,
+          transactions: 1,
+          methods: 0,
+          topUps: 1,
+        );
         expect(b.state.topUpSucceeded, isTrue);
         expect(b.state.topUpPending, isFalse);
       },
@@ -507,7 +555,12 @@ void main() {
       ),
       wait: const Duration(milliseconds: 20),
       verify: (_) => expectCalls(
-          overview: 1, entries: 1, transactions: 1, methods: 0, topUps: 1),
+        overview: 1,
+        entries: 1,
+        transactions: 1,
+        methods: 0,
+        topUps: 1,
+      ),
     );
 
     blocTest<WalletBloc, WalletState>(
@@ -522,8 +575,13 @@ void main() {
       ),
       wait: const Duration(milliseconds: 20),
       verify: (WalletBloc b) {
-        expectCalls(overview: 0, entries: 0, transactions: 0, methods: 0,
-            topUps: 1);
+        expectCalls(
+          overview: 0,
+          entries: 0,
+          transactions: 0,
+          methods: 0,
+          topUps: 1,
+        );
         expect(b.state.topUpError, 'Insufficient funds');
         expect(b.state.topUpSucceeded, isFalse);
       },
@@ -548,9 +606,8 @@ void main() {
       'the exact amount and code reach the use case, unmodified',
       build: build,
       seed: () => const WalletState(isAuthenticated: true),
-      act: (WalletBloc b) => b.add(
-        const WalletTopUpSubmitted(amountLak: 123, methodCode: 'ldb'),
-      ),
+      act: (WalletBloc b) =>
+          b.add(const WalletTopUpSubmitted(amountLak: 123, methodCode: 'ldb')),
       wait: const Duration(milliseconds: 20),
       verify: (_) => verify(
         () => topUp(const TopUpParams(amountLak: 123, methodCode: 'ldb')),
@@ -619,12 +676,34 @@ void main() {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // B6-AC-45 — the named empty bill list
-  // ───────────────────────────────────────────────────────────────────────────
-  test('B6-AC-45 kBillsDueB6b is a NAMED empty constant, not an inline []', () {
-    // An inline `[]` at the widget would be indistinguishable from "the citizen
-    // has no bills" — which is the state it happens to produce today and is not
-    // what it means. `GET /applications/` is B7a's endpoint and B6b's consumer.
-    expect(kBillsDueB6b, isEmpty);
-  });
+  // `B6-AC-45` IS RETIRED HERE — see `wallet_scope_test.dart`'s replacement
+  // group for the full reasoning. In short: the criterion is tagged **B6a** and
+  // asserts the *absence* of the bills query; B6b's whole job is to add it, so
+  // the assertion is unsatisfiable by construction once this sub-batch lands.
+  // Keeping a passing version of it would mean asserting something other than
+  // what it says.
+  //
+  // What is asserted instead is the thing the constant was standing in for.
+  group(
+    'B6b — the bills query is real, and it is enabled: isAuthenticated',
+    () {
+      blocTest<WalletBloc, WalletState>(
+        'signed out, the bills read never fires (`:107`)',
+        build: build,
+        act: (WalletBloc b) =>
+            b.add(const WalletAuthChanged(isAuthenticated: false)),
+        wait: const Duration(milliseconds: 10),
+        verify: (_) => verifyNever(() => listBills(any())),
+      );
+
+      blocTest<WalletBloc, WalletState>(
+        'signed in, it fires exactly once per load',
+        build: build,
+        act: (WalletBloc b) =>
+            b.add(const WalletAuthChanged(isAuthenticated: true)),
+        wait: const Duration(milliseconds: 10),
+        verify: (_) => verify(() => listBills(any())).called(1),
+      );
+    },
+  );
 }

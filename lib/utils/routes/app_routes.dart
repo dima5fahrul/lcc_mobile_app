@@ -122,6 +122,7 @@ import '../../features/help/presentation/bloc/help_bloc.dart';
 import '../../features/help/presentation/pages/help_page.dart';
 import '../../features/history/di/history_injection.dart';
 import '../../features/history/presentation/bloc/history_bloc.dart';
+import '../../features/history/presentation/bloc/history_detail_bloc.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/di/home_injection.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
@@ -462,10 +463,24 @@ class AppRoutes {
         GoRoute(
           path: AppNameRoutes.history,
           name: AppNameRoutes.history,
+          // `detailBlocFactory` is B7b, and it is here for **G-L5**: the detail
+          // is in-page state, so `HistoryPage` needs a `HistoryDetailBloc` — but
+          // a `presentation/` file may not resolve one from a global locator,
+          // and `history_page.dart` importing `history_injection.dart` fails
+          // that guard (measured). Resolution happens here instead, where every
+          // other BLoC in the app is resolved, and the page receives a plain
+          // factory it can call without knowing a container exists.
+          //
+          // A **factory**, not an instance: `registerFactory` means each call
+          // yields a fresh BLoC, and the detail carries the open case's id plus
+          // two generation counters — one instance reused across two cases would
+          // hand the second the first's in-flight answers.
           builder: (_, __) => BlocProvider<HistoryBloc>(
             create: (_) =>
                 historyInjection<HistoryBloc>()..add(const HistoryStarted()),
-            child: const HistoryPage(),
+            child: HistoryPage(
+              detailBlocFactory: () => historyInjection<HistoryDetailBloc>(),
+            ),
           ),
         ),
         // CR-1 again (B6a). The **existing** `/wallet` route, builder wrapped.

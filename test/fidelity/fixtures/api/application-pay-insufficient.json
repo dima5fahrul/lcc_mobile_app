@@ -1,0 +1,16 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/applications/app-901/pay",
+    "status": 200,
+    "captured_at": "2026-08-15T00:40:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). **§ 4.4 forbids executing `POST /applications/{id}/pay` against any host**, absolutely, and forbids the tempting workaround of creating a case so that there is something to pay for — named as the one thing most forbidden and audited as security-review item 6. specs.md § 8.5 gap G-2 records the consequence: NO pay response has ever been observed from any host, so this body is shaped from the declared type and the component that reads it, not from traffic. Every Tier 3 verdict for the surfaces it drives is NOT EVALUATED with that reason.",
+    "credential": "none — no citizen token was obtained or seeded, and no POST was issued to any host (§ 4.4; security-review.md item 6)",
+    "field_discipline": "The union of `types.ts:573-582` and `PaymentSection.tsx:43-57` (specs.md § 5.3). The two documented shapes disagree and the source reads BOTH — the component says so in its own comment — so the fixtures cover both arms rather than picking one. No field appears that neither source declares.",
+    "synthetic_values": "Receipt numbers use the reserved `RCPT-9000xx` block and account numbers the all-zero `000-00-00-00000` shape. No real receipt number, account number, UIN or name appears (§ 7.9 items 4 and 5).",
+    "exercises": "The FAILURE envelope, not a result — `charge.error.code === \"INSUFFICIENT_FUNDS\"` (`PaymentSection.tsx:219`). Drives § 6.9(3)'s amber panel and the SUPPRESSION of the generic red line. The `code` is what the branch keys on; `PaymentFailure` carries it precisely so the branch never matches on the server-authored, localised `message` — a panel keyed to English prose would vanish the day the backend rewords it. `ApiCode.insufficientFunds` was already in the substrate before B6 (`api_exception.dart:39`, § 2.2 Finding O); this batch adds no code."
+  },
+  "success": false,
+  "code": "INSUFFICIENT_FUNDS",
+  "message": "Your wallet balance is not enough to pay this fee.",
+  "request_id": "synthetic-b6b-pay-insufficient"
+}

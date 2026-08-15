@@ -73,17 +73,19 @@ void main() {
   // B6-AC-24 — anonymity, asserted on the recorded request
   // ───────────────────────────────────────────────────────────────────────────
   group('B6-AC-24 the Authorization header, as it actually left the client', () {
-    test('the seed really does attach — the control that makes this non-vacuous',
-        () async {
-      // If this test ever goes green-by-accident (no token attached anywhere),
-      // every "absent" assertion below becomes meaningless. It is the guard on
-      // the guard.
-      bootWith(okEnvelope(tWalletOverviewJson()));
+    test(
+      'the seed really does attach — the control that makes this non-vacuous',
+      () async {
+        // If this test ever goes green-by-accident (no token attached anywhere),
+        // every "absent" assertion below becomes meaningless. It is the guard on
+        // the guard.
+        bootWith(okEnvelope(tWalletOverviewJson()));
 
-      await datasource.getOverview();
+        await datasource.getOverview();
 
-      expect(sent().headers['Authorization'], 'Bearer seeded-access-token');
-    });
+        expect(sent().headers['Authorization'], 'Bearer seeded-access-token');
+      },
+    );
 
     test('/payment-methods is sent WITHOUT an Authorization header', () async {
       // `endpoints.ts:362` marks it `anonymous: true`. The top-up sheet must
@@ -142,11 +144,13 @@ void main() {
   // B6-AC-33 — the one write's body, exactly two keys
   // ───────────────────────────────────────────────────────────────────────────
   group('B6-AC-33 POST /me/wallet/topup body', () {
-    setUp(() => bootWith(<String, dynamic>{
-          'success': true,
-          'message': 'OK',
-          'data': <String, dynamic>{'wallet': tWalletJson(balanceLak: 70000)},
-        }));
+    setUp(
+      () => bootWith(<String, dynamic>{
+        'success': true,
+        'message': 'OK',
+        'data': <String, dynamic>{'wallet': tWalletJson(balanceLak: 70000)},
+      }),
+    );
 
     test('carries EXACTLY {amount_lak, method_code} — no third key', () async {
       await datasource.topUp(amountLak: 50000, methodCode: 'bcel');
@@ -181,20 +185,27 @@ void main() {
       expect(adapter.callCount, 1);
     });
 
-    test('a response with no wallet block yields Wallet.empty, not a throw',
-        () async {
-      // The page discards the response and re-reads `/me/wallet`
-      // (`WalletPage.tsx:559-562`), so a missing `wallet` is a value nothing
-      // renders — not a failed credit. Throwing here would surface a SUCCESSFUL
-      // top-up as an error and invite the citizen to pay twice.
-      bootWith(okEnvelope(<String, dynamic>{}));
+    test(
+      'a response with no wallet block yields Wallet.empty, not a throw',
+      () async {
+        // The page discards the response and re-reads `/me/wallet`
+        // (`WalletPage.tsx:559-562`), so a missing `wallet` is a value nothing
+        // renders — not a failed credit. Throwing here would surface a SUCCESSFUL
+        // top-up as an error and invite the citizen to pay twice.
+        bootWith(okEnvelope(<String, dynamic>{}));
 
-      expect(await datasource.topUp(amountLak: 1, methodCode: 'bcel'),
-          Wallet.empty);
-    });
+        expect(
+          await datasource.topUp(amountLak: 1, methodCode: 'bcel'),
+          Wallet.empty,
+        );
+      },
+    );
 
     test('the returned wallet is parsed when it IS present', () async {
-      final Wallet w = await datasource.topUp(amountLak: 50000, methodCode: 'bcel');
+      final Wallet w = await datasource.topUp(
+        amountLak: 50000,
+        methodCode: 'bcel',
+      );
       expect(w.balanceLak, 70000);
     });
   });
@@ -209,7 +220,10 @@ void main() {
       await datasource.getEntries(page: 3, perPage: 10);
 
       expect(sent().path, '/me/wallet/entries');
-      expect(sent().queryParameters, <String, dynamic>{'page': 3, 'per_page': 10});
+      expect(sent().queryParameters, <String, dynamic>{
+        'page': 3,
+        'per_page': 10,
+      });
     });
 
     test('/me/transactions sends page and per_page as given', () async {
@@ -218,43 +232,57 @@ void main() {
       await datasource.getTransactions(page: 1, perPage: 10);
 
       expect(sent().path, '/me/transactions');
-      expect(sent().queryParameters, <String, dynamic>{'page': 1, 'per_page': 10});
+      expect(sent().queryParameters, <String, dynamic>{
+        'page': 1,
+        'per_page': 10,
+      });
     });
 
-    test('meta narrows onto PagedRows — page, totalPages, hasNext, hasPrev',
-        () async {
-      bootWith(okEnvelope(
-        <Map<String, dynamic>>[tWalletEntryJson()],
-        meta: pageMetaJson(
+    test(
+      'meta narrows onto PagedRows — page, totalPages, hasNext, hasPrev',
+      () async {
+        bootWith(
+          okEnvelope(
+            <Map<String, dynamic>>[tWalletEntryJson()],
+            meta: pageMetaJson(
+              page: 2,
+              totalPages: 5,
+              hasNext: true,
+              hasPrev: true,
+            ),
+          ),
+        );
+
+        final PagedRows<WalletEntry> page = await datasource.getEntries(
           page: 2,
-          totalPages: 5,
-          hasNext: true,
-          hasPrev: true,
-        ),
-      ));
+          perPage: 10,
+        );
 
-      final PagedRows<WalletEntry> page =
-          await datasource.getEntries(page: 2, perPage: 10);
-
-      expect(page.page, 2);
-      expect(page.totalPages, 5);
-      expect(page.hasNext, isTrue);
-      expect(page.hasPrev, isTrue);
-      expect(page.rows, hasLength(1));
-    });
+        expect(page.page, 2);
+        expect(page.totalPages, 5);
+        expect(page.hasNext, isTrue);
+        expect(page.hasPrev, isTrue);
+        expect(page.rows, hasLength(1));
+      },
+    );
 
     test('ONE malformed row costs that row, not the page', () async {
       // `whereType` rather than a cast — the disposition
       // `notification_remote_datasource.dart` takes. A wallet that refuses to
       // render because one historical entry is odd is worse than one that
       // renders the rest.
-      bootWith(okEnvelope(
-        <dynamic>[tWalletEntryJson(), 'not-an-object', 42],
-        meta: pageMetaJson(),
-      ));
+      bootWith(
+        okEnvelope(<dynamic>[
+          tWalletEntryJson(),
+          'not-an-object',
+          42,
+        ], meta: pageMetaJson()),
+      );
 
-      final PagedRows<WalletEntry> page =
-          await datasource.getEntries(page: 1, perPage: 10);
+      final PagedRows<WalletEntry> page = await datasource.getEntries(
+        page: 1,
+        perPage: 10,
+      );
 
       expect(page.rows, hasLength(1));
     });
@@ -279,19 +307,21 @@ void main() {
       expect(o.entryCount, 0);
     });
 
-    test('a non-object payload THROWS rather than answering an empty wallet',
-        () async {
-      // The one place this datasource refuses to be total. A broken backend and
-      // an empty wallet must not look the same, because the only test citizen
-      // available produces the empty wallet anyway — a silent fallback would
-      // hide the breakage behind the state we cannot distinguish it from.
-      bootWith(okEnvelope('a string'));
+    test(
+      'a non-object payload THROWS rather than answering an empty wallet',
+      () async {
+        // The one place this datasource refuses to be total. A broken backend and
+        // an empty wallet must not look the same, because the only test citizen
+        // available produces the empty wallet anyway — a silent fallback would
+        // hide the breakage behind the state we cannot distinguish it from.
+        bootWith(okEnvelope('a string'));
 
-      await expectLater(
-        datasource.getOverview(),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        await expectLater(
+          datasource.getOverview(),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -324,41 +354,49 @@ void main() {
   // ───────────────────────────────────────────────────────────────────────────
   group('GET /payment-methods', () {
     test('parses a PLAIN ARRAY, not a paged envelope', () async {
-      bootWith(okEnvelope(<Map<String, dynamic>>[
-        tPaymentMethodJson(code: 'bcel'),
-        tPaymentMethodJson(code: 'wallet'),
-      ]));
+      bootWith(
+        okEnvelope(<Map<String, dynamic>>[
+          tPaymentMethodJson(code: 'bcel'),
+          tPaymentMethodJson(code: 'wallet'),
+        ]),
+      );
 
       final List<PaymentMethod> rows = await datasource.getPaymentMethods();
 
       expect(rows.map((PaymentMethod m) => m.code), <String>['bcel', 'wallet']);
     });
 
-    test('a payload that is not a list at all yields EMPTY, not a crash',
-        () async {
-      bootWith(okEnvelope(<String, dynamic>{'unexpected': true}));
+    test(
+      'a payload that is not a list at all yields EMPTY, not a crash',
+      () async {
+        bootWith(okEnvelope(<String, dynamic>{'unexpected': true}));
 
-      expect(await datasource.getPaymentMethods(), isEmpty);
-    });
+        expect(await datasource.getPaymentMethods(), isEmpty);
+      },
+    );
 
-    test('settlement and sort_order are on the wire and are NOT modelled',
-        () async {
-      // security-review item 5: `settlement` carries strings such as
-      // `"BCEL · 010-12-00-0045821"`. Not modelling it is what makes it
-      // structurally impossible for a bank account number to reach a Flutter
-      // log, a persisted state or a BLoC observer.
-      bootWith(okEnvelope(<Map<String, dynamic>>[
-        <String, dynamic>{
-          ...tPaymentMethodJson(),
-          'settlement': 'BCEL · 010-12-00-0045821',
-          'sort_order': 3,
-        },
-      ]));
+    test(
+      'settlement and sort_order are on the wire and are NOT modelled',
+      () async {
+        // security-review item 5: `settlement` carries strings such as
+        // `"BCEL · 010-12-00-0045821"`. Not modelling it is what makes it
+        // structurally impossible for a bank account number to reach a Flutter
+        // log, a persisted state or a BLoC observer.
+        bootWith(
+          okEnvelope(<Map<String, dynamic>>[
+            <String, dynamic>{
+              ...tPaymentMethodJson(),
+              'settlement': 'BCEL · 010-12-00-0045821',
+              'sort_order': 3,
+            },
+          ]),
+        );
 
-      final PaymentMethod m = (await datasource.getPaymentMethods()).single;
+        final PaymentMethod m = (await datasource.getPaymentMethods()).single;
 
-      expect(m.toString(), isNot(contains('010-12-00-0045821')));
-      expect(m.toString(), isNot(contains('sort_order')));
-    });
+        expect(m.toString(), isNot(contains('010-12-00-0045821')));
+        expect(m.toString(), isNot(contains('sort_order')));
+      },
+    );
   });
 }

@@ -189,10 +189,27 @@ class _ReferenceSelectViewState extends State<ReferenceSelectView> {
     );
   }
 
+  /// `DropdownButton` asserts that EXACTLY ONE item carries `value`
+  /// (`dropdown.dart:1028`); the blank row at `:315` always carries `''`, so
+  /// falling back to it is total. This mirrors React's own resolution:
+  /// `updateOptions` (`react-dom@18.3.1`, `react-dom.development.js:2133-2155`)
+  /// selects the first non-disabled option — the blank row — when nothing
+  /// matches, and fires no `change`, so the held value survives.
+  ///
+  /// `length == 1` rather than `isNotEmpty` because the assert fails on *zero
+  /// or 2 or more*: a list serving the same code twice is its other arm, which
+  /// no zero-match framing reaches. RULING 14, § 6.3.9.
+  static String _selectableValue(String value, List<Option> options) {
+    if (value.isEmpty) return '';
+    return options.where((Option o) => o.value == value).length == 1
+        ? value
+        : '';
+  }
+
   Widget _dropdown(BuildContext context, ReferenceFieldState s, bool inert) {
     return DropdownButtonHideUnderline(
       child: DropdownButton<String>(
-        value: widget.value.isEmpty ? '' : widget.value,
+        value: _selectableValue(widget.value, s.options),
         isExpanded: true,
         isDense: true,
         icon: const SizedBox.shrink(),

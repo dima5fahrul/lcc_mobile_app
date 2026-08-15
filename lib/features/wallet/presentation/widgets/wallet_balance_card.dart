@@ -129,7 +129,9 @@ class WalletBalanceCard extends StatelessWidget {
               // — `:162`. The blur is dropped: a `BackdropFilter` over a flat
               // gradient produces the same pixels and costs a saveLayer.
               color: AppColors.white.withValues(alpha: 0.10),
-              border: Border.all(color: AppColors.white.withValues(alpha: 0.20)),
+              border: Border.all(
+                color: AppColors.white.withValues(alpha: 0.20),
+              ),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -142,7 +144,9 @@ class WalletBalanceCard extends StatelessWidget {
                         // `uppercase tracking-wider` — the CSS transform is
                         // applied here rather than in the JSON so the key's
                         // value stays byte-identical to the source's.
-                        'wallet.availableBalance'.tr(context: context).toUpperCase(),
+                        'wallet.availableBalance'
+                            .tr(context: context)
+                            .toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
                           letterSpacing: 0.6,
@@ -211,7 +215,11 @@ class WalletBalanceCard extends StatelessWidget {
                       child: _HeaderButton(
                         // `Plus` is not in `assets/icons/lucide/`; see
                         // `wallet_panels.dart`'s library doc.
-                        icon: const Icon(Icons.add, size: 16, color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.add,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
                         label: 'wallet.topUp'.tr(context: context),
                         onTap: onTopUp,
                         filled: true,
@@ -221,7 +229,11 @@ class WalletBalanceCard extends StatelessWidget {
                     Expanded(
                       child: _HeaderButton(
                         // `Send` likewise unbundled.
-                        icon: const Icon(Icons.send, size: 16, color: AppColors.white),
+                        icon: const Icon(
+                          Icons.send,
+                          size: 16,
+                          color: AppColors.white,
+                        ),
                         label: 'wallet.transfer'.tr(context: context),
                         onTap: onTransfer,
                         filled: false,

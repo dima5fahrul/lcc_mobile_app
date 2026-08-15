@@ -56,8 +56,8 @@ const String _root = 'test/architecture/fixtures/violations';
 /// measured lines of today's tree; the edge § 6.1.2 row 3 actually names is
 /// this one, and nothing else in the map can see it. Its cross-check pulls its
 /// weight immediately: G-L1 and G-L2 both live one path segment away from it.
-final Map<String, List<String> Function(List<DartFile>)> _guards =
-    <String, List<String> Function(List<DartFile>)>{
+final Map<String, List<String> Function(List<DartFile>)>
+_guards = <String, List<String> Function(List<DartFile>)>{
   'G-L1': glL1Violations,
   'G-L2': glL2Violations,
   'G-L3': glL3Violations,
@@ -82,7 +82,8 @@ void _othersStaySilent(String owner, List<DartFile> files) {
     expect(
       rule(files),
       isEmpty,
-      reason: '$id fired on the $owner fixture. A guard that reports a '
+      reason:
+          '$id fired on the $owner fixture. A guard that reports a '
           "violation of somebody else's rule is not enforcing its own — the "
           'citation it produces would send a reader to the wrong defect.',
     );
@@ -95,8 +96,10 @@ void main() {
       // The whole self-test rests on this: with `lib` hardcoded there is no
       // way to run a guard over anything but the production tree, and so no
       // way to observe one failing without breaking the build on purpose.
-      expect(scanTree('$_root/g_l1').map((DartFile f) => f.path).toList(),
-          <String>['data/model.dart', 'presentation/widget.dart']);
+      expect(
+        scanTree('$_root/g_l1').map((DartFile f) => f.path).toList(),
+        <String>['data/model.dart', 'presentation/widget.dart'],
+      );
     });
 
     test('a missing root fails loudly rather than scanning nothing', () {
@@ -114,40 +117,36 @@ void main() {
   test('G-L1 fires on a presentation file importing data/', () {
     final List<DartFile> files = scanTree('$_root/g_l1');
 
-    expect(
-      glL1Violations(files),
-      <String>['presentation/widget.dart:3 -> ../data/model.dart'],
-    );
+    expect(glL1Violations(files), <String>[
+      'presentation/widget.dart:3 -> ../data/model.dart',
+    ]);
     _othersStaySilent('G-L1', files);
   });
 
   test('G-L2 fires on a domain file importing presentation/', () {
     final List<DartFile> files = scanTree('$_root/g_l2');
 
-    expect(
-      glL2Violations(files),
-      <String>['domain/entity.dart:3 -> ../presentation/widget.dart'],
-    );
+    expect(glL2Violations(files), <String>[
+      'domain/entity.dart:3 -> ../presentation/widget.dart',
+    ]);
     _othersStaySilent('G-L2', files);
   });
 
   test('G-L3 fires on features/a importing features/b/data', () {
     final List<DartFile> files = scanTree('$_root/g_l3');
 
-    expect(
-      glL3Violations(files),
-      <String>['[a → b] features/a/di/x.dart:7 -> ../../b/data/y.dart'],
-    );
+    expect(glL3Violations(files), <String>[
+      '[a → b] features/a/di/x.dart:7 -> ../../b/data/y.dart',
+    ]);
     _othersStaySilent('G-L3', files);
   });
 
   test('G-L4 fires on a core file importing package:flutter/material.dart', () {
     final List<DartFile> files = scanTree('$_root/g_l4');
 
-    expect(
-      glL4Violations(files),
-      <String>['core/thing.dart:3 -> package:flutter/material.dart'],
-    );
+    expect(glL4Violations(files), <String>[
+      'core/thing.dart:3 -> package:flutter/material.dart',
+    ]);
     // The second half of G-L4 is a different rule with a different failure
     // mode, so it gets its own assertion rather than riding on the first.
     expect(glL4Unclassified(files), isEmpty);
@@ -159,13 +158,10 @@ void main() {
 
     // Both halves, in the order the rule emits them: the import edge first,
     // then the identifier. One citation apiece.
-    expect(
-      glL5Violations(files),
-      <String>[
-        '[di import] presentation/page.dart:8 -> ../di/auth_injection.dart',
-        '[locator `authInjection`] presentation/page.dart',
-      ],
-    );
+    expect(glL5Violations(files), <String>[
+      '[di import] presentation/page.dart:8 -> ../di/auth_injection.dart',
+      '[locator `authInjection`] presentation/page.dart',
+    ]);
     _othersStaySilent('G-L5', files);
   });
 
@@ -177,21 +173,15 @@ void main() {
     // for. Asserted here rather than taken on trust, because a G-L7 that
     // reported nothing because the scan found nothing would look identical to
     // a G-L7 that reported nothing because it works.
-    expect(
-      files.map((DartFile f) => f.path).toList(),
-      <String>[
-        'features/notifications/presentation/bell.dart',
-        'presentation/shell/app_bar_fixture.dart',
-      ],
-    );
+    expect(files.map((DartFile f) => f.path).toList(), <String>[
+      'features/notifications/presentation/bell.dart',
+      'presentation/shell/app_bar_fixture.dart',
+    ]);
 
-    expect(
-      glL7Violations(files),
-      <String>[
-        'presentation/shell/app_bar_fixture.dart:20 -> '
-            '../../features/notifications/presentation/bell.dart',
-      ],
-    );
+    expect(glL7Violations(files), <String>[
+      'presentation/shell/app_bar_fixture.dart:20 -> '
+          '../../features/notifications/presentation/bell.dart',
+    ]);
     _othersStaySilent('G-L7', files);
   });
 
@@ -201,67 +191,88 @@ void main() {
 
     // Asserted, not assumed: a G-L8 that reported nothing because the scan
     // found nothing looks identical to a G-L8 that works.
-    expect(
-      files.map((DartFile f) => f.path).toList(),
-      <String>['features/planted/presentation/bare_tr_fixture.dart'],
-    );
+    expect(files.map((DartFile f) => f.path).toList(), <String>[
+      'features/planted/presentation/bare_tr_fixture.dart',
+    ]);
 
     // EXACTLY two of the fixture's three call sites, by `path:line -> key`.
     // The middle one passes `context:` and must not be here; the third
     // mentions `context` only inside a nested argument and must be.
-    expect(
-      _glL8Unlisted(files),
-      <String>[
-        'features/planted/presentation/bare_tr_fixture.dart:23 -> '
-            'planted.bare.tr() has no `context:`',
-        'features/planted/presentation/bare_tr_fixture.dart:30 -> '
-            'planted.nested.tr() has no `context:`',
-      ],
-    );
+    expect(_glL8Unlisted(files), <String>[
+      'features/planted/presentation/bare_tr_fixture.dart:23 -> '
+          'planted.bare.tr() has no `context:`',
+      'features/planted/presentation/bare_tr_fixture.dart:30 -> '
+          'planted.nested.tr() has no `context:`',
+    ]);
     _othersStaySilent('G-L8', files);
   });
 
-  test('B10-AC-9 — and the allowlist really does suppress, one site at a time',
-      () {
-    // The other half of the control. A guard whose allowlist did nothing would
-    // pass the test above and be useless; a guard whose allowlist suppressed
-    // everything would pass it too and be worse.
-    final List<DartFile> files = scanTree('$_root/g_l8');
-    const String path = 'features/planted/presentation/bare_tr_fixture.dart';
+  test(
+    'B10-AC-9 — and the allowlist really does suppress, one site at a time',
+    () {
+      // The other half of the control. A guard whose allowlist did nothing would
+      // pass the test above and be useless; a guard whose allowlist suppressed
+      // everything would pass it too and be worse.
+      final List<DartFile> files = scanTree('$_root/g_l8');
+      const String path = 'features/planted/presentation/bare_tr_fixture.dart';
 
-    final List<String> oneListed = glL8Violations(
-      files,
-      allowlist: const <TrAllowEntry>[
-        TrAllowEntry(path: path, line: 23, key: 'planted.bare', batch: 'test'),
-      ],
-    );
+      final List<String> oneListed = glL8Violations(
+        files,
+        allowlist: const <TrAllowEntry>[
+          TrAllowEntry(
+            path: path,
+            line: 23,
+            key: 'planted.bare',
+            batch: 'test',
+          ),
+        ],
+      );
 
-    expect(oneListed, <String>['$path:30 -> planted.nested.tr() has no `context:`'],
-        reason: 'listing one site suppresses exactly that site');
+      expect(oneListed, <String>[
+        '$path:30 -> planted.nested.tr() has no `context:`',
+      ], reason: 'listing one site suppresses exactly that site');
 
-    // And a line number that no longer matches must NOT break the suppression
-    // — that is the declared deviation, asserted rather than described.
-    final List<String> wrongLine = glL8Violations(
-      files,
-      allowlist: const <TrAllowEntry>[
-        TrAllowEntry(path: path, line: 999, key: 'planted.bare', batch: 'test'),
-      ],
-    );
-    expect(wrongLine, oneListed,
-        reason: 'entries match on `path::key`; `line` is navigation, not the '
+      // And a line number that no longer matches must NOT break the suppression
+      // — that is the declared deviation, asserted rather than described.
+      final List<String> wrongLine = glL8Violations(
+        files,
+        allowlist: const <TrAllowEntry>[
+          TrAllowEntry(
+            path: path,
+            line: 999,
+            key: 'planted.bare',
+            batch: 'test',
+          ),
+        ],
+      );
+      expect(
+        wrongLine,
+        oneListed,
+        reason:
+            'entries match on `path::key`; `line` is navigation, not the '
             'key. A comment added above a listed call must not turn the guard '
-            'red — that is how a guard gets deleted instead of fixed.');
+            'red — that is how a guard gets deleted instead of fixed.',
+      );
 
-    // But a wrong KEY must not suppress anything.
-    final List<String> wrongKey = glL8Violations(
-      files,
-      allowlist: const <TrAllowEntry>[
-        TrAllowEntry(path: path, line: 23, key: 'planted.other', batch: 'test'),
-      ],
-    );
-    expect(wrongKey, hasLength(2),
-        reason: 'an entry for a key that is not there suppresses nothing');
-  });
+      // But a wrong KEY must not suppress anything.
+      final List<String> wrongKey = glL8Violations(
+        files,
+        allowlist: const <TrAllowEntry>[
+          TrAllowEntry(
+            path: path,
+            line: 23,
+            key: 'planted.other',
+            batch: 'test',
+          ),
+        ],
+      );
+      expect(
+        wrongKey,
+        hasLength(2),
+        reason: 'an entry for a key that is not there suppresses nothing',
+      );
+    },
+  );
 
   test('B10-AC-9 — a dead entry is reported as dead', () {
     final List<DartFile> files = scanTree('$_root/g_l8');
@@ -287,10 +298,9 @@ void main() {
     final List<DartFile> files = scanTree('$_root/g_l6');
 
     // Assertion 1: the guard reports EXACTLY the planted edge.
-    expect(
-      glL6Violations(files),
-      <String>['data/repo.dart:11 -> ../presentation/widget.dart'],
-    );
+    expect(glL6Violations(files), <String>[
+      'data/repo.dart:11 -> ../presentation/widget.dart',
+    ]);
     // Assertion 2: nobody else claims it.
     _othersStaySilent('G-L6', files);
   });
@@ -317,7 +327,9 @@ void main() {
       reason: 'G-L2 is expected to be BLIND to a `data/ -> presentation/` edge',
     );
     expect(
-      files.firstWhere((DartFile f) => f.path == 'data/repo.dart').under('domain'),
+      files
+          .firstWhere((DartFile f) => f.path == 'data/repo.dart')
+          .under('domain'),
       isFalse,
       reason: 'the specific reason G-L2 cannot see it',
     );
@@ -326,16 +338,13 @@ void main() {
   test('F0-AC-84 — the toUtc() guard FIRES against a planted fixture', () {
     final List<DartFile> files = scanTree('$_root/date_path');
 
-    expect(
-      toUtcViolations(files),
-      <String>[
-        'features/planted/domain/clock_fixture.dart:10 -> '
-            'DateTime brokenNow() => DateTime.now().toUtc();',
-        'features/planted/domain/clock_fixture.dart:12 -> '
-            'String brokenToday() => '
-            'DateTime.now().toUtc().toIso8601String().substring(0, 10);',
-      ],
-    );
+    expect(toUtcViolations(files), <String>[
+      'features/planted/domain/clock_fixture.dart:10 -> '
+          'DateTime brokenNow() => DateTime.now().toUtc();',
+      'features/planted/domain/clock_fixture.dart:12 -> '
+          'String brokenToday() => '
+          'DateTime.now().toUtc().toIso8601String().substring(0, 10);',
+    ]);
   });
 
   test('F0-AC-84 — and it is green on the real tree', () {
@@ -355,8 +364,7 @@ void main() {
     );
   });
 
-  test('F0-AC-29 — the register really does suppress, and only its own rows',
-      () {
+  test('F0-AC-29 — the register really does suppress, and only its own rows', () {
     // Capability, not wiring: the same scan over the same tree returns nothing
     // once the offending path is a register key. Asserted by running the rule
     // over the REAL tree, where both register rows exist and are silent, while
@@ -367,13 +375,28 @@ void main() {
     expect(dateNowDeadRegisterRows(lib), isEmpty);
 
     // And the register is not silently empty — a register with no rows would
-    // make both assertions above true for the wrong reason.
-    expect(kDateNowRegister, hasLength(2));
+    // make both assertions above true for the wrong reason. The exact length
+    // also catches the opposite failure: a register grown broad enough to
+    // suppress the guard rather than to document an exception.
+    //
+    // **2 → 3, by B6b.** `daysUntil(value, {now})`
+    // (`features/wallet/domain/wallet_formatting.dart`) is the third row and it
+    // is B9a's `relativeTime` row's exact shape: an injectable default for
+    // RENDERING, reaching no payload key and no `form_data` value, whose
+    // injection is required by its own criterion (`B6-AC-21`) and exercised by
+    // a two-clock negative control in `payment_result_test.dart`. Registered
+    // rather than exempted, per the instruction `dateNowUnregisteredSites`'
+    // own failure message gives.
+    //
+    // Bumping this number is the intended maintenance for a legitimate row —
+    // the register's second row was added the same way when B9a landed, and
+    // `kDateNowRegister`'s own comment records that history. What must NOT
+    // happen is a row added without a reason string, which
+    // `dateNowDeadRegisterRows` above catches independently.
+    expect(kDateNowRegister, hasLength(3));
     expect(
       kDateNowRegister.keys,
-      contains(
-        'features/certificates/domain/submission/submission_clock.dart',
-      ),
+      contains('features/certificates/domain/submission/submission_clock.dart'),
     );
   });
 
@@ -425,14 +448,14 @@ void main() {
     expect(
       lib.where((DartFile f) => f.segments.first == 'features'),
       isNotEmpty,
-      reason: 'the scan must actually reach `lib/features/**` — that is where '
+      reason:
+          'the scan must actually reach `lib/features/**` — that is where '
           "F1's uploaders will land and the whole reason this guard is "
           'repo-wide',
     );
   });
 
-  test('F0-AC-22 — the kernel-variant guard FIRES against a planted fixture',
-      () {
+  test('F0-AC-22 — the kernel-variant guard FIRES against a planted fixture', () {
     final List<DartFile> files = scanTree('$_root/kernel_variant');
     final List<String> hits = forbiddenKernelSymbolViolations(files);
 
@@ -452,7 +475,8 @@ void main() {
     expect(
       hits.where((String h) => h.contains(':4 ')),
       isEmpty,
-      reason: 'a forbidden name inside a COMMENT was reported as a '
+      reason:
+          'a forbidden name inside a COMMENT was reported as a '
           'declaration — every kernel doc comment names these symbols to '
           'explain why the variant is not built, so this scan would report '
           'the documentation as the defect',
@@ -466,42 +490,47 @@ void main() {
     expect(
       lib.where((DartFile f) => f.path.startsWith('presentation/forms/')),
       isNotEmpty,
-      reason: 'the scan must actually reach the kernel — scoped to a directory '
+      reason:
+          'the scan must actually reach the kernel — scoped to a directory '
           'that does not exist it is green on nothing',
     );
   });
 
-  test('F0-AC-22 — the guard reads DECLARATIONS, not mentions, in real code',
-      () {
-    // The load-bearing case, measured rather than asserted in prose: the real
-    // kernel's doc comments DO name these symbols, repeatedly. If the scan
-    // matched a bare name this test would be red on the shipped tree, and the
-    // guard would have to be deleted or the documentation gutted.
-    final List<DartFile> lib = scanTree(kLibDir);
-    final Iterable<DartFile> kernel =
-        lib.where((DartFile f) => f.path.startsWith('presentation/forms/'));
+  test(
+    'F0-AC-22 — the guard reads DECLARATIONS, not mentions, in real code',
+    () {
+      // The load-bearing case, measured rather than asserted in prose: the real
+      // kernel's doc comments DO name these symbols, repeatedly. If the scan
+      // matched a bare name this test would be red on the shipped tree, and the
+      // guard would have to be deleted or the documentation gutted.
+      final List<DartFile> lib = scanTree(kLibDir);
+      final Iterable<DartFile> kernel = lib.where(
+        (DartFile f) => f.path.startsWith('presentation/forms/'),
+      );
 
-    final List<String> mentions = <String>[
-      for (final DartFile f in kernel)
-        for (final String symbol in kForbiddenKernelSymbols)
-          if (f.source.contains(symbol)) '${f.path} names $symbol',
-    ];
+      final List<String> mentions = <String>[
+        for (final DartFile f in kernel)
+          for (final String symbol in kForbiddenKernelSymbols)
+            if (f.source.contains(symbol)) '${f.path} names $symbol',
+      ];
 
-    // MEASURED, not assumed. On this tree the list is exactly one entry —
-    // `ApiLocationFields`, cited by `location_fields_view.dart` as the source
-    // symbol whose *call shape* it reproduces. An earlier draft of this test
-    // guessed `SelectField` and was red: the kernel names one of the seven,
-    // not all of them, and a self-test that asserts a mention the tree does
-    // not contain measures nothing.
-    expect(
-      mentions,
-      isNotEmpty,
-      reason: 'the kernel is expected to NAME at least one of the variants it '
-          'refuses to build, in a doc comment; if it stopped, this test is '
-          'measuring nothing and the one above proves less than it claims',
-    );
-    expect(forbiddenKernelSymbolViolations(lib), isEmpty);
-  });
+      // MEASURED, not assumed. On this tree the list is exactly one entry —
+      // `ApiLocationFields`, cited by `location_fields_view.dart` as the source
+      // symbol whose *call shape* it reproduces. An earlier draft of this test
+      // guessed `SelectField` and was red: the kernel names one of the seven,
+      // not all of them, and a self-test that asserts a mention the tree does
+      // not contain measures nothing.
+      expect(
+        mentions,
+        isNotEmpty,
+        reason:
+            'the kernel is expected to NAME at least one of the variants it '
+            'refuses to build, in a doc comment; if it stopped, this test is '
+            'measuring nothing and the one above proves less than it claims',
+      );
+      expect(forbiddenKernelSymbolViolations(lib), isEmpty);
+    },
+  );
 
   test('G-L7 is not G-L3 wearing a different name', () {
     // The two rules describe adjacent edges and the distinction is the whole
@@ -516,7 +545,8 @@ void main() {
     expect(
       glL3Violations(files),
       isEmpty,
-      reason: 'G-L3 is expected to be BLIND to this edge. It reporting the '
+      reason:
+          'G-L3 is expected to be BLIND to this edge. It reporting the '
           'violation would mean the hole G-L7 was written for has been closed '
           'somewhere else, and one of the two rules is now redundant.',
     );
@@ -532,25 +562,27 @@ void main() {
   });
 
   group('the two behaviours the guards are quietly built on', () {
-    test('comments are stripped, so documenting a rule is not violating it',
-        () {
-      // `language_toggle.dart`, `app_top_bar.dart` and `auth_page.dart` all
-      // name a locator inside a doc comment while explaining the seam. If the
-      // stripper regressed, the only route to green would be deleting those
-      // explanations — so this is load-bearing, not hygiene.
-      const String src = '''
+    test(
+      'comments are stripped, so documenting a rule is not violating it',
+      () {
+        // `language_toggle.dart`, `app_top_bar.dart` and `auth_page.dart` all
+        // name a locator inside a doc comment while explaining the seam. If the
+        // stripper regressed, the only route to green would be deleting those
+        // explanations — so this is load-bearing, not hygiene.
+        const String src = '''
 // injection<StorageService>() in a line comment
 /* authInjection in a block comment */
 /// sessionInjection in a doc comment
 const String kept = 'injection';
 ''';
-      final String stripped = stripComments(src);
+        final String stripped = stripComments(src);
 
-      expect(stripped, isNot(contains('authInjection')));
-      expect(stripped, isNot(contains('sessionInjection')));
-      // String CONTENTS survive: `'\${injection<T>()}'` must still be caught.
-      expect(stripped, contains("'injection'"));
-    });
+        expect(stripped, isNot(contains('authInjection')));
+        expect(stripped, isNot(contains('sessionInjection')));
+        // String CONTENTS survive: `'\${injection<T>()}'` must still be caught.
+        expect(stripped, contains("'injection'"));
+      },
+    );
 
     test('generated files are excluded from every scan', () {
       // `*.freezed.dart` / `*.g.dart` inherit their source file's placement
@@ -559,8 +591,10 @@ const String kept = 'injection';
 
       expect(lib, isNotEmpty);
       expect(
-        lib.where((DartFile f) =>
-            f.path.endsWith('.freezed.dart') || f.path.endsWith('.g.dart')),
+        lib.where(
+          (DartFile f) =>
+              f.path.endsWith('.freezed.dart') || f.path.endsWith('.g.dart'),
+        ),
         isEmpty,
       );
     });

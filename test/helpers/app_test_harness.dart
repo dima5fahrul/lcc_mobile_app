@@ -124,14 +124,18 @@ import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/features/application/data/datasources/application_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/application/data/repositories/application_repository_impl.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
+import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
 import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_bloc.dart';
+import 'package:lcc_mobile_app/features/history/presentation/bloc/history_detail_bloc.dart';
 import 'package:lcc_mobile_app/features/wallet/data/datasources/wallet_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/wallet/data/repositories/wallet_repository_impl.dart';
 import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/repositories/wallet_repository.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/usecases/list_pending_bills.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/usecases/pay_application.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/wallet_usecases.dart';
 import 'package:lcc_mobile_app/features/wallet/presentation/bloc/wallet_bloc.dart';
 import 'package:lcc_mobile_app/main.dart';
@@ -558,6 +562,21 @@ Future<AppHarness> bootHarness({
       getTransactions: GetTransactions(repository: walletRepository),
       getPaymentMethods: GetPaymentMethods(repository: walletRepository),
       topUpWallet: TopUpWallet(repository: walletRepository),
+      // B6b. `ListPendingBills` composes B7a's `ListApplications` out of
+      // `applicationInjection` rather than owning a second `/applications`
+      // datasource (specs.md § 2.3 as amended at v1.1), and production wires it
+      // through a lazy closure in `WalletUsecaseInjection`. Mirrored here as a
+      // lazy resolve **inside the factory closure** for the same reason it is
+      // lazy there: the application block below has not run yet at this line,
+      // and it does not need to have — the closure body runs when a test
+      // resolves `WalletBloc`, by which point both blocks are registered.
+      // Resolving eagerly here would fail with `GetIt: Object/factory with
+      // type ListApplications is not registered` and would look like a missing
+      // registration rather than a line-order mistake.
+      listPendingBills: ListPendingBills(
+        listApplications: applicationInjection<ListApplications>(),
+      ),
+      payApplication: PayApplication(repository: walletRepository),
     ),
   );
 
@@ -598,6 +617,13 @@ Future<AppHarness> bootHarness({
   applicationInjection.registerLazySingleton<GetStatusPipeline>(
     () => GetStatusPipeline(repository: applicationRepository),
   );
+  // B7b — the detail's two reads, same repository instance as the list's.
+  applicationInjection.registerLazySingleton<GetApplication>(
+    () => GetApplication(repository: applicationRepository),
+  );
+  applicationInjection.registerLazySingleton<GetApplicationTimeline>(
+    () => GetApplicationTimeline(repository: applicationRepository),
+  );
 
   historyInjection.registerLazySingleton<ListApplications>(
     () => applicationInjection<ListApplications>(),
@@ -605,10 +631,24 @@ Future<AppHarness> bootHarness({
   historyInjection.registerLazySingleton<GetStatusPipeline>(
     () => applicationInjection<GetStatusPipeline>(),
   );
+  historyInjection.registerLazySingleton<GetApplication>(
+    () => applicationInjection<GetApplication>(),
+  );
+  historyInjection.registerLazySingleton<GetApplicationTimeline>(
+    () => applicationInjection<GetApplicationTimeline>(),
+  );
   historyInjection.registerFactory<HistoryBloc>(
     () => HistoryBloc(
       listApplications: historyInjection<ListApplications>(),
       getStatusPipeline: historyInjection<GetStatusPipeline>(),
+    ),
+  );
+  // B7b's second bloc — a factory for the same reason, plus the open case's id
+  // and its two generation counters.
+  historyInjection.registerFactory<HistoryDetailBloc>(
+    () => HistoryDetailBloc(
+      getApplication: historyInjection<GetApplication>(),
+      getApplicationTimeline: historyInjection<GetApplicationTimeline>(),
     ),
   );
 
@@ -864,6 +904,10 @@ Future<void> resetHarness() async {
   // misleading shape the defect has worn every time.
   await applicationInjection.reset();
   await historyInjection.reset();
+  // F1. Same harness blind spot the two lines above record. ONE container:
+  // `features/certificates/` registers a BLoC and nothing else, so there is no
+  // second container to bring down the way `features/application/` needs.
+  await certificatesInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

@@ -179,29 +179,37 @@ void main() {
       expect(parseTopUpAmount('abc'), 0);
     });
 
-    test("'0050000' → 50000 — leading zeros are not octal and not an error", () {
-      expect(parseTopUpAmount('0050000'), 50000);
-    });
+    test(
+      "'0050000' → 50000 — leading zeros are not octal and not an error",
+      () {
+        expect(parseTopUpAmount('0050000'), 50000);
+      },
+    );
 
     test("'50,000' → 50000 — the grouping separator is stripped", () {
       expect(parseTopUpAmount('50,000'), 50000);
       expect(parseTopUpAmount('50.000'), 50000); // the Lao separator too
     });
 
-    test("'-500' → 500 — the minus is not a digit; there is no negative top-up",
-        () {
-      expect(parseTopUpAmount('-500'), 500);
-    });
+    test(
+      "'-500' → 500 — the minus is not a digit; there is no negative top-up",
+      () {
+        expect(parseTopUpAmount('-500'), 500);
+      },
+    );
 
     test('whitespace and a kip sign are stripped like any other non-digit', () {
       expect(parseTopUpAmount(' 20 000 ₭ '), 20000);
     });
 
-    test('a digit string beyond 64-bit yields 0, which FAILS the min guard', () {
-      // Unreachable through the bounded field; recorded because 0 is the safe
-      // direction — it is rejected by the `value < min` guard rather than
-      // wrapping to some other amount.
-      expect(parseTopUpAmount('9' * 40), 0);
-    });
+    test(
+      'a digit string beyond 64-bit yields 0, which FAILS the min guard',
+      () {
+        // Unreachable through the bounded field; recorded because 0 is the safe
+        // direction — it is rejected by the `value < min` guard rather than
+        // wrapping to some other amount.
+        expect(parseTopUpAmount('9' * 40), 0);
+      },
+    );
   });
 }

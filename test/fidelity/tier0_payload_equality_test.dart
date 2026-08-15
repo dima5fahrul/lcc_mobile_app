@@ -39,6 +39,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'oracle.dart';
 
+import '../features/certificates/presentation/resident/resident_tier0_subject.dart';
+import 'package:lcc_mobile_app/features/certificates/domain/submission/case_reference_binding.dart';
+import 'package:lcc_mobile_app/features/certificates/domain/submission/submission_clock.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_payload.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // The comparator
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1244,6 +1249,178 @@ void main() {
       // Unregistered -> compared strictly.
       expect(compareTier0(oracle: oracle, actual: clockDrift).passed, isFalse,
           reason: 'every key NOT in the register is compared byte-for-byte');
+    });
+  });
+  // ───────────────────────────────────────────────────────────────────────────
+  // F1 — Resident, the harness's FIRST REAL SUBJECT
+  // ───────────────────────────────────────────────────────────────────────────
+  //
+  // Everything above this line compares oracles against oracles, against
+  // hand-built control payloads, or against planted mutants. That was all F0a
+  // could do: it built the instrument and had no `buildFormData` to run it on
+  // (`specs.md` § 3.1 row 10). This group runs the comparator against
+  // **`buildResidentFormData`, the real port function**, and it is the reason
+  // F1 is the checkpoint that releases F2 (`ssd.md` § 14 F-1).
+  //
+  // The subject — the fixture reader, the register's instant and the four
+  // exempt rows — is shared with the page-local gate rather than copied, so the
+  // two cannot read the fixture differently
+  // (`resident_tier0_subject.dart`).
+  group('Tier 0 — Resident, the real buildFormData (F1)', () {
+    final SubmissionClock clock = SubmissionClock.fixed(kRegisterInstant);
+
+    Map<String, dynamic> fixtureOf(String locale) =>
+        readOracleJson('$kResidentFixtureDir/baseline.$locale.json');
+
+    /// The two bodies of one submission, built the way the page builds them:
+    /// **payload once**, reference appended through the binding.
+    SubmissionBodies bodiesOf(String locale) {
+      final Map<String, dynamic> fixture = fixtureOf(locale);
+      return residentBodiesFrom(
+        buildResidentFormData(formFromFixture(fixture), clock),
+        fixture['_reference_no'] as String,
+      );
+    }
+
+    for (final String locale in <String>['en', 'lo']) {
+      test('F1-AC-28/29 $locale create — 22 leaves compared against the '
+          'executed oracle', () {
+        final Tier0Oracle o =
+            Tier0Oracle.load('$kResidentOracleDir/executed', 'resident.create.$locale');
+        final Map<String, Object?> want = o.formData.cast<String, Object?>();
+        final Map<String, Object?> got = bodiesOf(locale).create;
+
+        // `F1-AC-29`: the count is recorded, and a LOWER number is a FAIL even
+        // if every compared leaf passed — it would mean leaves were skipped.
+        expect(leafPaths(want).length, 22,
+            reason: 'resident.create.$locale carries 22 leaves (specs.md § 6.6)');
+        expect(leafPaths(got).length, 22,
+            reason: 'the port emitted a different number of leaves');
+
+        final Tier0Result r = compareTier0(
+          oracle: want,
+          actual: got,
+          exempt: kResidentExemptFormDataPointers,
+        );
+        expect(r.passed, isTrue, reason: r.toString());
+      });
+
+      test('F1-AC-28/29/35 $locale update — 23 leaves, header.ref_no LAST', () {
+        final Tier0Oracle o =
+            Tier0Oracle.load('$kResidentOracleDir/executed', 'resident.update.$locale');
+        final Map<String, Object?> want = o.formData.cast<String, Object?>();
+        final Map<String, Object?> got = bodiesOf(locale).update;
+
+        expect(leafPaths(want).length, 23);
+        expect(leafPaths(got).length, 23,
+            reason: 'flat-appended-last raises the key count by exactly one');
+        expect(got.keys.last, 'header.ref_no',
+            reason: 'LAST, not merged in sorted position (F0-AC-14)');
+
+        final Tier0Result r = compareTier0(
+          oracle: want,
+          actual: got,
+          exempt: kResidentExemptFormDataPointers,
+        );
+        expect(r.passed, isTrue, reason: r.toString());
+      });
+    }
+
+    test('F1-AC-31 exactly FOUR Resident rows are exempt, and no more', () {
+      // Two `form_data` pointers x {create, update} and two envelope keys x
+      // {create, update} = the four rows `tier0_divergences.yaml` registers.
+      // The register is CLOSED (`ADR-0005` O-5); a fifth needs an amendment.
+      expect(kResidentExemptFormDataPointers, <String>{'/purpose.issue_date'});
+      expect(kResidentExemptEnvelopeKeys, <String>{'event_date'});
+
+      // And the exemption actually bites on exactly one leaf per body: every
+      // other one of the 22 is compared byte-for-byte.
+      final Map<String, Object?> got = bodiesOf('en').create;
+      final int exemptLeaves = leafPaths(got)
+          .where(kResidentExemptFormDataPointers.contains)
+          .length;
+      expect(exemptLeaves, 1);
+      expect(leafPaths(got).length - exemptLeaves, 21,
+          reason: '21 of the 22 create leaves are compared strictly');
+    });
+
+    test('F1-AC-32 no Resident leaf is NOT EVALUATED', () {
+      // Resident has no entry in `oracle_coverage.yaml`'s `unreachable:`
+      // register (specs.md § 6.6), so every leaf the oracle carries must be
+      // one the port produces. A path in one and not the other is a defect or
+      // a missing fixture arm — never a coverage gap.
+      for (final String locale in <String>['en', 'lo']) {
+        final Tier0Oracle o =
+            Tier0Oracle.load('$kResidentOracleDir/executed', 'resident.create.$locale');
+        expect(
+          leafPaths(bodiesOf(locale).create).toSet(),
+          equals(leafPaths(o.formData).toSet()),
+          reason: '$locale: an unmatched path is a port defect, not a skip',
+        );
+      }
+    });
+
+    test('F1-AC-34 the harness FAILS on Resident, naming the leaf', () {
+      // Without this the whole tier is unfalsifiable. One character, one leaf,
+      // and the failure must SAY which leaf.
+      final Map<String, Object?> good = bodiesOf('en').create;
+      final Map<String, Object?> bad = Map<String, Object?>.of(good);
+      bad['applicant.house_no'] = '${good['applicant.house_no']}9';
+
+      final Tier0Result r = compareTier0(
+        oracle: good,
+        actual: bad,
+        exempt: kResidentExemptFormDataPointers,
+      );
+      expect(r.passed, isFalse, reason: 'a changed leaf must not pass');
+      expect(r.toString(), contains('/applicant.house_no'));
+    });
+
+    test('F1-AC-33 the comparison is on BYTES, on Resident\'s own body', () {
+      final Map<String, Object?> good = bodiesOf('en').create;
+
+      // `{"a":1}` vs `{"a":"1"}` — a number where the wire has a string.
+      final Map<String, Object?> retyped = Map<String, Object?>.of(good)
+        ..['applicant.age'] = int.parse(good['applicant.age']! as String);
+      expect(
+        compareTier0(
+          oracle: good,
+          actual: retyped,
+          exempt: kResidentExemptFormDataPointers,
+        ).passed,
+        isFalse,
+        reason: 'applicant.age is a STRING on the wire (`:466`)',
+      );
+
+      // Key-order swap: same keys, same values, different bytes.
+      final List<String> keys = good.keys.toList();
+      final Map<String, Object?> swapped = <String, Object?>{};
+      for (int i = 0; i < keys.length; i++) {
+        final int j = i == 0 ? 1 : (i == 1 ? 0 : i);
+        swapped[keys[j]] = good[keys[j]];
+      }
+      expect(
+        compareTier0(
+          oracle: good,
+          actual: swapped,
+          exempt: kResidentExemptFormDataPointers,
+        ).passed,
+        isFalse,
+        reason: 'insertion order IS wire order (client.ts:242)',
+      );
+    });
+
+    test('F1-AC-38 the clock emits the LOCAL date where UTC would be wrong',
+        () {
+      // Asserting only that the leaf was skipped is not sufficient: a port that
+      // reintroduced `toUtc()` would also be skipped. Both halves.
+      final Map<String, Object?> got = bodiesOf('en').create;
+      expect(got['purpose.issue_date'], kExpectedLocal);
+      final Tier0Oracle o =
+          Tier0Oracle.load('$kResidentOracleDir/executed', 'resident.create.en');
+      expect(o.formData['purpose.issue_date'], kExpectedWebUtc,
+          reason: 'the oracle must still carry the WEB value, or the '
+              'divergence has gone invisible');
     });
   });
 }

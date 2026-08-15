@@ -1,0 +1,28 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/applications/app-901/pay",
+    "status": 200,
+    "captured_at": "2026-08-15T00:40:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). **§ 4.4 forbids executing `POST /applications/{id}/pay` against any host**, absolutely, and forbids the tempting workaround of creating a case so that there is something to pay for — named as the one thing most forbidden and audited as security-review item 6. specs.md § 8.5 gap G-2 records the consequence: NO pay response has ever been observed from any host, so this body is shaped from the declared type and the component that reads it, not from traffic. Every Tier 3 verdict for the surfaces it drives is NOT EVALUATED with that reason.",
+    "credential": "none — no citizen token was obtained or seeded, and no POST was issued to any host (§ 4.4; security-review.md item 6)",
+    "field_discipline": "The union of `types.ts:573-582` and `PaymentSection.tsx:43-57` (specs.md § 5.3). The two documented shapes disagree and the source reads BOTH — the component says so in its own comment — so the fixtures cover both arms rather than picking one. No field appears that neither source declares.",
+    "synthetic_values": "Receipt numbers use the reserved `RCPT-9000xx` block and account numbers the all-zero `000-00-00-00000` shape. No real receipt number, account number, UIN or name appears (§ 7.9 items 4 and 5).",
+    "exercises": "The NESTED extension (`PaymentSection.tsx:46-51`), and it is the `B6-AC-30` fixture. `receipt_no` is the EMPTY STRING and `amount_lak` is `0` — the exact pair that distinguishes the source's two operators, one line apart at `:223-224`. Rule 1 uses `||`, so `\"\"` is falsy and FALLS THROUGH to `transaction.receipt_no`; rule 2 uses `??`, so a server-sent `0` is not null and WINS over the mounting page's `amount` prop. A Dart port that unified them would print either a blank receipt or a fee the server did not send. Rule 3 settles via the third arm alone (`transaction.status === \"paid\"`)."
+  },
+  "success": true,
+  "message": "OK",
+  "data": {
+    "receipt_no": "",
+    "amount_lak": 0,
+    "status": "paid",
+    "payment_state": "processing",
+    "method_code": "bcel-one",
+    "transaction": {
+      "receipt_no": "RCPT-900002",
+      "amount_lak": 0,
+      "status": "paid",
+      "method_code": "bcel-one"
+    }
+  },
+  "request_id": "synthetic-b6b-application-pay-nested"
+}

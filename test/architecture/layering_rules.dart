@@ -151,9 +151,7 @@ const String _packagePrefix = 'package:lcc_mobile_app/';
 /// disk.
 const String kLibDir = 'lib';
 
-final RegExp _importDirective = RegExp(
-  '''^\\s*import\\s+r?['"]([^'"]+)['"]''',
-);
+final RegExp _importDirective = RegExp('''^\\s*import\\s+r?['"]([^'"]+)['"]''');
 
 bool _isIdentifierChar(String c) => RegExp(r'[A-Za-z0-9_$]').hasMatch(c);
 
@@ -198,7 +196,9 @@ String stripComments(String src) {
 
     if (c == "'" || c == '"') {
       final bool isRaw =
-          i > 0 && src[i - 1] == 'r' && (i < 2 || !_isIdentifierChar(src[i - 2]));
+          i > 0 &&
+          src[i - 1] == 'r' &&
+          (i < 2 || !_isIdentifierChar(src[i - 2]));
       final bool triple = i + 2 < n && src[i + 1] == c && src[i + 2] == c;
       final String delim = triple ? c * 3 : c;
 
@@ -236,8 +236,10 @@ String stripComments(String src) {
 /// Joins a root-relative directory with a relative import URI, collapsing
 /// `.` and `..`.
 String _joinRelative(String dir, String relative) {
-  final List<String> segments =
-      dir.split('/').where((String s) => s.isNotEmpty).toList();
+  final List<String> segments = dir
+      .split('/')
+      .where((String s) => s.isNotEmpty)
+      .toList();
   for (final String s in relative.split('/')) {
     if (s.isEmpty || s == '.') continue;
     if (s == '..') {
@@ -299,8 +301,9 @@ List<DartFile> scanTree(String dir) {
     if (!path.endsWith('.dart')) continue;
     if (path.endsWith('.freezed.dart') || path.endsWith('.g.dart')) continue;
 
-    final String rootRelative =
-        path.startsWith('$dir/') ? path.substring(dir.length + 1) : path;
+    final String rootRelative = path.startsWith('$dir/')
+        ? path.substring(dir.length + 1)
+        : path;
 
     final String source = entity.readAsStringSync();
     final List<String> lines = source.split('\n');
@@ -310,19 +313,23 @@ List<DartFile> scanTree(String dir) {
       final RegExpMatch? match = _importDirective.firstMatch(lines[i]);
       if (match == null) continue;
       final String uri = match.group(1)!;
-      imports.add(DartImport(
-        uri: uri,
-        line: i + 1,
-        target: _resolveImport(rootRelative, uri),
-      ));
+      imports.add(
+        DartImport(
+          uri: uri,
+          line: i + 1,
+          target: _resolveImport(rootRelative, uri),
+        ),
+      );
     }
 
-    files.add(DartFile(
-      path: rootRelative,
-      imports: imports,
-      code: stripComments(source),
-      source: source,
-    ));
+    files.add(
+      DartFile(
+        path: rootRelative,
+        imports: imports,
+        code: stripComments(source),
+        source: source,
+      ),
+    );
   }
 
   files.sort((DartFile a, DartFile b) => a.path.compareTo(b.path));
@@ -417,8 +424,9 @@ const Set<String> kForbiddenCorePackages = <String>{
 List<String> glL4Violations(List<DartFile> files) {
   final List<String> violations = <String>[];
 
-  for (final DartFile file
-      in files.where((DartFile f) => f.segments.first == 'core')) {
+  for (final DartFile file in files.where(
+    (DartFile f) => f.segments.first == 'core',
+  )) {
     for (final DartImport import in file.imports) {
       if (kForbiddenCorePackages.contains(import.uri)) {
         violations.add(cite(file, import));
@@ -469,8 +477,9 @@ const Set<String> kAllowedCoreToFeatureLayers = <String>{'domain', 'di'};
 List<String> glL4Unclassified(List<DartFile> files) {
   final List<String> unclassified = <String>[];
 
-  for (final DartFile file
-      in files.where((DartFile f) => f.segments.first == 'core')) {
+  for (final DartFile file in files.where(
+    (DartFile f) => f.segments.first == 'core',
+  )) {
     for (final DartImport import in file.localImports) {
       final String target = import.target!;
       if (_targetFeature(target) == null) continue;
@@ -564,8 +573,9 @@ List<String> glL5Violations(List<DartFile> files) {
 List<String> glL7Violations(List<DartFile> files) {
   final List<String> violations = <String>[];
 
-  for (final DartFile file
-      in files.where((DartFile f) => f.segments.first == 'presentation')) {
+  for (final DartFile file in files.where(
+    (DartFile f) => f.segments.first == 'presentation',
+  )) {
     for (final DartImport import in file.localImports) {
       final String target = import.target!;
       if (_targetFeature(target) == null) continue;
@@ -583,11 +593,7 @@ List<String> glL7Violations(List<DartFile> files) {
 
 /// One `.tr(...)` call site found by [trCallsIn].
 class TrCall {
-  const TrCall({
-    required this.line,
-    required this.key,
-    required this.bound,
-  });
+  const TrCall({required this.line, required this.key, required this.bound});
 
   /// 1-based, in the file as written.
   final int line;
@@ -678,11 +684,11 @@ List<TrCall> trCallsIn(String source) {
     // String literals are kept **verbatim** (quotes included) because the key
     // this guard reports is one of them.
     if (c == "'" || c == '"') {
-      final bool isRaw = i > 0 &&
+      final bool isRaw =
+          i > 0 &&
           source[i - 1] == 'r' &&
           (i < 2 || !_isIdentifierChar(source[i - 2]));
-      final bool triple =
-          i + 2 < n && source[i + 1] == c && source[i + 2] == c;
+      final bool triple = i + 2 < n && source[i + 1] == c && source[i + 2] == c;
       final String delim = triple ? c * 3 : c;
 
       emit(delim, line);
@@ -941,8 +947,10 @@ List<String> glL8Violations(
         budget[slot] = left - 1;
         continue;
       }
-      violations.add('${file.path}:${call.line} -> ${call.key}.tr() '
-          'has no `context:`');
+      violations.add(
+        '${file.path}:${call.line} -> ${call.key}.tr() '
+        'has no `context:`',
+      );
     }
   }
 
@@ -978,9 +986,11 @@ List<String> glL8DeadEntries(
   listed.forEach((String slot, int count) {
     final int have = actual[slot] ?? 0;
     if (have < count) {
-      dead.add('$slot — listed $count time(s), found $have. Delete the '
-          'surplus entr${count - have == 1 ? 'y' : 'ies'}: the list may only '
-          'shrink, and it shrinks by deletion.');
+      dead.add(
+        '$slot — listed $count time(s), found $have. Delete the '
+        'surplus entr${count - have == 1 ? 'y' : 'ies'}: the list may only '
+        'shrink, and it shrinks by deletion.',
+      );
     }
   });
   dead.sort();
@@ -1011,12 +1021,14 @@ List<TrAllowEntry> parseTrAllowlist(String yaml) {
 
   void flush() {
     if (path != null && line != null && key != null) {
-      entries.add(TrAllowEntry(
-        path: path!,
-        line: line!,
-        key: key!,
-        batch: batch ?? 'unknown',
-      ));
+      entries.add(
+        TrAllowEntry(
+          path: path!,
+          line: line!,
+          key: key!,
+          batch: batch ?? 'unknown',
+        ),
+      );
     }
     path = null;
     line = null;
@@ -1137,8 +1149,8 @@ List<String> glL6Violations(List<DartFile> files) {
 const Map<String, String> kDateNowRegister = <String, String>{
   'features/certificates/domain/submission/submission_clock.dart':
       'SubmissionClock.system() — the single default clock construction ADR-0005 '
-          'O-4 sanctions. Every other date on a payload reads an INJECTED clock, '
-          'which is what lets Tier 0 freeze the instant.',
+      'O-4 sanctions. Every other date on a payload reads an INJECTED clock, '
+      'which is what lets Tier 0 freeze the instant.',
   // **Not in the spec, and it was already in the tree when F0b arrived.**
   // `F0-AC-29` says `DateTime.now()` appears "only at the single default
   // `SubmissionClock` construction". Measured at `6ae5bea` there is a second
@@ -1150,8 +1162,30 @@ const Map<String, String> kDateNowRegister = <String, String>{
   // not a guard that is green because it was never written.
   'features/notifications/presentation/widgets/relative_time.dart':
       'relativeTime(when, {now}) — B9a. An injectable default for RENDERING a '
-          'relative timestamp. It reaches no payload key, so it is not a date '
-          'path; it is registered rather than exempted so a move goes red.',
+      'relative timestamp. It reaches no payload key, so it is not a date '
+      'path; it is registered rather than exempted so a move goes red.',
+  // A third row, and it is the same shape as B9a's for the same reason —
+  // registered on that precedent rather than on a new argument.
+  //
+  // `daysUntil(value, {now})` is the Bills Due chip's whole arithmetic
+  // (`WalletPage.tsx:78-84`): whole days from now until a due date, `ceil`, and
+  // the chip is red / amber / grey off the result. `B6-AC-21` requires the
+  // clock to be a parameter and requires that **no test read
+  // `DateTime.now()`** — every test of it passes a fixed instant, and
+  // `payment_result_test.dart` includes a two-clock negative control that fails
+  // if `now` were ignored. So the injection this guard exists to enforce is
+  // present and is under test; the `?? DateTime.now()` is only the default that
+  // spares ~4 render call sites from threading a clock they have no opinion
+  // about.
+  //
+  // It reaches no payload key and no `form_data` value — the pay POST's body is
+  // exactly `{"method_code": …}` (`B6-AC-36`) and carries no date at all — so
+  // it is not a date path. Registered rather than exempted, so a move into one
+  // goes red.
+  'features/wallet/domain/wallet_formatting.dart':
+      'daysUntil(value, {now}) — B6b. An injectable default for RENDERING the '
+      'Bills Due chip. It reaches no payload key, so it is not a date '
+      'path; it is registered rather than exempted so a move goes red.',
 };
 
 /// [src] with every comment's CONTENT removed and its **line count
@@ -1229,8 +1263,9 @@ String blankComments(String src) {
   return out.toString();
 }
 
-final RegExp _dateNowCall =
-    RegExp(r'(?<![A-Za-z0-9_$])DateTime\s*\.\s*now\s*\(');
+final RegExp _dateNowCall = RegExp(
+  r'(?<![A-Za-z0-9_$])DateTime\s*\.\s*now\s*\(',
+);
 final RegExp _toUtcCall = RegExp(r'(?<![A-Za-z0-9_$])toUtc\s*\(');
 
 /// **ADR-0005 O-4, first half** — `toUtc()` appears **nowhere** under the scan
@@ -1401,8 +1436,9 @@ const List<String> kForbiddenKernelSymbols = <String>[
   'RefList',
 ];
 
-final RegExp _declarationKeyword =
-    RegExp(r'(?<![A-Za-z0-9_$])(class|mixin|extension|enum|typedef)\s+(\w+)');
+final RegExp _declarationKeyword = RegExp(
+  r'(?<![A-Za-z0-9_$])(class|mixin|extension|enum|typedef)\s+(\w+)',
+);
 
 /// **`F0-AC-22`** — no *declaration* under `lib/presentation/forms/**` carries
 /// one of [kForbiddenKernelSymbols].

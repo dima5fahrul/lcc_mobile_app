@@ -75,7 +75,8 @@ void main() {
         expect(
           images,
           hasLength(2),
-          reason: 'Exactly the `electricity` and `water` rows carry a '
+          reason:
+              'Exactly the `electricity` and `water` rows carry a '
               '`logoAsset`; the other six draw a LucideIcon or an Icon.',
         );
 
@@ -86,7 +87,8 @@ void main() {
         expect(
           resolved,
           <String>{kEdlLogoAsset, kNampapaLogoAsset},
-          reason: 'The `switch` in `_QuickTileLogo` has drifted from the '
+          reason:
+              'The `switch` in `_QuickTileLogo` has drifted from the '
               '`kWalletQuickActions` table it renders. Both sides must name '
               'the same two constants.',
         );
@@ -110,7 +112,8 @@ void main() {
         expect(
           tableLogos.toSet(),
           <String>{kEdlLogoAsset, kNampapaLogoAsset},
-          reason: 'A logo row was added to the table. `_QuickTileLogo` needs a '
+          reason:
+              'A logo row was added to the table. `_QuickTileLogo` needs a '
               'matching literal `Image.asset` case, or it will throw at the '
               'first render of that tile.',
         );
@@ -149,11 +152,13 @@ void main() {
             tester.widget<Image>(find.byType(Image)).image as AssetImage;
 
         expect(
-          <String>{kEdlLogoAsset, kNampapaLogoAsset}.contains(
-            provider.assetName,
-          ),
+          <String>{
+            kEdlLogoAsset,
+            kNampapaLogoAsset,
+          }.contains(provider.assetName),
           isFalse,
-          reason: 'The positive assertion above must be capable of rejecting '
+          reason:
+              'The positive assertion above must be capable of rejecting '
               'an asset that is not one of the two declared logos.',
         );
       },

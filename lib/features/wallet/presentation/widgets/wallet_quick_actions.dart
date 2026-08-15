@@ -54,9 +54,9 @@ class WalletQuickAction {
     this.materialIcon,
     this.logoAsset,
   }) : assert(
-          lucideName != null || materialIcon != null,
-          'every tile needs a glyph, even the two that draw a logo over it',
-        );
+         lucideName != null || materialIcon != null,
+         'every tile needs a glyph, even the two that draw a logo over it',
+       );
 
   final String id;
 
@@ -213,12 +213,16 @@ class _QuickTile extends StatelessWidget {
                     child: _QuickTileLogo(asset: action.logoAsset!),
                   )
                 : (action.lucideName != null
-                    ? LucideIcon(
-                        name: action.lucideName!,
-                        size: 20,
-                        color: action.accent,
-                      )
-                    : Icon(action.materialIcon, size: 20, color: action.accent)),
+                      ? LucideIcon(
+                          name: action.lucideName!,
+                          size: 20,
+                          color: action.accent,
+                        )
+                      : Icon(
+                          action.materialIcon,
+                          size: 20,
+                          color: action.accent,
+                        )),
           ),
           const SizedBox(height: 8),
           Flexible(
@@ -272,20 +276,24 @@ class _QuickTileLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (asset) {
-      kEdlLogoAsset =>
-        Image.asset('assets/images/edl-logo.webp', fit: BoxFit.contain),
-      kNampapaLogoAsset =>
-        Image.asset('assets/images/nampapa-logo.webp', fit: BoxFit.contain),
+      kEdlLogoAsset => Image.asset(
+        'assets/images/edl-logo.webp',
+        fit: BoxFit.contain,
+      ),
+      kNampapaLogoAsset => Image.asset(
+        'assets/images/nampapa-logo.webp',
+        fit: BoxFit.contain,
+      ),
       // Unreachable: `kWalletQuickActions` is a `const` table with exactly the
       // two logo rows above. A third would land here loudly at first render
       // rather than drawing a blank 48×48 tile nobody notices.
       _ => throw ArgumentError.value(
-          asset,
-          'asset',
-          'no literal Image.asset call site is declared for this logo; add one '
-              'here rather than passing the path through a variable, which '
-              'B2-AC-31 rejects',
-        ),
+        asset,
+        'asset',
+        'no literal Image.asset call site is declared for this logo; add one '
+            'here rather than passing the path through a variable, which '
+            'B2-AC-31 rejects',
+      ),
     };
   }
 }

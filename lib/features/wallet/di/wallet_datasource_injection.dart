@@ -21,9 +21,8 @@ class WalletDatasourceInjection {
     walletInjection
       ..registerLazySingleton<ApiClient>(() => injection<ApiClient>())
       ..registerLazySingleton<WalletRemoteDatasource>(
-        () => WalletRemoteDatasourceImpl(
-          apiClient: walletInjection<ApiClient>(),
-        ),
+        () =>
+            WalletRemoteDatasourceImpl(apiClient: walletInjection<ApiClient>()),
       );
   }
 }

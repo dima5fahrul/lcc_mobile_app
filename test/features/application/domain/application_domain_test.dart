@@ -17,6 +17,8 @@ import 'package:lcc_mobile_app/features/application/domain/entities/jurisdiction
 import 'package:lcc_mobile_app/features/application/domain/entities/status_pipeline.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
 
+import '../../history/history_test_helper.dart';
+
 Map<String, dynamic> loadFixture(String name) =>
     jsonDecode(File('test/fidelity/fixtures/api/$name.json').readAsStringSync())
         as Map<String, dynamic>;
@@ -316,6 +318,49 @@ void main() {
       expect(
         const Jurisdiction(districtName: '', provinceName: '').officeLine,
         '—',
+      );
+    });
+  });
+
+  // § 10 refused `url_launcher`, so § 6.14 option 3 applies and the attachment
+  // ROWS are not rendered — `B7-AC-70`'s rendering half is reported NOT
+  // EVALUATED. Its arithmetic half is not excused by that: `attachment.dart:32`
+  // puts both getters on the entity precisely so the clamp stays measurable
+  // without a row, and an untested clamp is how `0 KB` reaches B5 when B5 fills
+  // the seam. These are the assertions that keep the promise that comment makes.
+  group('Attachment.sizeKb — the `max(1, round(bytes/1024))` clamp', () {
+    test('B7-AC-70 — a 100-byte file renders 1 KB, never 0 KB', () {
+      // `Math.round(100/1024)` is `0`; `Math.max(1, 0)` is `1` —
+      // `HistoryDetailPage.tsx:619`. The clamp IS the criterion.
+      expect(attachmentFixture(sizeBytes: 100).sizeKb, 1);
+    });
+
+    test('a zero-byte file also clamps to 1, not 0', () {
+      expect(attachmentFixture(sizeBytes: 0).sizeKb, 1);
+    });
+
+    test('above the clamp it is a plain round, halves going up', () {
+      expect(attachmentFixture(sizeBytes: 1024).sizeKb, 1);
+      // 1536/1024 = 1.5 → `Math.round` and Dart's `round()` both give 2.
+      expect(attachmentFixture(sizeBytes: 1536).sizeKb, 2);
+      expect(attachmentFixture(sizeBytes: 1535).sizeKb, 1);
+      expect(attachmentFixture(sizeBytes: 10240).sizeKb, 10);
+    });
+  });
+
+  group('Attachment.displayName — `a.label || a.file_name`', () {
+    test('the label wins when it is non-empty', () {
+      expect(
+        attachmentFixture(label: 'National ID', fileName: 'id.jpg').displayName,
+        'National ID',
+      );
+    });
+
+    test('an EMPTY label falls through to the filename — JS `||` is falsy-on-'
+        'empty, where a Dart `??` would render a blank line', () {
+      expect(
+        attachmentFixture(label: '', fileName: 'id-front.jpg').displayName,
+        'id-front.jpg',
       );
     });
   });

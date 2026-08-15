@@ -63,12 +63,12 @@ class PagedRows<T> extends Equatable {
   /// argument, and `PagedRows<WalletEntry>.empty()` reads better than
   /// `const PagedRows<WalletEntry>(rows: [], page: 1, …)` at four call sites.
   factory PagedRows.empty() => PagedRows<T>(
-        rows: const <Never>[],
-        page: 1,
-        totalPages: 1,
-        hasNext: false,
-        hasPrev: false,
-      );
+    rows: const <Never>[],
+    page: 1,
+    totalPages: 1,
+    hasNext: false,
+    hasPrev: false,
+  );
 
   final List<T> rows;
 
@@ -83,5 +83,11 @@ class PagedRows<T> extends Equatable {
   bool get showPager => totalPages > 1;
 
   @override
-  List<Object?> get props => <Object?>[rows, page, totalPages, hasNext, hasPrev];
+  List<Object?> get props => <Object?>[
+    rows,
+    page,
+    totalPages,
+    hasNext,
+    hasPrev,
+  ];
 }

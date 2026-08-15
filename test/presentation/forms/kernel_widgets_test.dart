@@ -201,19 +201,30 @@ void main() {
     });
 
     group('F0-AC-25 — ReferenceSelectView, four control states [$locale]', () {
-      ReferenceSelectView view(ReferenceFieldState state) => ReferenceSelectView(
+      // `F0-AC-110` — the helper takes a VALUE as well as a state. v1.5 fixed
+      // it at `''` here, which is why a two-condition defect (value non-empty
+      // AND options missing it) was unreachable from a matrix that named four
+      // states: § 6.3.9's "a one-condition matrix cannot reach it however many
+      // scenarios it names". The parameter is `required` rather than defaulted
+      // so the hardcode cannot come back by omission.
+      ReferenceSelectView view(
+        ReferenceFieldState state, {
+        required String value,
+        ValueChanged<String>? onChanged,
+      }) =>
+          ReferenceSelectView(
             label: const Text('Nationality'),
             source: state,
-            value: '',
+            value: value,
             placeholder: 'Select…',
-            onChanged: (_) {},
+            onChanged: onChanged ?? (_) {},
           );
 
       testWidgets('LOADING — the loading sentence in the placeholder slot',
           (WidgetTester tester) async {
         await pump(
           tester,
-          view(const ReferenceFieldState(loading: true)),
+          view(const ReferenceFieldState(loading: true), value: ''),
           locale: locale,
         );
         expect(find.text(s['loading']!), findsOneWidget);
@@ -222,7 +233,7 @@ void main() {
       testWidgets('DATA', (WidgetTester tester) async {
         await pump(
           tester,
-          view(const ReferenceFieldState(options: kThree)),
+          view(const ReferenceFieldState(options: kThree), value: ''),
           locale: locale,
         );
         expect(find.text('Select…'), findsOneWidget);
@@ -232,7 +243,7 @@ void main() {
           'a dropdown', (WidgetTester tester) async {
         await pump(
           tester,
-          view(const ReferenceFieldState()),
+          view(const ReferenceFieldState(), value: ''),
           locale: locale,
         );
         // `formFields.tsx:330-331`.
@@ -245,12 +256,234 @@ void main() {
           (WidgetTester tester) async {
         await pump(
           tester,
-          view(ReferenceFieldState(failed: true, retry: () {})),
+          view(ReferenceFieldState(failed: true, retry: () {}), value: ''),
           locale: locale,
         );
         expect(find.text(s['loadFailed']!), findsOneWidget);
         expect(find.text(s['retry']!), findsOneWidget);
         expect(find.text(s['nothingYet']!), findsNothing);
+      });
+
+      // ---- F0-AC-110 — the CROSS-PRODUCT, not a list of named scenarios ----
+      //
+      // Three values × the same four states. The four tests above are the
+      // `value: ''` row of this matrix and keep their string assertions; these
+      // cells assert only that nothing throws, which is the whole point:
+      // `flutter analyze` cannot see a runtime assert, and `String` is `String`
+      // whatever it holds (§ 6.3.9, "the test rule this exposes").
+      final Map<String, ReferenceFieldState> states =
+          <String, ReferenceFieldState>{
+        'LOADING': const ReferenceFieldState(loading: true),
+        'DATA': const ReferenceFieldState(options: kThree),
+        'EMPTY': const ReferenceFieldState(),
+        'ERROR-WITH-RETRY': ReferenceFieldState(failed: true, retry: () {}),
+      };
+
+      // `'a'` is carried by `kThree`; `'zzz'` is carried by nothing. In the
+      // three states whose list is empty, both are unmatched — which is the
+      // production shape (`resident_form_cubit.dart:604-607` sets `nationality`
+      // from the ID card before the list returns).
+      const Map<String, String> values = <String, String>{
+        "'' (the blank row)": '',
+        "'a' — a code the options carry": 'a',
+        "'zzz' — a code they do not": 'zzz',
+      };
+
+      for (final MapEntry<String, ReferenceFieldState> st in states.entries) {
+        for (final MapEntry<String, String> v in values.entries) {
+          testWidgets('F0-AC-110 — ${st.key} × ${v.key} does not throw',
+              (WidgetTester tester) async {
+            await pump(tester, view(st.value, value: v.value), locale: locale);
+            expect(tester.takeException(), isNull,
+                reason: 'L-10: a framework assertion that turns the web\'s '
+                    'benign degradation into a build-time throw is a MAJOR '
+                    'fidelity defect, not a framework quirk');
+          });
+        }
+      }
+    });
+
+    group('F0-AC-111 — an unmatched value renders what the SOURCE renders, '
+        'and does not move the held value [$locale]', () {
+      // Measured, not inferred (L-10 corollary (a)). `$WEB/package.json:82-83`
+      // pins react-dom to 18.3.1 and
+      // `$WEB/node_modules/react-dom/cjs/react-dom.development.js:2133-2155`
+      // is `updateOptions`' single-select branch: on no match it selects the
+      // first NON-DISABLED option (`:2148`, `:2154`) — `formFields.tsx:315`'s
+      // blank row, never disabled. So the web shows the PLACEHOLDER, or the
+      // loading sentence, and mutates the DOM directly, firing no `change`.
+      testWidgets('not loading — the PLACEHOLDER, never the raw code, and '
+          'onChanged is not invoked', (WidgetTester tester) async {
+        int calls = 0;
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: const ReferenceFieldState(),
+            value: 'lao',
+            placeholder: 'Select…',
+            onChanged: (_) => calls++,
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Select…'), findsOneWidget);
+        // The rejected alternative — a synthetic item labelled with the raw
+        // code — would render `lao` here, making the port MORE informative
+        // than the source (L-10 corollary (b), § 6.3.9 "the two alternatives").
+        expect(find.text('lao'), findsNothing);
+        // A fix that cleared the field would green the clause above while
+        // corrupting the Tier 0 payload. React fires no `change`; nor do we.
+        expect(calls, 0,
+            reason: 'the held value is the caller\'s and must not move');
+      });
+
+      testWidgets('loading — the LOADING SENTENCE in the same slot, still no '
+          'callback', (WidgetTester tester) async {
+        int calls = 0;
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: const ReferenceFieldState(loading: true),
+            value: 'lao',
+            placeholder: 'Select…',
+            onChanged: (_) => calls++,
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(find.text(s['loading']!), findsOneWidget);
+        expect(find.text('Select…'), findsNothing,
+            reason: '`:315` — the loading sentence REPLACES the placeholder '
+                'in the blank row, it does not sit beside it');
+        expect(calls, 0);
+      });
+
+      testWidgets('…and a value the list DOES carry still resolves to ITSELF — '
+          'the resolution is not a blanket clear', (WidgetTester tester) async {
+        // Capability Rule. Every other assertion in this group is satisfied by
+        // a `_selectableValue` that returns `''` unconditionally: an inert
+        // subject renders the placeholder, throws nothing and calls nothing,
+        // which is what the unmatched cells check for. This is the cell that
+        // separates the ruling's predicate from that stub — and it is asserted
+        // on the resolved `DropdownButton.value` because both the blank row and
+        // every option row are BUILT by the `IndexedStack`, so a text finder
+        // cannot tell which one is selected.
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: const ReferenceFieldState(options: kThree),
+            value: 'a',
+            placeholder: 'Select…',
+            onChanged: (_) {},
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.widget<DropdownButton<String>>(
+            find.byType(DropdownButton<String>),
+          ).value,
+          'a',
+          reason: 'exactly one item carries it, so it is selectable and the '
+              'citizen sees their own selection, not the placeholder',
+        );
+      });
+
+      testWidgets('…while a value it does NOT carry resolves to the blank row',
+          (WidgetTester tester) async {
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: const ReferenceFieldState(options: kThree),
+            value: 'zzz',
+            placeholder: 'Select…',
+            onChanged: (_) {},
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.widget<DropdownButton<String>>(
+            find.byType(DropdownButton<String>),
+          ).value,
+          '',
+          reason: '`formFields.tsx:315` as resolved by `updateOptions` — the '
+              'first non-disabled option, which is the blank row',
+        );
+      });
+
+      testWidgets('a DUPLICATE code in the list does not throw either — the '
+          'assert\'s other arm', (WidgetTester tester) async {
+        // `dropdown.dart:1028` fails on *zero or 2 or more* matches. A `value:`
+        // resolution written as `isNotEmpty` would close only the zero arm;
+        // `length == 1` mirrors the assert's own predicate and closes both.
+        // React tolerates it too — `updateOptions` returns on the first match.
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: const ReferenceFieldState(
+              options: <Option>[
+                Option(value: 'dup', label: 'First'),
+                Option(value: 'dup', label: 'Second'),
+              ],
+            ),
+            value: 'dup',
+            placeholder: 'Select…',
+            onChanged: (_) {},
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull);
+      });
+    });
+
+    group('F0-AC-112 — PATH (b): the retry affordance is REACHABLE with a '
+        'value set [$locale]', () {
+      // The more serious half. A failed reference load leaves `options` empty
+      // for the life of the page, so before RULING 14 every step-2 render with
+      // a detected nationality threw in `build` — and the throw is at `:125`,
+      // ABOVE the failure row at `:158-159` in the same `Column`, so the
+      // citizen got neither a retry nor an empty dropdown. L-8 was not merely
+      // violated, it was unreachable.
+      testWidgets('LoadFailure renders, LOAD_FAILED and RETRY are both '
+          'present, and tapping Retry invokes the callback',
+          (WidgetTester tester) async {
+        int retries = 0;
+        await pump(
+          tester,
+          ReferenceSelectView(
+            label: const Text('Nationality'),
+            source: ReferenceFieldState(
+              failed: true,
+              retry: () => retries++,
+            ),
+            value: 'lao',
+            placeholder: 'Select…',
+            onChanged: (_) {},
+          ),
+          locale: locale,
+        );
+
+        expect(tester.takeException(), isNull,
+            reason: 'the throw preceded the retry row; that is path (b)');
+        expect(find.byType(LoadFailure), findsOneWidget);
+        expect(find.text(s['loadFailed']!), findsOneWidget);
+        expect(find.text(s['retry']!), findsOneWidget);
+
+        await tester.tap(find.text(s['retry']!));
+        await settle(tester);
+        expect(retries, 1,
+            reason: 'L-8 asserted at the state where it was unreachable');
       });
     });
   }
@@ -568,6 +801,37 @@ void main() {
       ),
       'LoadFailure': LoadFailure(onRetry: () {}),
       'FieldErrorText': const FieldErrorText(show: true),
+
+      // ---- F0-AC-113 — a second entry per value-resolving widget, with the
+      // value ABSENT from its list and the container still uninitialised.
+      //
+      // Two of these three are expected green on the unmodified files:
+      // `searchable_select.dart:168-170` resolves with `.where(...).firstOrNull`
+      // and falls through to `selected?.label ?? widget.placeholder` (`:220`),
+      // and `LocationFieldsView` renders through it (`:190`, `:211`, `:232`).
+      // That soundness was MEASURED, not built (§ 6.3.9 scope correction) — the
+      // entries exist so a future edit cannot quietly remove it.
+      'SearchableSelect (value absent from its list)': SearchableSelect(
+        label: const Text('P'),
+        value: 'zzz',
+        options: kThree,
+        placeholder: 'Select…',
+        onChanged: (_) {},
+      ),
+      'ReferenceSelectView (value absent from its list)': ReferenceSelectView(
+        label: const Text('N'),
+        source: const ReferenceFieldState(options: kThree),
+        value: 'zzz',
+        placeholder: 'Select…',
+        onChanged: (_) {},
+      ),
+      'LocationFieldsView (values absent from their lists)': LocationFieldsView(
+        province: 'zzz-p',
+        district: 'zzz-d',
+        village: 'zzz-v',
+        provinces: const LocationLevel(rows: kThree),
+        onChanged: (_) {},
+      ),
     };
 
     for (final MapEntry<String, Widget> e in subjects.entries) {
@@ -577,8 +841,9 @@ void main() {
       });
     }
 
-    test('…and the count is the seven fetching-adjacent widgets', () {
-      expect(subjects, hasLength(7));
+    test('…and the count is the seven fetching-adjacent widgets plus the '
+        'three unmatched-value entries of F0-AC-113', () {
+      expect(subjects, hasLength(10));
     });
   });
 

@@ -113,7 +113,10 @@ class WalletRetryCard extends StatelessWidget {
           style: const TextStyle(fontSize: 14, color: AppColors.gray600),
         ),
         const SizedBox(height: 12),
-        _PrimaryPillButton(label: 'wallet.tryAgain'.tr(context: context), onTap: onRetry),
+        _PrimaryPillButton(
+          label: 'wallet.tryAgain'.tr(context: context),
+          onTap: onRetry,
+        ),
       ],
     );
 
@@ -124,10 +127,7 @@ class WalletRetryCard extends StatelessWidget {
       );
     }
 
-    return _WalletCard(
-      padding: const EdgeInsets.all(32),
-      child: content,
-    );
+    return _WalletCard(padding: const EdgeInsets.all(32), child: content);
   }
 }
 
@@ -175,7 +175,10 @@ class WalletEmptyCard extends StatelessWidget {
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: AppColors.gray400Inline),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.gray400Inline,
+            ),
           ),
         ],
       ),
@@ -290,7 +293,10 @@ class WalletSectionHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle!,
-                  style: const TextStyle(fontSize: 12, color: AppColors.gray500),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.gray500,
+                  ),
                 ),
               ],
             ],
@@ -345,7 +351,11 @@ class _WalletCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.gray100),
         boxShadow: const <BoxShadow>[
-          BoxShadow(color: AppColors.cardShadow, blurRadius: 2, offset: Offset(0, 1)),
+          BoxShadow(
+            color: AppColors.cardShadow,
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
         ],
       ),
       child: child,
@@ -374,7 +384,11 @@ class _PrimaryPillButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const LucideIcon(name: 'RefreshCw', size: 16, color: AppColors.white),
+            const LucideIcon(
+              name: 'RefreshCw',
+              size: 16,
+              color: AppColors.white,
+            ),
             const SizedBox(width: 8),
             Text(
               label,

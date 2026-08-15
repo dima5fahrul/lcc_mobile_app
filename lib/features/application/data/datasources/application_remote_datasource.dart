@@ -38,11 +38,19 @@
 /// as being offline. One rule, no exceptions: ask for `dynamic`, check here.
 library;
 
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import '../../../../core/constant/api_endpoint.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/envelope.dart';
+import '../../domain/entities/application_detail.dart';
+import '../../domain/entities/picked_attachment.dart';
 import '../../domain/entities/application_page.dart';
 import '../../domain/entities/case_status.dart';
+import '../../domain/entities/case_timeline.dart';
 import '../../domain/entities/status_pipeline.dart';
 import '../models/application_wire.dart';
 
@@ -63,8 +71,66 @@ abstract class ApplicationRemoteDatasource {
     String? search,
   });
 
+  /// `GET /applications/{id}` — Bearer. **B7b.**
+  ///
+  /// Throws the [ApiException] the client raises, 404 included; the repository
+  /// is where a 404 becomes a distinguishable failure, because that is the
+  /// layer whose type the page reads.
+  Future<ApplicationDetail> getApplication(String id);
+
+  /// `GET /applications/{id}/timeline` — Bearer. **B7b.**
+  Future<CaseTimeline> getApplicationTimeline(String id);
+
   /// `GET /status-catalogue` — anonymous.
   Future<StatusPipeline> getStatusPipeline();
+
+  // ── The write half (F1, `specs.md` § 6.3) ──────────────────────────────────
+  //
+  // Four methods, shaped so **B4 merges rather than rewrites** them
+  // (`roadmap.md`:399). No `cancel`, no `removeAttachment`, no `pay`.
+
+  /// `POST /applications` — Bearer (`endpoints.ts:325`).
+  ///
+  /// [envelope] is passed through **as built**, and that is the whole
+  /// contract: `client.ts:242` is a bare `JSON.stringify(options.body)`, so
+  /// this map's insertion order is the byte order on the socket. Nothing here
+  /// may sort it, filter it, or fill a missing key — Resident's
+  /// `province_id: form.province || undefined` (`:509`) **elides** the key when
+  /// blank and a datasource that re-added it as `""` would put a sixth key on a
+  /// five-key body (`F1-AC-21`).
+  Future<ApplicationDetail> createApplication(Map<String, Object?> envelope);
+
+  /// `PATCH /applications/{id}` — Bearer (`endpoints.ts:327-328`).
+  ///
+  /// Same pass-through rule, and the order is **different**: `form_data` is
+  /// first here and last on create (`F0-AC-80`). Two key names, two byte
+  /// sequences, and neither is a normalisation candidate.
+  Future<ApplicationDetail> updateApplication(
+    String id,
+    Map<String, Object?> envelope,
+  );
+
+  /// `POST /applications/{id}/attachments` — multipart, Bearer
+  /// (`endpoints.ts:344-351`).
+  ///
+  /// **No extension or MIME check happens here or anywhere below it** (R-21).
+  /// `handleFile` (`ResidentCertificatePage.tsx:213-221`) reads
+  /// `e.target.files[0]` and inspects neither `type` nor `size`; a `.pdf`
+  /// picked on a control whose `accept` says `image/*` uploads unchanged. The
+  /// `kind` string is the **slot's** declared kind, not the file's.
+  Future<void> addAttachment(
+    String id, {
+    required PickedAttachment file,
+    required String slot,
+    required String kind,
+    String? label,
+  });
+
+  /// `POST /applications/{id}/submit` — Bearer (`endpoints.ts:338`).
+  ///
+  /// The body is `{}`. Answers the **decided** case; its `fee_lak` is what the
+  /// caller's pay branch reads (`:535`).
+  Future<ApplicationDetail> submitApplication(String id);
 }
 
 class ApplicationRemoteDatasourceImpl implements ApplicationRemoteDatasource {
@@ -120,6 +186,40 @@ class ApplicationRemoteDatasourceImpl implements ApplicationRemoteDatasource {
   }
 
   @override
+  Future<ApplicationDetail> getApplication(String id) async {
+    final dynamic body = await apiClient.get<dynamic>(
+      ApiEndpoint.application(id),
+    );
+    // A detail that is not an object is not a detail. Unlike the catalogue —
+    // where `statusCatalogue.ts:60-61` has a seed to fall back to and the bar
+    // must still render — there is no such thing as a fallback case, so this
+    // throws and the page renders its error branch (`:200-238`) rather than a
+    // blank hero over an empty reference number.
+    if (body is! Map<String, dynamic>) {
+      throw const ApiException(
+        status: 0,
+        code: ApiCode.internalError,
+        message: 'The application payload was not an object.',
+      );
+    }
+    return applicationDetailFrom(body);
+  }
+
+  @override
+  Future<CaseTimeline> getApplicationTimeline(String id) async {
+    final dynamic body = await apiClient.get<dynamic>(
+      ApiEndpoint.applicationTimeline(id),
+    );
+    // A non-object body IS survivable here, and that is the difference from the
+    // detail above: the timeline's own empty state ("Nothing has happened on
+    // this case yet.", `:534-539`) is a designed screen, so an unreadable
+    // envelope degrades to it rather than putting a retry panel in front of a
+    // case that is otherwise fully rendered.
+    if (body is! Map<String, dynamic>) return CaseTimeline.empty;
+    return caseTimelineFrom(body);
+  }
+
+  @override
   Future<StatusPipeline> getStatusPipeline() async {
     final dynamic body = await apiClient.get<dynamic>(
       ApiEndpoint.statusCatalogue,
@@ -131,5 +231,93 @@ class ApplicationRemoteDatasourceImpl implements ApplicationRemoteDatasource {
     // stages either way (`B7-AC-26`).
     if (body is! Map<String, dynamic>) return StatusPipeline.seeded;
     return statusPipelineFrom(body);
+  }
+
+  // ── The write half (F1) ────────────────────────────────────────────────────
+
+  /// The one place a write response becomes an [ApplicationDetail].
+  ///
+  /// Written once rather than three times because all three writes answer the
+  /// same shape and `getApplication` above already proved the failure mode: a
+  /// non-object body is not a case, and there is no seed to fall back to.
+  ApplicationDetail _caseFrom(dynamic body, String what) {
+    if (body is! Map<String, dynamic>) {
+      throw ApiException(
+        status: 0,
+        code: ApiCode.internalError,
+        message: 'The $what response was not an object.',
+      );
+    }
+    return applicationDetailFrom(body);
+  }
+
+  @override
+  Future<ApplicationDetail> createApplication(
+    Map<String, Object?> envelope,
+  ) async {
+    // `body: envelope` — the map reaches Dio's JSON encoder with its insertion
+    // order intact, which is the wire order (`F1-AC-21`). Copying it into a
+    // new literal here, or spreading it, would preserve order today and is
+    // still not done: there would then be two places that decide it.
+    final dynamic body = await apiClient.post<dynamic>(
+      ApiEndpoint.applications,
+      body: envelope,
+    );
+    return _caseFrom(body, 'create');
+  }
+
+  @override
+  Future<ApplicationDetail> updateApplication(
+    String id,
+    Map<String, Object?> envelope,
+  ) async {
+    final dynamic body = await apiClient.patch<dynamic>(
+      ApiEndpoint.application(id),
+      body: envelope,
+    );
+    return _caseFrom(body, 'update');
+  }
+
+  @override
+  Future<void> addAttachment(
+    String id, {
+    required PickedAttachment file,
+    required String slot,
+    required String kind,
+    String? label,
+  }) async {
+    // `MultipartFile.fromBytes` and not `fromFile`: [PickedAttachment.path] is
+    // absent on the web target and on an Android content:// pick that returned
+    // no cached copy, and the bytes are the half the source actually sends
+    // (`FileReader` reads the same `File` object the POST carries).
+    final FormData form = FormData.fromMap(<String, dynamic>{
+      'file': MultipartFile.fromBytes(
+        file.bytes ?? Uint8List(0),
+        filename: file.name,
+      ),
+      'slot': slot,
+      'kind': kind,
+      // `label` is the source's fourth, optional part (`endpoints.ts:349-350`).
+      // Absent means absent — an empty string is a part the web does not send.
+      if (label != null) 'label': label,
+    });
+
+    await apiClient.upload<dynamic>(
+      ApiEndpoint.applicationAttachments(id),
+      form,
+    );
+  }
+
+  @override
+  Future<ApplicationDetail> submitApplication(String id) async {
+    // `body: const <String, Object?>{}` — the empty object, which serialises to
+    // `"{}"`. Omitting `body:` sends no body and `body: null` sends `"null"`;
+    // `endpoints.ts:338` sends `{}` and `F1-AC-23` is the assertion that all
+    // three were distinguished rather than assumed equivalent.
+    final dynamic body = await apiClient.post<dynamic>(
+      ApiEndpoint.applicationSubmit(id),
+      body: const <String, Object?>{},
+    );
+    return _caseFrom(body, 'submit');
   }
 }

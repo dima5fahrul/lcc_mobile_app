@@ -404,4 +404,116 @@ class ApiEndpoint {
   /// synthetic (specs.md § 6.12). Only `pipeline_order` is read; the nine-entry
   /// `statuses[]` is written and never consumed on the web (§ 6.9).
   static const String statusCatalogue = '/status-catalogue';
+
+  // ── Applications, the detail half (B7b) ────────────────────────────────────
+  //
+  // Two paths, both Bearer, both `GET`, both **additive** — zero deletions and
+  // no edit to any constant above, so B6b's pay path below and B8/B10 still
+  // merge (specs.md § 3.3).
+  //
+  // **`DELETE /applications/{id}` is deliberately absent**, and it is the
+  // fourth dead endpoint measured in this project rather than inferred:
+  // `applications.cancel` is declared at `endpoints.ts:340` and
+  // `grep -rn "applications.cancel" lcc-app/src` finds only that declaration —
+  // no web component calls it. `application_repository.dart` records the same
+  // for `removeAttachment`, and `ssd.md` § 5.1 rules that **B4** decides both
+  // with a stated reason and that no earlier batch builds them speculatively.
+  // B7b does not, even though the path sits inside its own feature's surface.
+
+  /// `endpoints.ts:323` — `applications.get(id)`. One `ApplicationDetail`
+  /// object, not paged, Bearer.
+  ///
+  /// A function with the segment percent-encoded, the convention `newsArticle`
+  /// / `helpArticle` / `meTransaction` already establish. The id is a server
+  /// identifier the citizen never types, so encoding it is defence against a
+  /// value the backend chose rather than against user input — which is the
+  /// case where a missing encode survives every test and fails in production.
+  ///
+  /// **404 is a rendered state, not an error state** (`HistoryDetailPage.tsx:201`,
+  /// `B7-AC-54`): the detail page prints *"This application could not be
+  /// found."* for a 404 and the API's own sentence for anything else. See
+  /// `application_failures.dart`.
+  static String application(String id) =>
+      '/applications/${Uri.encodeComponent(id)}';
+
+  /// `endpoints.ts:342` — `applications.timeline(id)`. One `CaseTimeline`
+  /// object, Bearer.
+  ///
+  /// **Shared with B4** (`ssd.md` § 5.1). Noted here as well as on the
+  /// repository method so the overlap is visible from the endpoint table, which
+  /// is where a later batch looks first.
+  static String applicationTimeline(String id) =>
+      '/applications/${Uri.encodeComponent(id)}/timeline';
+
+  // ── The pay path (B6b) ─────────────────────────────────────────────────────
+  //
+  // **One path, not the two specs.md § 5.1 lists for B6b.** That table was
+  // written when `features/application/` did not exist; B7a has since landed
+  // [applications] above, so B6b appends only the charge. Recorded here rather
+  // than left to a reader's arithmetic — and it is also why the B6a block's
+  // line *"`/applications` and `/applications/{id}/pay` are deliberately
+  // absent"* is now half-stale. It is left byte-identical on purpose:
+  // `B6-AC-13` requires **zero deletions** in this file's diff, and correcting
+  // a comment would spend that budget on prose.
+
+  /// `endpoints.ts:356` — `applications.pay(id, {method_code})`.
+  ///
+  /// **This endpoint debits a real balance against a real case.** specs.md
+  /// § 4.4 forbids executing it against **any** host, absolutely, and forbids
+  /// the loophole too: creating an application so that there is something to
+  /// pay for is named as the one thing most forbidden (§ 4.4, security item 6).
+  /// Every test of this path runs against `http_mock_adapter`.
+  ///
+  /// The body is **exactly one key** — `{"method_code": "<code>"}` (`B6-AC-36`)
+  /// — and it is the method's `code`, never its id, its label or its kind.
+  ///
+  /// The segment is percent-encoded per the convention `newsArticle`,
+  /// `helpArticle` and [meTransaction] already establish above.
+  static String applicationPay(String id) =>
+      '/applications/${Uri.encodeComponent(id)}/pay';
+
+  // ── Applications, the write half (F1) ──────────────────────────────────────
+  //
+  // **Two additions, not four.** `create` is `POST` on [applications] and
+  // `update` is `PATCH` on [application], both of which B7a and B7b already
+  // landed above — a verb is not an endpoint, so adding `applicationCreate`
+  // and `applicationUpdate` constants would be two names for two strings that
+  // already exist and two places for a later reader to disagree with himself.
+  //
+  // **`/applications/{id}/pay` is NOT added here**, and its absence is a
+  // ruling rather than an omission: `specs.md` § 6.2 gives B6b the pay
+  // capability outright and `F1-AC-25` checks that F1 did not take it. It is
+  // above, written by B6b, and F1 reads it through nothing at all — the pay
+  // call reaches F1 as an injected function it does not implement.
+  //
+  // `cancel` (`endpoints.ts:340`) and `removeAttachment` (`:353`) stay absent
+  // for the reason the B7b block above already records: `roadmap.md`:399
+  // reserves both to **B4** with a written decision and forbids any earlier
+  // batch building them speculatively (`F1-AC-19`, `F1-AC-20`).
+
+  /// `endpoints.ts:344-351` — `applications.addAttachment(id, file, slot, kind)`.
+  /// **multipart/form-data**, Bearer.
+  ///
+  /// Four parts and no more: `file`, `slot`, `kind`, and `label` only when the
+  /// caller supplies one (`F1-AC-22`). Resident sends the first three
+  /// (`ResidentCertificatePage.tsx:528`).
+  ///
+  /// Uploads are **sequential** in `attachmentsToSend()`'s fixed order and an
+  /// already-uploaded slot is skipped on a retry (`:526-530`) — that is the
+  /// caller's loop, not this constant's, and it is asserted at `F1-AC-58`.
+  static String applicationAttachments(String id) =>
+      '/applications/${Uri.encodeComponent(id)}/attachments';
+
+  /// `endpoints.ts:338` — `applications.submit(id)`. Bearer.
+  ///
+  /// The body is an **empty object**, `{}` — not null and not an omitted body
+  /// (`F1-AC-23`). `client.ts:242` is a bare `JSON.stringify(options.body)`, so
+  /// the three serialise to `"{}"`, `"null"` and no body at all: three
+  /// different requests, one of which the API accepts.
+  ///
+  /// Answers the **decided** case, which is where `fee_lak` comes from — the
+  /// value Resident's `if (decided.fee_lak > 0)` branch reads before it does or
+  /// does not call pay (`:535`).
+  static String applicationSubmit(String id) =>
+      '/applications/${Uri.encodeComponent(id)}/submit';
 }

@@ -14,6 +14,8 @@
 /// created and **closed** with the visit.
 library;
 
+import '../domain/usecases/list_pending_bills.dart';
+import '../domain/usecases/pay_application.dart';
 import '../domain/usecases/wallet_usecases.dart';
 import '../presentation/bloc/wallet_bloc.dart';
 import 'wallet_datasource_injection.dart';
@@ -34,6 +36,13 @@ class WalletFeatureInjection {
         getTransactions: walletInjection<GetTransactions>(),
         getPaymentMethods: walletInjection<GetPaymentMethods>(),
         topUpWallet: walletInjection<TopUpWallet>(),
+        // B6b. `ListPendingBills` reaches `applicationInjection` through the
+        // closure registered in `WalletUsecaseInjection` — see its library doc
+        // for the ordering constraint (`ApplicationFeatureInjection.init()`
+        // first, which is `DependencyInjection.init()`'s alphabetical order and
+        // therefore needs no DI-6 deviation).
+        listPendingBills: walletInjection<ListPendingBills>(),
+        payApplication: walletInjection<PayApplication>(),
       ),
     );
   }

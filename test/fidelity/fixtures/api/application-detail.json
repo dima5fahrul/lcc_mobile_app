@@ -1,0 +1,168 @@
+{
+  "_provenance": "DECLARED SYNTHETIC — NOT A RECORDED PAYLOAD. specs.md § 6.12. Hand-built from `lcc-app/src/app/api/types.ts:485-491` (ApplicationDetail extends ApplicationRow) plus `:450-460` (Attachment) and `:462-474` (CaseEvent). Three cases, chosen to exercise the three branches the detail page renders differently: `issued` (the approved bucket, gates B5's documentActions/certificatePanel seams via isIssued), `rejected` with a non-empty `reason_note` (the only arrangement that renders the rejection card, `HistoryDetailPage.tsx:441`), and `submitted` with `payment_state: pending` and `fee_lak > 0` (the only arrangement where canPay is true and B6's paymentAction seam is offered, `:251`). `issued` also carries a 100-byte attachment so the `max(1, round(size_bytes/1024))` clamp renders `1 KB` rather than `0 KB` (B7-AC-70), an inline `timeline` so the `:249` fallback chain's second link is exercisable, and an absent `assigned_officer` on the rejected case so B7-AC-58's negative arm has a fixture. `form_data` is present on the wire and deliberately NOT parsed (§ 6.3); `allowed_actions` is omitted (§ 6.2). Every criterion discharged against this file is evidence that the PORT is correct GIVEN a payload; it is NOT evidence that staging sends this payload, and must be reported NOT EVALUATED against live data (§ 6.4). /applications/ returns total 0, rows 0 on the only test account, so no recording is available to derive it from.",
+
+  "issued": {
+    "success": true,
+    "message": "application retrieved",
+    "data": {
+      "id": "app-201",
+      "reference_no": "LCC-2026-000201",
+      "service_code": "resident-cert",
+      "service_name": {
+        "en": "Resident Certificate",
+        "lo": "ໃບຢັ້ງຢືນທີ່ຢູ່ອາໄສ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "issued",
+      "status_label": {
+        "en": "Issued",
+        "lo": "ອອກແລ້ວ"
+      },
+      "payment_state": "paid",
+      "fee_lak": 20000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly",
+        "village_id": "NON",
+        "village_name": "Nongbone"
+      },
+      "assigned_officer": "Officer Khamla Sisouk",
+      "sla_days": 5,
+      "days_waiting": 4,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-03T02:15:00Z",
+      "issued_at": "2026-09-03T09:30:00Z",
+      "certificate_no": "CERT-2026-000201",
+      "created_at": "2026-08-01T02:15:00Z",
+      "updated_at": "2026-09-03T09:30:00Z",
+      "form_data": {
+        "full_name": "Somchai Vongsa",
+        "purpose": "employment"
+      },
+      "attachments": [
+        {
+          "id": "att-001",
+          "kind": "document",
+          "slot": "id_card",
+          "label": "ID card",
+          "file_name": "id-card-front.jpg",
+          "file_url": "https://files.example.la/att-001",
+          "mime_type": "image/jpeg",
+          "size_bytes": 100,
+          "uploaded_at": "2026-08-01T02:20:00Z"
+        },
+        {
+          "id": "att-002",
+          "kind": "document",
+          "slot": "family_book",
+          "label": "",
+          "file_name": "family-book.pdf",
+          "file_url": "https://files.example.la/att-002",
+          "mime_type": "application/pdf",
+          "size_bytes": 524288,
+          "uploaded_at": "2026-08-01T02:22:00Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev-inline-1",
+          "action": "submit",
+          "to_status": "submitted",
+          "status_label": {
+            "en": "Submitted",
+            "lo": "ສົ່ງແລ້ວ"
+          },
+          "actor_name": "Somchai Vongsa",
+          "occurred_at": "2026-08-03T02:15:00Z"
+        }
+      ]
+    }
+  },
+
+  "rejected": {
+    "success": true,
+    "message": "application retrieved",
+    "data": {
+      "id": "app-202",
+      "reference_no": "LCC-2026-000202",
+      "service_code": "birth-cert",
+      "service_name": {
+        "en": "Birth Certificate",
+        "lo": "ໃບຢັ້ງຢືນການເກີດ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Noy Vongsa",
+      "status": "rejected",
+      "status_label": {
+        "en": "Rejected",
+        "lo": "ຖືກປະຕິເສດ"
+      },
+      "payment_state": "refunded",
+      "fee_lak": 50000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "SIK",
+        "district_name": "Sikhottabong",
+        "village_id": "PHO",
+        "village_name": "Phonsinuan"
+      },
+      "sla_days": 5,
+      "days_waiting": 9,
+      "days_overdue": 4,
+      "is_overdue": true,
+      "submitted_at": "2026-08-02T03:00:00Z",
+      "reason_note": "The uploaded family book page was unreadable. Please rescan pages 2 and 3 at a higher resolution and resubmit.",
+      "created_at": "2026-08-02T03:00:00Z",
+      "updated_at": "2026-08-11T07:40:00Z",
+      "form_data": {},
+      "attachments": []
+    }
+  },
+
+  "pendingWithFee": {
+    "success": true,
+    "message": "application retrieved",
+    "data": {
+      "id": "app-203",
+      "reference_no": "LCC-2026-000203",
+      "service_code": "marriage-cert",
+      "service_name": {
+        "en": "Marriage Certificate",
+        "lo": "ໃບຢັ້ງຢືນການແຕ່ງງານ"
+      },
+      "applicant": "citizen-0001",
+      "subject_name": "Somchai Vongsa",
+      "status": "submitted",
+      "status_label": {
+        "en": "Submitted",
+        "lo": "ສົ່ງແລ້ວ"
+      },
+      "payment_state": "pending",
+      "fee_lak": 120000,
+      "channel": "mobile",
+      "jurisdiction": {
+        "province_id": "VTE",
+        "province_name": "Vientiane Capital",
+        "district_id": "CHA",
+        "district_name": "Chanthabouly"
+      },
+      "sla_days": 7,
+      "days_waiting": 2,
+      "days_overdue": 0,
+      "is_overdue": false,
+      "submitted_at": "2026-08-13T01:05:00Z",
+      "due_at": "2026-08-20T01:05:00Z",
+      "created_at": "2026-08-13T01:05:00Z",
+      "updated_at": "2026-08-13T01:05:00Z",
+      "form_data": {},
+      "attachments": []
+    }
+  }
+}

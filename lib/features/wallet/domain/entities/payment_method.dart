@@ -99,6 +99,7 @@ abstract class PaymentMethod with _$PaymentMethod {
     required Bilingual label,
     required PaymentMethodKind kind,
     required bool enabled,
+
     /// **`double`, not `int` — measured, not assumed.** `types.ts:518` types it
     /// `number`, and the live recording carries four fractional values:
     /// `bcel-one 1.2`, `ldb-onepay 1.5`, `laoqr 0.8`, `unitel-money 1.8`

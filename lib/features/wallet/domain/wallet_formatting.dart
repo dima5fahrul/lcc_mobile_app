@@ -1,5 +1,15 @@
-/// The wallet's own pure transforms: [formatKip], [formatDay] and
+/// The wallet's own pure transforms: [formatKip], [formatDay], [daysUntil] and
 /// [parseTopUpAmount].
+///
+/// **[daysUntil] was added by B6b**, and the split is a spec artefact worth
+/// naming rather than hiding: specs.md § 3.1's **B6a** row for this file lists
+/// *"`formatKip`, `formatDay`, `daysUntil`"*, while `B6-AC-21` — the criterion
+/// that gates `daysUntil`'s `ceil` semantics and its injected clock — is tagged
+/// **B6b**, because the Bills Due card is its only caller and that card is
+/// B6b's. B6a shipped the two formatters its own surfaces needed and left the
+/// third; B6b, the consumer, lands it under the criterion that gates it. The
+/// file is not in B6b's § 3.1 table, so this is a recorded scope deviation, not
+/// a licence — see the hand-back report.
 ///
 /// In `domain/` for the reason `home_formatting.dart:1-9` argues: they are
 /// arithmetic and table lookups over a value and a language code, and putting
@@ -152,10 +162,66 @@ String formatDay(String? value, String languageCode) {
   final DateTime? parsed = DateTime.tryParse(value);
   if (parsed == null) return value;
 
-  final List<String> months =
-      languageCode == kLao ? kShortMonthsLo : kShortMonthsEn;
+  final List<String> months = languageCode == kLao
+      ? kShortMonthsLo
+      : kShortMonthsEn;
   final String day = parsed.day.toString().padLeft(2, '0');
   return '$day ${months[parsed.month - 1]} ${parsed.year}';
+}
+
+/// **`daysUntil(value)` — `WalletPage.tsx:78-84`.** Whole days from now until
+/// [value]; negative once the date has passed, `null` when there is no date.
+///
+/// ```ts
+/// function daysUntil(value: string | undefined): number | null {
+///   if (!value) return null;
+///   const due = new Date(value).getTime();
+///   if (Number.isNaN(due)) return null;
+///   return Math.ceil((due - Date.now()) / 86_400_000);
+/// }
+/// ```
+///
+/// ## `ceil`, and it is the whole behaviour (`B6-AC-21`)
+///
+/// A bill due in **thirty minutes** is `1`, not `0` — `Math.ceil(0.0208…)`. It
+/// reads as "due today" rather than "due now", and every chip in the Bills Due
+/// card is keyed off it: `overdue` when negative, amber when `<= 3`, grey
+/// otherwise (`:334-343`). A `truncate()` or a `round()` port would move the
+/// overdue boundary by up to a day on a surface that tells a citizen a fee is
+/// late.
+///
+/// `Math.ceil` and Dart's `double.ceil()` both round toward **+∞**, so they
+/// agree on negatives too: `-1.5` → `-1` in both. A bill 30 minutes *past* due
+/// is `0`, not `-1` — still not overdue by this number alone, which is why
+/// `:333` ORs it with the server's own `is_overdue` flag rather than trusting
+/// the arithmetic.
+///
+/// ## The clock is a parameter, and that is a testability requirement
+///
+/// `B6-AC-21` requires it: *"The clock is injected — no test reads
+/// `DateTime.now()` directly."* A test that computed its own expectation from
+/// `DateTime.now()` would be asserting the implementation against itself and
+/// would pass with the `ceil` replaced by anything monotonic. [now] defaults to
+/// the real clock so no call site has to thread one.
+///
+/// ## Timezone
+///
+/// `new Date(value).getTime()` and `DateTime.parse(…).millisecondsSinceEpoch`
+/// are both absolute instants, so the subtraction is timezone-free. The port
+/// therefore does **not** normalise to local midnight — neither does the
+/// source, and doing so would change `daysUntil` for every citizen east of
+/// UTC+7's date line at exactly the times a due date matters most.
+int? daysUntil(String? value, {DateTime? now}) {
+  if (value == null || value.isEmpty) return null;
+
+  final DateTime? due = DateTime.tryParse(value);
+  if (due == null) return null;
+
+  final DateTime clock = now ?? DateTime.now();
+  final int deltaMs = due.millisecondsSinceEpoch - clock.millisecondsSinceEpoch;
+
+  // `86_400_000` — the source's own literal, one day in milliseconds.
+  return (deltaMs / 86400000).ceil();
 }
 
 /// **`Number(amount.replace(/[^\d]/g, "")) || 0` — `WalletPage.tsx:735`.**

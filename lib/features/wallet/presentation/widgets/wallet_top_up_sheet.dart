@@ -116,8 +116,9 @@ class WalletTopUpSheet extends StatefulWidget {
 class _WalletTopUpSheetState extends State<WalletTopUpSheet> {
   /// `useState<string>(String(min))` — `:737`. A **string**, because the field
   /// is a text input and the parse is what makes it a number.
-  late final TextEditingController _amount =
-      TextEditingController(text: widget.min.toString());
+  late final TextEditingController _amount = TextEditingController(
+    text: widget.min.toString(),
+  );
 
   /// `const [picked, setPicked] = useState("")` — `:738`. Empty until the
   /// citizen taps a row; `methodCode` falls through to `options[0]`.
@@ -149,11 +150,8 @@ class _WalletTopUpSheetState extends State<WalletTopUpSheet> {
   void _submit(List<PaymentMethod> options, bool pending) {
     if (!_canSubmit(options, pending)) return;
     context.read<WalletBloc>().add(
-          WalletTopUpSubmitted(
-            amountLak: _value,
-            methodCode: _methodCode(options),
-          ),
-        );
+      WalletTopUpSubmitted(amountLak: _value, methodCode: _methodCode(options)),
+    );
   }
 
   @override
@@ -308,8 +306,10 @@ class _WalletTopUpSheetState extends State<WalletTopUpSheet> {
           style: const TextStyle(fontSize: 14, color: AppColors.gray800),
           decoration: InputDecoration(
             isDense: true,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             filled: true,
             fillColor: AppColors.white,
             enabledBorder: OutlineInputBorder(
@@ -396,9 +396,9 @@ class _WalletTopUpSheetState extends State<WalletTopUpSheet> {
           WalletRetryCard(
             message: state.methodsError!,
             boxed: false,
-            onRetry: () => context
-                .read<WalletBloc>()
-                .add(const WalletPaymentMethodsRetried()),
+            onRetry: () => context.read<WalletBloc>().add(
+              const WalletPaymentMethodsRetried(),
+            ),
           )
         else if (options.isEmpty)
           Text(
@@ -544,11 +544,7 @@ class _MethodRow extends StatelessWidget {
                 color: accent.withValues(alpha: 0x1A / 0xFF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: LucideIcon(
-                name: 'CreditCard',
-                size: 16,
-                color: accent,
-              ),
+              child: LucideIcon(name: 'CreditCard', size: 16, color: accent),
             ),
             const SizedBox(width: 12),
             Expanded(

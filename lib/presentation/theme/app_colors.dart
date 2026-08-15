@@ -1038,4 +1038,80 @@ abstract final class AppColors {
   /// app too. It is ported because the port carries the source's data, and
   /// `history_i18n_test.dart:219-232` asserts it stays distinct from `bg`.
   static const Color successRing = Color(0xFF86EFAC);
+
+  // ── F1: the Resident wizard and draft-mode payment ─────────────────────────
+  //
+  // Six values, appended. **Nothing above this comment changed** — no rename,
+  // no reorder, no edit.
+  //
+  // ## Why these are new names and not four existing ones
+  //
+  // Three of the six already exist in this file *numerically*: `#1A2D7A` is
+  // [helpHeaderEnd], `#C7D2FE` is [infoBorder], `#99000000` is
+  // [tutorialScrim]. Reusing them was the cheaper option and is the wrong one,
+  // for the reason `color_literal_test.dart:4-9` gives about inline hexes
+  // turned inside out: a token is what makes Tier 2 able to *see* a value, and
+  // a token's NAME is what tells the next reader which surface owns it.
+  // Binding Resident's success badge to a token named for the Help header
+  // means a later, entirely reasonable change to the Help header silently
+  // restyles a certificate wizard — and nothing would catch it, because the
+  // value would still match a token.
+  //
+  // The same argument rules out `AppColors.black.withValues(alpha: 0.6)` at
+  // the call site, which was F1's first attempt: a computed colour is no more
+  // visible to Tier 2 than an inline hex is. It has to be a named constant
+  // here or the guard's whole rationale is defeated while its letter is met.
+  //
+  // Scope: `lib/presentation/theme/app_colors.dart` is an append-only row in
+  // F1's § 3.1, granted on the B10 (§ 3.1 line 284) and B6a precedent.
+
+  /// `#1A2D7A` — the 100 % stop of the **brand gradient**.
+  ///
+  /// `linear-gradient(135deg, #344EAD 0%, #1a2d7a 100%)`, at two call sites
+  /// with one meaning: the Resident success badge
+  /// (`ResidentCertificatePage.tsx:624`) and the draft-payment mock card
+  /// (`PaymentSection.tsx:596`). The 0 % stop is [primary].
+  ///
+  /// Numerically equal to [helpHeaderEnd] and deliberately a separate name —
+  /// see the block comment above. `F1-AC-56` compares both stops.
+  static const Color brandGradientEnd = Color(0xFF1A2D7A);
+
+  /// `#C7D2FE` — Tailwind `indigo-200`. The CTA's fill **while a submission is
+  /// in flight** (`ResidentCertificatePage.tsx:1041`).
+  ///
+  /// The button is never disabled; only its fill changes (`F1-AC-65`), so this
+  /// is a busy state and not a disabled one. Numerically equal to
+  /// [infoBorder], which is a *border* token — a fill and a border that happen
+  /// to share a value are two things, and collapsing them would tie this
+  /// button's busy state to an info panel's outline.
+  static const Color ctaPendingFill = Color(0xFFC7D2FE);
+
+  /// `rgba(0,0,0,0.6)` — the 0 % stop of the scrim under an uploaded file's
+  /// name (`bg-gradient-to-t from-black/60`, `ResidentCertificatePage.tsx:233`).
+  ///
+  /// The 100 % stop is [transparent]. Numerically equal to [tutorialScrim],
+  /// which dims a whole overlay; this one is a 40-pixel caption band over a
+  /// thumbnail.
+  static const Color uploadCaptionScrim = Color(0x99000000);
+
+  /// `rgba(255,255,255,0.7)` — `text-white/70`, the remove-file `X` at rest
+  /// over an uploaded thumbnail (`ResidentCertificatePage.tsx:240`).
+  ///
+  /// No existing token carries this value.
+  static const Color uploadRemoveGlyph = Color(0xB3FFFFFF);
+
+  /// `rgba(255,255,255,0.5)` — `text-white/50`, the three caption inks on the
+  /// draft-payment mock card: `cardType` (`PaymentSection.tsx:600`),
+  /// `cardholder` (`:609`) and `expires` (`:615`).
+  ///
+  /// No existing token carries this value.
+  static const Color cardMetaInk = Color(0x80FFFFFF);
+
+  /// `#344EAD55` — the selected payment-method tab's drop shadow
+  /// (`box-shadow: 0 2px 12px #344EAD55`, `PaymentSection.tsx:485`).
+  ///
+  /// The alpha byte is part of the source literal, so it is transcribed as one
+  /// value rather than composed from [primary] at the call site — Tier 2 reads
+  /// what is written here, not what a widget computes.
+  static const Color methodTabShadow = Color(0x55344EAD);
 }

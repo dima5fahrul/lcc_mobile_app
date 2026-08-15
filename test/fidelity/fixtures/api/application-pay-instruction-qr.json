@@ -1,0 +1,25 @@
+{
+  "_capture": {
+    "endpoint": "/api/v1/applications/app-901/pay",
+    "status": 200,
+    "captured_at": "2026-08-15T00:40:00.000Z",
+    "provenance": "synthetic — declared, never presented as a recording (GOR-245 specs.md § 6.14(2)). **§ 4.4 forbids executing `POST /applications/{id}/pay` against any host**, absolutely, and forbids the tempting workaround of creating a case so that there is something to pay for — named as the one thing most forbidden and audited as security-review item 6. specs.md § 8.5 gap G-2 records the consequence: NO pay response has ever been observed from any host, so this body is shaped from the declared type and the component that reads it, not from traffic. Every Tier 3 verdict for the surfaces it drives is NOT EVALUATED with that reason.",
+    "credential": "none — no citizen token was obtained or seeded, and no POST was issued to any host (§ 4.4; security-review.md item 6)",
+    "field_discipline": "The union of `types.ts:573-582` and `PaymentSection.tsx:43-57` (specs.md § 5.3). The two documented shapes disagree and the source reads BOTH — the component says so in its own comment — so the fixtures cover both arms rather than picking one. No field appears that neither source declares.",
+    "synthetic_values": "Receipt numbers use the reserved `RCPT-9000xx` block and account numbers the all-zero `000-00-00-00000` shape. No real receipt number, account number, UIN or name appears (§ 7.9 items 4 and 5).",
+    "exercises": "`B6-DIV-3` at its most exposed (§ 6.9(5), § 6.10, security-review item 4). An instruction carrying a `qr_payload` and NOTHING else identifying — no account, no reference. The panel prints the payload verbatim beneath a QR bitmap that DOES NOT ENCODE IT, and the reference row falls all three steps to the mounting page's `reference`. Kept as a separate fixture from the bank one precisely so a test cannot satisfy both branches with one body."
+  },
+  "success": true,
+  "message": "OK",
+  "data": {
+    "receipt_no": "",
+    "amount_lak": 20000,
+    "status": "pending",
+    "payment_state": "processing",
+    "method_code": "laoqr",
+    "instruction": {
+      "qr_payload": "00020101021238570010A00000072701270006LAOQR0113SYNTHETIC90005204000053034185802LA6304B6B0"
+    }
+  },
+  "request_id": "synthetic-b6b-application-pay-instruction-qr"
+}
