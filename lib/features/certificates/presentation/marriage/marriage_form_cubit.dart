@@ -72,8 +72,11 @@ import '../../../application/domain/entities/picked_attachment.dart';
 import '../../../reference/domain/entities/lookup_key.dart';
 import '../../../reference/domain/entities/lookup_option.dart';
 import '../../../reference/domain/entities/prerequisite_record.dart';
-import '../../domain/submission/case_reference_binding.dart';
+import '../../domain/submission/certificate_form.dart';
 import '../../domain/submission/submission_clock.dart';
+import '../../domain/submission/submission_executor.dart';
+import '../../domain/submission/submission_plan.dart';
+import '../../domain/submission/submission_step.dart';
 import '../certificate_forms/certificate_location_fields.dart';
 import '../certificate_forms/certificate_location_value.dart';
 import '../certificate_forms/certificate_ref_list.dart';
@@ -357,6 +360,33 @@ class MarriageFormCubit extends Cubit<MarriageFormViewState> {
   final MarriagePayPort? pay;
   final MarriageRecordsPort? loadRecords;
   final MarriageRecordPort? openRecord;
+
+  /// `attachmentsSent = useState(false)` — `:714`, as the executor reads it.
+  ///
+  /// Marriage's guard is [AttachmentGuard.singleFlag]: one boolean for the
+  /// whole loop, set **after** it. `state.attachmentsSent` is still the value
+  /// the page and its tests read; this is the same fact in the shape the
+  /// executor consults, and the two are mirrored on every exit from [submit].
+  final AttachmentLedger _ledger = AttachmentLedger();
+
+  /// The four write ports, as the executor takes them. Built here rather than
+  /// injected — see `resident_form_cubit.dart`'s `_executor` for why taking
+  /// specs.md § 3.1 row 8's DI grant would force edits outside the scope table.
+  SubmissionExecutor get _executor => SubmissionExecutor(
+        createCase: createApplication,
+        updateCase: updateApplication,
+        attachToCase: (String id, SubmissionAttachment a) => addAttachment(
+          id,
+          a.file,
+          slot: a.slot,
+          kind: a.kind,
+          // Marriage's port requires a label and `marriageUploads` always
+          // supplies one (`:944-950`), so the `!` asserts a fact rather than
+          // papering over a nullable.
+          label: a.label!,
+        ),
+        submitCase: submitApplication,
+      );
 
   Timer? _searchDebounce;
 
@@ -732,114 +762,131 @@ class MarriageFormCubit extends Cubit<MarriageFormViewState> {
       clearSubmitError: true,
     ));
 
-    String id = state.draftId;
-    String reference = state.caseRef;
-
-    // The two bodies. Built HERE, once, through the binding — which invokes
-    // `buildMarriageFormData` TWICE and reads the clock twice (`F3-AC-33`).
-    final SubmissionBodies bodies =
-        marriageSubmissionBodies(state.form, clock, reference);
-
-    if (id.isEmpty) {
-      final Either<Failure, ApplicationDetail> created = await createApplication(
-        marriageCreateEnvelope(form: state.form, payload: bodies.create),
-      );
-      final ApplicationDetail? draft = created.fold(
-        (Failure f) {
-          emit(state.copyWith(submitPending: false, submitError: f.message));
-          return null;
-        },
-        (ApplicationDetail d) => d,
-      );
-      if (draft == null) return;
-      id = draft.row.id;
-      reference = draft.row.referenceNo;
-      emit(state.copyWith(draftId: id, caseRef: reference));
-    }
-
-    // The reference only exists after create, so the SECOND body is rebuilt
-    // with it — a second invocation, a second clock read.
-    final SubmissionBodies withRef =
-        marriageSubmissionBodies(state.form, clock, reference);
-
     final List<MarriageAttachment> uploads = marriageUploads(state.form);
     final Set<String> identities =
         uploads.map(marriageAttachmentIdentity).toSet();
 
-    // D-I: the flag is invalidated when the identity set changes.
-    final bool alreadySent = state.attachmentsSent &&
-        _sameIdentities(state.uploadedIdentities, identities);
+    // **D-I stays here, in the page** (`F3-AC-60`). The executor's
+    // `AttachmentGuard.singleFlag` arm is the source's `if (!attachmentsSent)`
+    // and nothing more; deciding *when* two picked files are the same document
+    // is page data, so the invalidation is expressed as a seam the page pulls.
+    if (!_sameIdentities(state.uploadedIdentities, identities)) {
+      _ledger.invalidateAllSent();
+    }
 
-    if (!alreadySent) {
-      // SEQUENTIAL, awaited one at a time, in `uploads()` order. `Future.wait`
-      // is a FAIL (`F3-AC-57`).
-      for (final MarriageAttachment item in uploads) {
-        final Either<Failure, Object?> r = await addAttachment(
-          id,
-          item.file,
-          slot: item.slot,
-          kind: item.kind,
-          label: item.label,
-        );
-        final Failure? failure = r.fold((Failure f) => f, (_) => null);
-        if (failure != null) {
-          emit(state.copyWith(
-            submitPending: false,
-            submitError: failure.message,
-          ));
-          return;
-        }
-      }
+    final String heldId = state.draftId;
+    try {
+      final SubmissionOutcome outcome = await _executor.run(
+        plan: SubmissionPlan.forForm(CertificateForm.marriage),
+        // `:964` `buildFormData("")` and `:981` `buildFormData(reference)` —
+        // **two** invocations on a first attempt, one on a retry, each
+        // re-evaluating `today()` at `:900`. The executor makes exactly those
+        // calls; `case_reference_binding.dart:19-25` is why the count is
+        // contract and not trivia.
+        buildFormData: (String reference) =>
+            buildMarriageFormData(state.form, clock, reference),
+        // `:957-965` — `linked_reference_no` sits BETWEEN `event_date` and
+        // `form_data`.
+        createEnvelope: (Map<String, Object?> payload) =>
+            marriageCreateEnvelope(form: state.form, payload: payload),
+        // `:980-983`.
+        updateEnvelope: (Map<String, Object?> updatePayload) =>
+            marriageUpdateEnvelope(
+          form: state.form,
+          updatePayload: updatePayload,
+        ),
+        // SEQUENTIAL, in `uploads()` order, each carrying the fourth `label`
+        // part the flat family does not send (`F3-AC-57`).
+        attachments: <SubmissionAttachment>[
+          for (final MarriageAttachment a in uploads)
+            SubmissionAttachment(
+              file: a.file,
+              slot: a.slot,
+              kind: a.kind,
+              label: a.label,
+            ),
+        ],
+        ledger: _ledger,
+        held: heldId.isEmpty
+            ? null
+            : SubmissionDraft(id: heldId, referenceNo: state.caseRef),
+        // `:968-970` `setCaseId` / `setCaseRef`, before the attach block runs.
+        onDraftCreated: (SubmissionDraft d) => emit(
+          state.copyWith(draftId: d.id, caseRef: d.referenceNo),
+        ),
+        charge: _charge,
+      );
       emit(state.copyWith(
-        attachmentsSent: true,
+        submitPending: false,
+        attachmentsSent: _ledger.allSent,
         uploadedIdentities: identities,
+        submitted: MarriageSubmitted(
+          decided: outcome.decided,
+          receiptNo: outcome.receiptNo,
+        ),
       ));
+    } on SubmissionStepFailure catch (e) {
+      _onStepFailed(e, identities);
     }
+  }
 
-    final Either<Failure, ApplicationDetail> updated = await updateApplication(
-      id,
-      marriageUpdateEnvelope(form: state.form, updatePayload: withRef.update),
-    );
-    final Failure? updateFailure = updated.fold((Failure f) => f, (_) => null);
-    if (updateFailure != null) {
-      _fail(updateFailure);
-      return;
-    }
-
-    final Either<Failure, ApplicationDetail> submittedCase =
-        await submitApplication(id);
-    final ApplicationDetail? decided = submittedCase.fold(
-      (Failure f) {
-        _fail(f);
-        return null;
-      },
-      (ApplicationDetail d) => d,
-    );
-    if (decided == null) return;
-
-    String? receipt;
-    // `:987` — pay only when there is a fee AND the case is not already paid.
-    if (decided.row.feeLak > 0 &&
-        decided.row.paymentState != PaymentState.paid) {
-      final MarriagePayPort? port = pay;
-      if (port != null) {
-        final Either<Failure, Object?> paid = await port(
-          id,
-          methodCode: marriageMethodCodeFor(state.form.payment.method),
-        );
-        final Failure? payFailure = paid.fold((Failure f) => f, (_) => null);
-        if (payFailure != null) {
-          _fail(payFailure);
-          return;
+  /// Routes a failed step the way `:952-991` routes it — **and the routing
+  /// differs by step**, which is why the executor reports which one failed.
+  ///
+  /// `create` (`:961-968`) and the attach loop (`:972-977`) surface the API's
+  /// sentence plainly; `update`, `submit` and `pay` go through [_fail], which
+  /// decodes field errors and flips `showErrors`. Collapsing the five into one
+  /// handler would be a visible behaviour change on a 422.
+  void _onStepFailed(SubmissionStepFailure e, Set<String> identities) {
+    // `setAttachmentsSent(true)` happens immediately after the loop (`:977`),
+    // before the update that may fail — so a run that uploaded and then failed
+    // downstream still records the uploads, and the retry skips them.
+    final bool sent = _ledger.allSent;
+    switch (e.step) {
+      case SubmissionStep.create:
+      case SubmissionStep.attach:
+        emit(state.copyWith(
+          submitPending: false,
+          submitError: e.failure.message,
+          attachmentsSent: sent,
+          uploadedIdentities: sent ? identities : state.uploadedIdentities,
+        ));
+      case SubmissionStep.update:
+      case SubmissionStep.submit:
+      case SubmissionStep.pay:
+        if (sent) {
+          emit(state.copyWith(
+            attachmentsSent: true,
+            uploadedIdentities: identities,
+          ));
         }
-        receipt = marriageReceiptOf(paid.getOrElse(() => null));
-      }
+        _fail(e.failure);
     }
+  }
 
-    emit(state.copyWith(
-      submitPending: false,
-      submitted: MarriageSubmitted(decided: decided, receiptNo: receipt),
-    ));
+  /// `:986-989` — the pay branch, and it stays **here** (specs.md § 6.7).
+  ///
+  /// Marriage's predicate is `fee_lak > 0 && payment_state !== "paid"` — the
+  /// idempotency check Resident does **not** have (FU-1). B4 does not unify the
+  /// two; `B4-AC-19` fails if a later hand does.
+  Future<Either<Failure, String?>> _charge(
+    SubmissionDraft draft,
+    ApplicationDetail decided,
+  ) async {
+    if (decided.row.feeLak <= 0 ||
+        decided.row.paymentState == PaymentState.paid) {
+      return const Right<Failure, String?>(null);
+    }
+    final MarriagePayPort? port = pay;
+    if (port == null) return const Right<Failure, String?>(null);
+
+    final Either<Failure, Object?> paid = await port(
+      draft.id,
+      // `METHOD_CODE[payment.method]` — the STATIC map (`:140-144`), no
+      // `/payment-methods` read (`F3-AC-65`).
+      methodCode: marriageMethodCodeFor(state.form.payment.method),
+    );
+    return paid.map<String?>(marriageReceiptOf);
   }
 
   /// `:1016-1025` — a 422 lands its messages on the fields and **does not

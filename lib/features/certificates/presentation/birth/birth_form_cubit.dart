@@ -49,8 +49,10 @@ import '../../../reference/domain/entities/lookup_option.dart';
 import '../../../reference/domain/usecases/get_lookup_options.dart';
 import '../../../service/domain/entities/service.dart';
 import '../../../wallet/domain/entities/payment_method.dart';
-import '../../domain/submission/case_reference_binding.dart';
+import '../../domain/submission/certificate_form.dart';
 import '../../domain/submission/submission_clock.dart';
+import '../../domain/submission/submission_executor.dart';
+import '../../domain/submission/submission_plan.dart';
 import 'birth_form_state.dart';
 import 'birth_payload.dart';
 
@@ -307,9 +309,34 @@ class BirthFormCubit extends Cubit<BirthFormViewState> {
   ///
   /// A field, not part of the state: it is a `useRef`, so mutating it must not
   /// rebuild, and it is per-page-instance rather than persisted.
-  final Set<String> _uploaded = <String>{};
+  ///
+  /// B4 moved the set into [AttachmentLedger] so the executor can honour
+  /// `plan.attachmentGuard`. Still keyed on the **slot** — D-I is not fixed
+  /// here (`submission_executor.dart`'s [AttachmentLedger]).
+  final AttachmentLedger _ledger = AttachmentLedger();
 
-  Set<String> get uploadedSlots => Set<String>.unmodifiable(_uploaded);
+  Set<String> get uploadedSlots => _ledger.sentSlots;
+
+  /// The four write use cases as the executor's ports. Built here rather than
+  /// injected — see `resident_form_cubit.dart`'s `_executor` for why taking
+  /// specs.md § 3.1 row 8's DI grant would force edits outside the scope table.
+  SubmissionExecutor get _executor => SubmissionExecutor(
+        createCase: createApplication.call,
+        updateCase: (String id, Map<String, Object?> envelope) =>
+            updateApplication(
+          UpdateApplicationParams(id: id, envelope: envelope),
+        ),
+        attachToCase: (String id, SubmissionAttachment a) => addAttachment(
+          AddAttachmentParams(
+            id: id,
+            file: a.file,
+            slot: a.slot,
+            kind: a.kind,
+            label: a.label,
+          ),
+        ),
+        submitCase: submitApplication.call,
+      );
 
   // ───────────────────────────────────────────────────────────────────────────
   // Catalogue — the queries at `:670-673`
@@ -658,72 +685,63 @@ class BirthFormCubit extends Cubit<BirthFormViewState> {
     emit(state.copyWith(submitPending: false, submitError: e.message));
   }
 
-  /// `:815-845` — `submitCase`. **Ends at submit; there is no pay step here.**
+  /// `:815-845` — `submitCase`, executed by [SubmissionExecutor] (B4 § 6.5).
+  ///
+  /// **Ends at submit; there is no pay step here.**
+  /// `SubmissionPlan.forForm(CertificateForm.birth).steps` omits
+  /// `SubmissionStep.pay` because `:847-853` fires `payCase` from the review
+  /// step instead — so no `charge` port is passed, and none could be reached if
+  /// it were. `birth.golden.json` records the absence of a `/pay` entry, which
+  /// is `B4-AC-19`'s Birth half.
   Future<ApplicationDetail> _submitCase() async {
-    // `:816` — built ONCE per attempt and reused by the update body.
-    final Map<String, Object?> payload = buildBirthFormData(
-      state.form,
-      clock,
-      legalBasisText: readLegalBasisText(),
-    );
-
-    // 1. `:819-830` — the draft is created ONCE; a retry reuses
-    //    `{id, reference_no}` so a rejected submission leaves no trail of
-    //    half-filled cases.
-    BirthDraftCase? current = state.draft;
-    if (current == null) {
-      final ApplicationDetail created = _orThrow(
-        await createApplication(
-          birthCreateEnvelope(
-            form: state.form,
-            payload: payload,
-            clock: clock,
+    final BirthDraftCase? held = state.draft;
+    try {
+      final SubmissionOutcome outcome = await _executor.run(
+        plan: SubmissionPlan.forForm(CertificateForm.birth),
+        // `:816` — one invocation per attempt; the reference is appended
+        // afterwards by spreading, so the builder takes no parameter.
+        buildFormData: (String _) => buildBirthFormData(
+          state.form,
+          clock,
+          legalBasisText: readLegalBasisText(),
+        ),
+        // `:820-827`.
+        createEnvelope: (Map<String, Object?> payload) => birthCreateEnvelope(
+          form: state.form,
+          payload: payload,
+          clock: clock,
+        ),
+        // `:834-837` — `form_data` FIRST.
+        updateEnvelope: (Map<String, Object?> updatePayload) =>
+            birthUpdateEnvelope(
+          form: state.form,
+          updatePayload: updatePayload,
+          clock: clock,
+        ),
+        // `:839-842` — **exactly one slot**, and an absent file is an empty
+        // list rather than a step that runs with nothing to send.
+        attachments: <SubmissionAttachment>[
+          if (birthAttachmentToSend(state.form) case final PickedAttachment f)
+            SubmissionAttachment(
+              file: f,
+              slot: kBirthAttachmentSlot,
+              kind: kBirthAttachmentKind,
+            ),
+        ],
+        ledger: _ledger,
+        held: held == null
+            ? null
+            : SubmissionDraft(id: held.id, referenceNo: held.referenceNo),
+        onDraftCreated: (SubmissionDraft d) => emit(
+          state.copyWith(
+            draft: BirthDraftCase(id: d.id, referenceNo: d.referenceNo),
           ),
         ),
       );
-      current = BirthDraftCase(
-        id: created.row.id,
-        referenceNo: created.row.referenceNo,
-      );
-      emit(state.copyWith(draft: current));
+      return outcome.decided;
+    } on SubmissionStepFailure catch (e) {
+      throw _asApiException(e.failure);
     }
-
-    // 2. `:834-837` — runs on EVERY attempt including the first, because it is
-    //    what writes `header.document_no`.
-    final SubmissionBodies bound =
-        birthBodiesFrom(payload, current.referenceNo);
-    _orThrow(
-      await updateApplication(
-        UpdateApplicationParams(
-          id: current.id,
-          envelope: birthUpdateEnvelope(
-            form: state.form,
-            updatePayload: bound.update,
-            clock: clock,
-          ),
-        ),
-      ),
-    );
-
-    // 3. `:839-842` — **exactly one slot**, skipped when already sent. Not a
-    //    list pipeline: Resident had five and this page has one.
-    final PickedAttachment? file = birthAttachmentToSend(state.form);
-    if (file != null && !_uploaded.contains(kBirthAttachmentSlot)) {
-      _orThrow(
-        await addAttachment(
-          AddAttachmentParams(
-            id: current.id,
-            file: file,
-            slot: kBirthAttachmentSlot,
-            kind: kBirthAttachmentKind,
-          ),
-        ),
-      );
-      _uploaded.add(kBirthAttachmentSlot);
-    }
-
-    // 4. `:844` — and that is the end of it.
-    return _orThrow(await submitApplication(current.id));
   }
 
   /// `:893-900` — `handlePay`, the **separate** mutation.
@@ -774,10 +792,11 @@ class BirthFormCubit extends Cubit<BirthFormViewState> {
     );
   }
 
-  T _orThrow<T>(Either<Failure, T> result) => result.fold(
-        (Failure f) => throw _asApiException(f),
-        (T value) => value,
-      );
+  // `_orThrow` was here. B4 moved the Either-to-throw bridge into
+  // `SubmissionExecutor._orThrow`, which is the one place the two are now
+  // reconciled for all five forms; `_asApiException` stays because it is what
+  // turns the executor's `SubmissionStepFailure` back into the shape `next()`
+  // already catches.
 
   Object _asApiException(Failure f) =>
       f is ApiFailure ? f.exception : Exception(f.message);

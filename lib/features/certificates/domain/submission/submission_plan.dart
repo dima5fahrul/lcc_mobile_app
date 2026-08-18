@@ -51,7 +51,19 @@ class SubmissionPlan {
 
   final CertificateForm form;
 
-  /// Ordered, declared, **not executed by F0** — B4 owns the executor.
+  /// Ordered, declared, and **executed by
+  /// [SubmissionExecutor](submission_executor.dart)** — B4 landed it, and all
+  /// five cubits' submit paths now walk this list rather than each
+  /// re-implementing it (`GOR-245-b4-application-consolidation/specs.md`
+  /// § 6.5, RULING 4).
+  ///
+  /// Before B4 this field was read by nothing: seven of this class's eight
+  /// fields were inert while the three declared sequences below were
+  /// implemented five times, in 433 lines, across the five pages. The executor
+  /// is what makes the declaration load-bearing, and
+  /// `test/features/certificates/submission_golden/**` is what proves the
+  /// migration moved no byte — five request logs recorded off the pre-migration
+  /// cubits and replayed against the migrated ones.
   ///
   /// Two retry mechanics this sequence does not show and a port will get wrong
   /// by being tidier than the source (specs.md § 6.2.6):

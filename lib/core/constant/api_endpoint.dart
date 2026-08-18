@@ -447,6 +447,47 @@ class ApiEndpoint {
   // for `removeAttachment`, and `ssd.md` § 5.1 rules that **B4** decides both
   // with a stated reason and that no earlier batch builds them speculatively.
   // B7b does not, even though the path sits inside its own feature's surface.
+  //
+  // ── B4 DECIDED: NOT PORTED ─────────────────────────────────────────────────
+  //
+  // The paragraph above reserved the question to B4. **B4 ran, and the answer
+  // is that neither endpoint is ported in any form** — no constant here, no
+  // `ApplicationRemoteDatasource` method, no repository method, no use case, no
+  // UI (`GOR-245-b4-application-consolidation/specs.md` § 6.4, RULING 3,
+  // adopted as the programme's decision at that document's § 10). It is a
+  // refusal, not a deferral, and nothing above this line changed to say so —
+  // `B6-AC-13` and `B8-AC-63` require this file's diff to be **additive**, so
+  // the decision is appended rather than written over the question.
+  //
+  // B9's precedent (drop it) applies rather than B6's (keep the transport for a
+  // named downstream consumer), on the two grounds B6's carve-out turned on and
+  // neither of these clears:
+  //
+  //   * **`cancel` has more than one possible semantic.** `types.ts:476-483`
+  //     models cancellation as a *guarded transition* carrying
+  //     `requires_reason`, `requires_signature` and `requires_paid_fee`, on
+  //     `ApplicationDetail.allowed_actions?` (`:489`) — a field **no component
+  //     reads**. `applications.cancel(id)` takes an id and nothing else, so the
+  //     client method cannot express the action the API models. Porting it
+  //     ships a destructive, unguarded `DELETE` against a citizen's
+  //     civil-registry case, which is a strictly worse artefact present than
+  //     absent.
+  //   * **There is no downstream consumer.** B4 is the *last* batch
+  //     (`ssd.md:698`), so a constant added here is dead on the day it is
+  //     written.
+  //
+  // `application_repository.dart` carries the same decision on the interface
+  // side, including `removeAttachment`'s stronger ground — it is *uncallable*,
+  // because no code path on either side ever holds an `Attachment.id`
+  // (`addAttachment` discards its response at `ResidentCertificatePage.tsx:528`
+  // and returns `Unit` in the port).
+  //
+  // **What would reopen it** (FU-3, so the reopening is a decision rather than
+  // a rediscovery): a batch that ports a cancel affordance the web has since
+  // grown, or one that reads `allowed_actions`.
+  // `test/features/application/application_scope_test.dart` fails if a
+  // constant, an interface member, or an `/attachments/{aid}` path reappears —
+  // and carries the mutants that prove those guards can fire.
 
   /// `endpoints.ts:323` — `applications.get(id)`. One `ApplicationDetail`
   /// object, not paged, Bearer.
