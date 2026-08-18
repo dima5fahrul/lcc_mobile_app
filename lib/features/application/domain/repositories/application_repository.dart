@@ -22,13 +22,38 @@
 /// * `get`, `timeline` — **B7b**, added additively to this interface.
 /// * `create`, `update`, `submit`, `addAttachment`, `pay` — the write half.
 ///   **B4** (and the call sites are F1–F3 / B6b). `ssd.md` § 5.1.
-/// * `cancel` (`endpoints.ts:340`) and `removeAttachment` (`:353`) — **called
-///   by no web component at all.** `grep -rn "applications.cancel\|
-///   removeAttachment" src/` finds only their declarations. Same dead-code
-///   class as `/news/:slug`, `YourIdPage` and `DELETE /me/account`, and
-///   `ssd.md` § 5.1 rules explicitly that **B4 must decide them with a stated
-///   reason and that no earlier batch may build them speculatively.** B7a
-///   therefore does not, and this paragraph is why.
+/// * `cancel` (`endpoints.ts:340`) and `removeAttachment` (`:353`) — **NOT
+///   PORTED. B4 decided, and the decision is final rather than deferred**
+///   (`GOR-245-b4-application-consolidation/specs.md` § 6.4, RULING 3, adopted
+///   as the programme's decision at that document's § 10).
+///
+///   Neither is ported in any form: no [ApiEndpoint] constant, no
+///   `ApplicationRemoteDatasource` method, no repository method, no use case,
+///   no UI. Both have **zero call sites** in the port source — `grep -rn` over
+///   `src/` finds only their declarations — and B9's precedent applies rather
+///   than B6's, on two measurements:
+///
+///   * `cancel` is **half a protocol**. `types.ts:476-483` models cancellation
+///     as a guarded transition with `requires_reason`, `requires_signature` and
+///     `requires_paid_fee`, carried by `ApplicationDetail.allowed_actions?`
+///     (`:489`) — which **no component reads**. `applications.cancel(id)` takes
+///     an id and nothing else, so the client method cannot express the action
+///     the API models. Porting it means shipping a destructive, unguarded
+///     `DELETE` on a citizen's civil-registry case.
+///   * `removeAttachment` is **uncallable, not merely uncalled**. The web
+///     replaces a document by re-uploading its slot
+///     (`ResidentCertificatePage.tsx:457`, `:526-530`), never by deleting, and
+///     no code path on either side ever holds an `Attachment.id` —
+///     `addAttachment` discards its response (`:528`, and
+///     `application_usecases.dart:245-247` ports that by returning `Unit`). A
+///     ported method would have no caller able to supply its second argument.
+///
+///   **What would reopen it** (recorded as FU-3 so the reopening is a decision
+///   rather than a rediscovery): a batch that ports a cancel affordance the web
+///   has since grown, or one that reads `allowed_actions` and can therefore
+///   construct a guarded transition. Until then,
+///   `test/features/application/application_scope_test.dart` fails if either
+///   member reappears.
 ///
 /// **No write path may be added to this interface by B7.** That is the whole
 /// of specs.md § 6.2's additive contract: B4 extends this file rather than
@@ -108,11 +133,13 @@ abstract class ApplicationRepository {
   // will own, written to the read half's own conventions so the absorb is a
   // merge (`specs.md` § 6.3).
   //
-  // **`cancel` and `removeAttachment` stay absent**, and the paragraph above
-  // in this file already says why: no web component calls either, and
-  // `ssd.md` § 5.1 reserves the decision to B4 with a stated reason. F1
-  // building them "while it was in there" is what `F1-AC-19` and `F1-AC-20`
-  // check for.
+  // **`cancel` and `removeAttachment` are absent permanently**, and the
+  // paragraph above in this file now carries B4's decision rather than the
+  // question it used to pose: NOT PORTED, on B9's precedent, because `cancel`
+  // is half an unmodelled guarded transition and `removeAttachment` has no
+  // obtainable second argument. F1 building them "while it was in there" is
+  // what `F1-AC-19` and `F1-AC-20` check for; `B4-AC-12` and `B4-AC-15` now
+  // check that nobody adds them later.
   //
   // **`pay` stays absent, and that one is a live coordination boundary rather
   // than a dormant one.** `GOR-245-b6-wallet-payment/specs.md` § 6.3 gives B6b

@@ -39,7 +39,9 @@ import '../../../reference/domain/entities/lookup_option.dart';
 import '../../../reference/domain/usecases/get_lookup_options.dart';
 import '../../../service/domain/entities/service.dart';
 import '../../../wallet/domain/entities/payment_method.dart';
-import '../../domain/submission/case_reference_binding.dart';
+import '../../domain/submission/certificate_form.dart';
+import '../../domain/submission/submission_executor.dart';
+import '../../domain/submission/submission_plan.dart';
 import '../../domain/submission/submission_clock.dart';
 import 'death_form_state.dart';
 import 'death_payload.dart';
@@ -245,8 +247,32 @@ class DeathFormCubit extends Cubit<DeathFormViewState> {
   final Lang lang;
 
   /// `:762` — `uploaded = useRef<Set<string>>(new Set())`.
-  final Set<String> _uploaded = <String>{};
-  Set<String> get uploadedSlots => Set<String>.unmodifiable(_uploaded);
+  ///
+  /// B4 moved the set into [AttachmentLedger] so the executor can honour
+  /// `plan.attachmentGuard`. Still keyed on the **slot** — D-I is not fixed
+  /// here (`submission_executor.dart`'s [AttachmentLedger]).
+  final AttachmentLedger _ledger = AttachmentLedger();
+  Set<String> get uploadedSlots => _ledger.sentSlots;
+
+  /// The four write use cases as the executor's ports. Built here rather than
+  /// injected — see `resident_form_cubit.dart`'s `_executor` for why.
+  SubmissionExecutor get _executor => SubmissionExecutor(
+        createCase: createApplication.call,
+        updateCase: (String id, Map<String, Object?> envelope) =>
+            updateApplication(
+          UpdateApplicationParams(id: id, envelope: envelope),
+        ),
+        attachToCase: (String id, SubmissionAttachment a) => addAttachment(
+          AddAttachmentParams(
+            id: id,
+            file: a.file,
+            slot: a.slot,
+            kind: a.kind,
+            label: a.label,
+          ),
+        ),
+        submitCase: submitApplication.call,
+      );
 
   Future<void> load() async {
     await Future.wait<void>(<Future<void>>[
@@ -557,63 +583,58 @@ class DeathFormCubit extends Cubit<DeathFormViewState> {
     emit(state.copyWith(submitPending: false, submitError: e.message));
   }
 
-  /// `:839-869` — `submitCase`. Ends at submit.
+  /// `:839-869` — `submitCase`, executed by [SubmissionExecutor] (B4 § 6.5).
+  ///
+  /// Ends at submit: `SubmissionPlan.forForm(CertificateForm.death).steps`
+  /// omits `SubmissionStep.pay` because `:871-877` fires `payCase` from the
+  /// review step instead. No `charge` port is passed. `death.golden.json`
+  /// records the absence of a `/pay` entry (`B4-AC-19`'s Death half).
   Future<ApplicationDetail> _submitCase() async {
-    final Map<String, Object?> payload = buildDeathFormData(
-      state.form,
-      clock,
-      legalBasisText: readLegalBasisText(),
-    );
-
-    DeathDraftCase? current = state.draft;
-    if (current == null) {
-      final ApplicationDetail created = _orThrow(
-        await createApplication(
-          deathCreateEnvelope(
-            form: state.form,
-            payload: payload,
-            clock: clock,
+    final DeathDraftCase? held = state.draft;
+    try {
+      final SubmissionOutcome outcome = await _executor.run(
+        plan: SubmissionPlan.forForm(CertificateForm.death),
+        buildFormData: (String _) => buildDeathFormData(
+          state.form,
+          clock,
+          legalBasisText: readLegalBasisText(),
+        ),
+        // `:844-851`.
+        createEnvelope: (Map<String, Object?> payload) => deathCreateEnvelope(
+          form: state.form,
+          payload: payload,
+          clock: clock,
+        ),
+        // `:858-861` — `form_data` FIRST.
+        updateEnvelope: (Map<String, Object?> updatePayload) =>
+            deathUpdateEnvelope(
+          form: state.form,
+          updatePayload: updatePayload,
+          clock: clock,
+        ),
+        // `:863-866` — one slot.
+        attachments: <SubmissionAttachment>[
+          if (deathAttachmentToSend(state.form) case final PickedAttachment f)
+            SubmissionAttachment(
+              file: f,
+              slot: kDeathAttachmentSlot,
+              kind: kDeathAttachmentKind,
+            ),
+        ],
+        ledger: _ledger,
+        held: held == null
+            ? null
+            : SubmissionDraft(id: held.id, referenceNo: held.referenceNo),
+        onDraftCreated: (SubmissionDraft d) => emit(
+          state.copyWith(
+            draft: DeathDraftCase(id: d.id, referenceNo: d.referenceNo),
           ),
         ),
       );
-      current = DeathDraftCase(
-        id: created.row.id,
-        referenceNo: created.row.referenceNo,
-      );
-      emit(state.copyWith(draft: current));
+      return outcome.decided;
+    } on SubmissionStepFailure catch (e) {
+      throw _asApiException(e.failure);
     }
-
-    final SubmissionBodies bound =
-        deathBodiesFrom(payload, current.referenceNo);
-    _orThrow(
-      await updateApplication(
-        UpdateApplicationParams(
-          id: current.id,
-          envelope: deathUpdateEnvelope(
-            form: state.form,
-            updatePayload: bound.update,
-            clock: clock,
-          ),
-        ),
-      ),
-    );
-
-    final PickedAttachment? file = deathAttachmentToSend(state.form);
-    if (file != null && !_uploaded.contains(kDeathAttachmentSlot)) {
-      _orThrow(
-        await addAttachment(
-          AddAttachmentParams(
-            id: current.id,
-            file: file,
-            slot: kDeathAttachmentSlot,
-            kind: kDeathAttachmentKind,
-          ),
-        ),
-      );
-      _uploaded.add(kDeathAttachmentSlot);
-    }
-
-    return _orThrow(await submitApplication(current.id));
   }
 
   /// `:917-924` — `handlePay`, the separate mutation.
@@ -653,10 +674,10 @@ class DeathFormCubit extends Cubit<DeathFormViewState> {
     );
   }
 
-  T _orThrow<T>(Either<Failure, T> result) => result.fold(
-        (Failure f) => throw _asApiException(f),
-        (T value) => value,
-      );
+  // `_orThrow` was here. B4 moved the Either-to-throw bridge into
+  // `SubmissionExecutor._orThrow`; `_asApiException` stays because it is what
+  // turns the executor's `SubmissionStepFailure` back into the shape `next()`
+  // already catches.
 
   Object _asApiException(Failure f) =>
       f is ApiFailure ? f.exception : Exception(f.message);

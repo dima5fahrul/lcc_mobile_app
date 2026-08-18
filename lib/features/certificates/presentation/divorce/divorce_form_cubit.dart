@@ -43,7 +43,10 @@ import '../../../application/domain/entities/picked_attachment.dart';
 import '../../../reference/domain/entities/lookup_key.dart';
 import '../../../reference/domain/entities/lookup_option.dart';
 import '../../../reference/domain/entities/prerequisite_record.dart';
-import '../../domain/submission/case_reference_binding.dart';
+import '../../domain/submission/certificate_form.dart';
+import '../../domain/submission/submission_executor.dart';
+import '../../domain/submission/submission_plan.dart';
+import '../../domain/submission/submission_step.dart';
 import '../../domain/submission/submission_clock.dart';
 import '../certificate_forms/certificate_location_fields.dart';
 import '../certificate_forms/certificate_location_value.dart';
@@ -296,6 +299,27 @@ class DivorceFormCubit extends Cubit<DivorceFormViewState> {
   final DivorcePayPort? pay;
   final DivorceRecordsPort? loadRecords;
   final DivorceRecordPort? openRecord;
+
+  /// `attachmentsSent = useState(false)` — `:621`, as the executor reads it.
+  /// [AttachmentGuard.singleFlag]: one boolean for the whole loop, set after
+  /// it. Mirrored into `state.attachmentsSent` on every exit from [submit].
+  final AttachmentLedger _ledger = AttachmentLedger();
+
+  /// The four write ports, as the executor takes them. Built here rather than
+  /// injected — see `resident_form_cubit.dart`'s `_executor` for why.
+  SubmissionExecutor get _executor => SubmissionExecutor(
+        createCase: createApplication,
+        updateCase: updateApplication,
+        attachToCase: (String id, SubmissionAttachment a) => addAttachment(
+          id,
+          a.file,
+          slot: a.slot,
+          kind: a.kind,
+          // `divorceUploads` always supplies a label (`:840-846`).
+          label: a.label!,
+        ),
+        submitCase: submitApplication,
+      );
 
   Timer? _searchDebounce;
 
@@ -603,7 +627,10 @@ class DivorceFormCubit extends Cubit<DivorceFormViewState> {
     await submit();
   }
 
-  /// `:848-887` — create → **attach → update** → submit → pay.
+  /// `:848-887` — create → **attach → update** → submit → pay, executed by
+  /// [SubmissionExecutor] (B4 § 6.5). The order comes from
+  /// `SubmissionPlan.forForm(CertificateForm.divorce).steps`; the bodies and
+  /// the pay condition stayed here.
   Future<void> submit() async {
     emit(state.copyWith(
       submitPending: true,
@@ -611,99 +638,114 @@ class DivorceFormCubit extends Cubit<DivorceFormViewState> {
       clearSubmitError: true,
     ));
 
-    String id = state.draftId;
-    String reference = state.caseRef;
-
-    final SubmissionBodies bodies =
-        divorceSubmissionBodies(state.form, clock, reference);
-
-    if (id.isEmpty) {
-      final Either<Failure, ApplicationDetail> created = await createApplication(
-        divorceCreateEnvelope(form: state.form, payload: bodies.create),
-      );
-      final ApplicationDetail? draft = created.fold(
-        (Failure f) {
-          emit(state.copyWith(submitPending: false, submitError: f.message));
-          return null;
-        },
-        (ApplicationDetail d) => d,
-      );
-      if (draft == null) return;
-      id = draft.row.id;
-      reference = draft.row.referenceNo;
-      emit(state.copyWith(draftId: id, caseRef: reference));
-    }
-
-    final SubmissionBodies withRef =
-        divorceSubmissionBodies(state.form, clock, reference);
-
     final List<DivorceAttachment> uploads = divorceUploads(state.form);
     final Set<String> identities =
         uploads.map(divorceAttachmentIdentity).toSet();
-    final bool alreadySent = state.attachmentsSent &&
-        _sameIdentities(state.uploadedIdentities, identities);
 
-    if (!alreadySent) {
-      for (final DivorceAttachment item in uploads) {
-        final Either<Failure, Object?> r = await addAttachment(
-          id,
-          item.file,
-          slot: item.slot,
-          kind: item.kind,
-          label: item.label,
-        );
-        final Failure? failure = r.fold((Failure f) => f, (_) => null);
-        if (failure != null) {
-          emit(state.copyWith(submitPending: false, submitError: failure.message));
-          return;
+    // **D-I stays here, in the page** — see `marriage_form_cubit.dart`'s
+    // `submit` for the reason the invalidation is a seam and not executor
+    // logic.
+    if (!_sameIdentities(state.uploadedIdentities, identities)) {
+      _ledger.invalidateAllSent();
+    }
+
+    final String heldId = state.draftId;
+    try {
+      final SubmissionOutcome outcome = await _executor.run(
+        plan: SubmissionPlan.forForm(CertificateForm.divorce),
+        // `:860` `buildFormData("")` and `:877` `buildFormData(reference)` —
+        // two invocations on a first attempt, each re-reading `today()`
+        // at `:800`.
+        buildFormData: (String reference) =>
+            buildDivorceFormData(state.form, clock, reference),
+        // `:853-861`.
+        createEnvelope: (Map<String, Object?> payload) =>
+            divorceCreateEnvelope(form: state.form, payload: payload),
+        // `:876-879`.
+        updateEnvelope: (Map<String, Object?> updatePayload) =>
+            divorceUpdateEnvelope(
+          form: state.form,
+          updatePayload: updatePayload,
+        ),
+        attachments: <SubmissionAttachment>[
+          for (final DivorceAttachment a in uploads)
+            SubmissionAttachment(
+              file: a.file,
+              slot: a.slot,
+              kind: a.kind,
+              label: a.label,
+            ),
+        ],
+        ledger: _ledger,
+        held: heldId.isEmpty
+            ? null
+            : SubmissionDraft(id: heldId, referenceNo: state.caseRef),
+        onDraftCreated: (SubmissionDraft d) => emit(
+          state.copyWith(draftId: d.id, caseRef: d.referenceNo),
+        ),
+        charge: _charge,
+      );
+      emit(state.copyWith(
+        submitPending: false,
+        attachmentsSent: _ledger.allSent,
+        uploadedIdentities: identities,
+        submitted: DivorceSubmitted(
+          decided: outcome.decided,
+          receiptNo: outcome.receiptNo,
+        ),
+      ));
+    } on SubmissionStepFailure catch (e) {
+      _onStepFailed(e, identities);
+    }
+  }
+
+  /// Routes a failed step the way `:848-887` routes it — `create` and the
+  /// attach loop surface the API's sentence plainly, `update`/`submit`/`pay`
+  /// go through [_fail]. See `marriage_form_cubit.dart`'s `_onStepFailed`.
+  void _onStepFailed(SubmissionStepFailure e, Set<String> identities) {
+    final bool sent = _ledger.allSent;
+    switch (e.step) {
+      case SubmissionStep.create:
+      case SubmissionStep.attach:
+        emit(state.copyWith(
+          submitPending: false,
+          submitError: e.failure.message,
+          attachmentsSent: sent,
+          uploadedIdentities: sent ? identities : state.uploadedIdentities,
+        ));
+      case SubmissionStep.update:
+      case SubmissionStep.submit:
+      case SubmissionStep.pay:
+        if (sent) {
+          emit(state.copyWith(
+            attachmentsSent: true,
+            uploadedIdentities: identities,
+          ));
         }
-      }
-      emit(state.copyWith(attachmentsSent: true, uploadedIdentities: identities));
+        _fail(e.failure);
     }
+  }
 
-    final Either<Failure, ApplicationDetail> updated = await updateApplication(
-      id,
-      divorceUpdateEnvelope(form: state.form, updatePayload: withRef.update),
+  /// `:882-885` — the pay branch, and it stays **here** (specs.md § 6.7).
+  ///
+  /// `fee_lak > 0 && payment_state !== "paid"` — the idempotency check Resident
+  /// does not have (FU-1). B4 does not unify the two.
+  Future<Either<Failure, String?>> _charge(
+    SubmissionDraft draft,
+    ApplicationDetail decided,
+  ) async {
+    if (decided.row.feeLak <= 0 ||
+        decided.row.paymentState == PaymentState.paid) {
+      return const Right<Failure, String?>(null);
+    }
+    final DivorcePayPort? port = pay;
+    if (port == null) return const Right<Failure, String?>(null);
+
+    final Either<Failure, Object?> paid = await port(
+      draft.id,
+      methodCode: divorceMethodCodeFor(state.form.payment.method),
     );
-    final Failure? updateFailure = updated.fold((Failure f) => f, (_) => null);
-    if (updateFailure != null) {
-      _fail(updateFailure);
-      return;
-    }
-
-    final Either<Failure, ApplicationDetail> submittedCase =
-        await submitApplication(id);
-    final ApplicationDetail? decided = submittedCase.fold(
-      (Failure f) {
-        _fail(f);
-        return null;
-      },
-      (ApplicationDetail d) => d,
-    );
-    if (decided == null) return;
-
-    String? receipt;
-    if (decided.row.feeLak > 0 &&
-        decided.row.paymentState != PaymentState.paid) {
-      final DivorcePayPort? port = pay;
-      if (port != null) {
-        final Either<Failure, Object?> paid = await port(
-          id,
-          methodCode: divorceMethodCodeFor(state.form.payment.method),
-        );
-        final Failure? payFailure = paid.fold((Failure f) => f, (_) => null);
-        if (payFailure != null) {
-          _fail(payFailure);
-          return;
-        }
-        receipt = divorceReceiptOf(paid.getOrElse(() => null));
-      }
-    }
-
-    emit(state.copyWith(
-      submitPending: false,
-      submitted: DivorceSubmitted(decided: decided, receiptNo: receipt),
-    ));
+    return paid.map<String?>(divorceReceiptOf);
   }
 
   /// D-G REPRODUCED — the messages land on the fields and **the step does not

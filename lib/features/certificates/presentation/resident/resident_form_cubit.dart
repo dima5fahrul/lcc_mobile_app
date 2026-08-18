@@ -61,8 +61,10 @@ import '../../../reference/domain/entities/lookup_option.dart';
 import '../../../reference/domain/usecases/get_lookup_options.dart';
 import '../../../service/domain/entities/service.dart';
 import '../../../wallet/domain/entities/payment_method.dart';
+import '../../domain/submission/certificate_form.dart';
 import '../../domain/submission/submission_clock.dart';
-import '../../domain/submission/case_reference_binding.dart';
+import '../../domain/submission/submission_executor.dart';
+import '../../domain/submission/submission_plan.dart';
 import 'resident_form_state.dart';
 import 'resident_payload.dart';
 
@@ -327,10 +329,45 @@ class ResidentFormCubit extends Cubit<ResidentFormViewState> {
   /// **A field and not part of the state**, because it is a `useRef`: mutating
   /// it must not rebuild, and it is per-page-instance rather than persisted
   /// (`specs.md` § 6.3 item 3).
-  final Set<String> _uploaded = <String>{};
+  ///
+  /// B4 moved the *set* into [AttachmentLedger] so the executor can honour
+  /// `plan.attachmentGuard`; the ownership is unchanged. It still keys on the
+  /// **slot**, which is D-I's defect and is deliberately not fixed here — see
+  /// `submission_executor.dart`'s [AttachmentLedger] doc.
+  final AttachmentLedger _ledger = AttachmentLedger();
 
   /// Test-visible copy of the dedupe set (`F1-AC-58`).
-  Set<String> get uploadedSlots => Set<String>.unmodifiable(_uploaded);
+  Set<String> get uploadedSlots => _ledger.sentSlots;
+
+  /// The four write use cases as the executor's ports.
+  ///
+  /// Built here rather than injected, and that is a deliberate departure from
+  /// specs.md § 3.1 row 8's *"construct the executor per cubit"* in
+  /// `certificates_bloc_injection.dart`. Taking that grant means a new
+  /// constructor parameter on all five cubits, and the five page-widget tests
+  /// plus `certificates_injection_test.dart` construct them directly — none of
+  /// those paths is in § 3.1 row 15, so the edit they would force is outside
+  /// the scope table and an automatic FAIL under `B4-AC-6`. The executor is
+  /// stateless and holds only the four ports this cubit already owns, so
+  /// building it here resolves nothing differently; `B4-AC-39` still reads the
+  /// singleton identity off DI.
+  SubmissionExecutor get _executor => SubmissionExecutor(
+        createCase: createApplication.call,
+        updateCase: (String id, Map<String, Object?> envelope) =>
+            updateApplication(
+          UpdateApplicationParams(id: id, envelope: envelope),
+        ),
+        attachToCase: (String id, SubmissionAttachment a) => addAttachment(
+          AddAttachmentParams(
+            id: id,
+            file: a.file,
+            slot: a.slot,
+            kind: a.kind,
+            label: a.label,
+          ),
+        ),
+        submitCase: submitApplication.call,
+      );
 
   // ───────────────────────────────────────────────────────────────────────────
   // Catalogue loads — the four `useQuery`s at `:336-340`
@@ -760,108 +797,104 @@ class ResidentFormCubit extends Cubit<ResidentFormViewState> {
     emit(state.copyWith(submitPending: false, submitError: e.message));
   }
 
-  /// `submitCase` — `:500-542`, in order and with the retry semantics intact.
+  /// `submitCase` — `:500-542`, executed by [SubmissionExecutor] (B4 § 6.5).
+  ///
+  /// The **order** — create → update → attach → submit → pay, and the retry
+  /// mechanics inside it — now comes from
+  /// `SubmissionPlan.forForm(CertificateForm.resident).steps`, which is where
+  /// `:500-542` was already transcribed. What stayed here is everything the
+  /// plan does not describe: the bodies, and the pay condition.
+  ///
+  /// `test/features/certificates/submission_golden/resident.golden.json` is the
+  /// pin on that claim — recorded off this method *before* the migration and
+  /// replayed after, byte for byte, part for part.
   Future<ResidentSubmitted> _submitCase() async {
-    // `const payload = buildFormData();` — `:501`. **Built ONCE per attempt**
-    // and reused by the update body, which is what `flat-appended-last` means
-    // and what `F0-AC-14` asserts. `residentBodiesFrom` takes the built payload
-    // rather than a builder for exactly this reason.
-    final Map<String, Object?> payload =
-        buildResidentFormData(state.form, clock);
-
-    // 1. `if (!current) { … }` — `:505-517`. The draft is created ONCE; a retry
-    //    reuses `{id, reference_no}` so a rejected submission leaves no trail of
-    //    half-filled cases (`F1-AC-56`).
-    ResidentDraftCase? current = state.draft;
-    if (current == null) {
-      final ApplicationDetail created = _orThrow(
-        await createApplication(
-          residentCreateEnvelope(
-            form: state.form,
-            payload: payload,
-            clock: clock,
+    final ResidentDraftCase? held = state.draft;
+    try {
+      final SubmissionOutcome outcome = await _executor.run(
+        plan: SubmissionPlan.forForm(CertificateForm.resident),
+        // `const payload = buildFormData();` — `:501`. The parameter is ignored
+        // because Resident's builder takes none: the reference is appended
+        // afterwards by spreading (`:522`), which is the whole
+        // `FlatAppendedReference` mechanic. The executor calls this ONCE per
+        // attempt for exactly that reason (`F0-AC-14`).
+        buildFormData: (String _) => buildResidentFormData(state.form, clock),
+        // `:507-514`.
+        createEnvelope: (Map<String, Object?> payload) =>
+            residentCreateEnvelope(
+          form: state.form,
+          payload: payload,
+          clock: clock,
+        ),
+        // `:521-524` — `form_data` FIRST here and LAST on create.
+        updateEnvelope: (Map<String, Object?> updatePayload) =>
+            residentUpdateEnvelope(updatePayload: updatePayload, clock: clock),
+        // `:484-491` — the 3x4 photo first, then step 1's four documents.
+        // Resident sends no `label` part; Marriage does.
+        attachments: <SubmissionAttachment>[
+          for (final CertificateAttachment a
+              in residentAttachmentsToSend(state.form))
+            SubmissionAttachment(file: a.file, slot: a.slot, kind: a.kind),
+        ],
+        ledger: _ledger,
+        held: held == null
+            ? null
+            : SubmissionDraft(id: held.id, referenceNo: held.referenceNo),
+        // `setDraft(current)` — `:516`, and it happens BEFORE the update runs,
+        // so a failure after create still leaves the retry a draft to reuse
+        // (`F1-AC-56`).
+        onDraftCreated: (SubmissionDraft d) => emit(
+          state.copyWith(
+            draft: ResidentDraftCase(id: d.id, referenceNo: d.referenceNo),
           ),
         ),
+        charge: _charge,
       );
-      current = ResidentDraftCase(
-        id: created.row.id,
-        referenceNo: created.row.referenceNo,
+      return ResidentSubmitted(
+        decided: outcome.decided,
+        receiptNo: outcome.receiptNo,
       );
-      emit(state.copyWith(draft: current));
+    } on SubmissionStepFailure catch (e) {
+      // The executor reports *which* step failed; Resident does not branch on
+      // it — `:570-580` folds every failure into one handler, and inventing a
+      // per-step branch here would be a state transition the source has not
+      // got. The exception is unwrapped to the shape `next()` already catches.
+      throw _asApiException(e.failure);
     }
-
-    // 2. `await applications.update(...)` — `:521-524`. Runs on EVERY attempt,
-    //    including the first, because it is what writes `header.ref_no`
-    //    (`F1-AC-57`). The bodies are rebuilt with the reference now known.
-    final SubmissionBodies bound =
-        residentBodiesFrom(payload, current.referenceNo);
-    _orThrow(
-      await updateApplication(
-        UpdateApplicationParams(
-          id: current.id,
-          envelope: residentUpdateEnvelope(
-            updatePayload: bound.update,
-            clock: clock,
-          ),
-        ),
-      ),
-    );
-
-    // 3. `for (const attachment of attachmentsToSend())` — `:526-530`.
-    //    **Sequential**, in `attachmentsToSend()`'s fixed order, skipping any
-    //    slot already sent. Not `Future.wait` (`F1-AC-58`).
-    for (final CertificateAttachment a in residentAttachmentsToSend(state.form)) {
-      if (_uploaded.contains(a.slot)) continue;
-      _orThrow(
-        await addAttachment(
-          AddAttachmentParams(
-            id: current.id,
-            file: a.file,
-            slot: a.slot,
-            kind: a.kind,
-          ),
-        ),
-      );
-      _uploaded.add(a.slot);
-    }
-
-    // 4. `const decided = await applications.submit(current.id);` — `:532`.
-    final ApplicationDetail decided =
-        _orThrow(await submitApplication(current.id));
-
-    // 5. `if (decided.fee_lak > 0) { … }` — `:535-540`. A zero-fee case does
-    //    **not** call pay (`F1-AC-24`).
-    String? receiptNo;
-    if (decided.row.feeLak > 0) {
-      final ResidentPayPort? port = pay;
-      if (port != null) {
-        final Object? result = _orThrow(
-          await port(
-            current.id,
-            methodCode: residentMethodCodeFor(
-              state.form.payment.method,
-              state.methods.data ?? const <PaymentMethod>[],
-            ),
-          ),
-        );
-        receiptNo = residentReceiptOf(result);
-      }
-      // No port: the case is submitted and there is no receipt. The success
-      // card's receipt row is conditional (`:637-639`), so it renders exactly as
-      // it does for a pay answer that carried none. Reported NOT EVALUATED
-      // rather than as a charge that happened (`specs.md` § 6.2).
-    }
-
-    return ResidentSubmitted(decided: decided, receiptNo: receiptNo);
   }
 
-  /// `await` on a rejected promise throws; `Either` does not. This is the one
-  /// place the two are reconciled, so the orchestration above reads like
-  /// `:500-542` does.
-  T _orThrow<T>(Either<Failure, T> result) => result.fold(
-        (Failure f) => throw _asApiException(f),
-        (T value) => value,
-      );
+  /// `:535-540` — the pay branch, and it stays **here** (specs.md § 6.7).
+  ///
+  /// Resident's predicate is `fee_lak > 0` **alone**: unlike Marriage and
+  /// Divorce it does not also test `payment_state !== "paid"`, so a retry after
+  /// a successful charge re-enters this branch and charges again. That is a
+  /// faithfully ported source divergence, registered as **FU-1**, and B4 is
+  /// explicitly not the batch that fixes it — a money-path behaviour change
+  /// inside a no-behaviour-change batch is the worst available outcome.
+  /// `B4-AC-19` fails if a later hand unifies the three predicates.
+  ///
+  /// A null [pay] port answers `null` rather than an error: the case is
+  /// submitted and there is no receipt, and the success card's receipt row is
+  /// conditional (`:637-639`), so it renders exactly as it does for a pay
+  /// answer that carried none.
+  Future<Either<Failure, String?>> _charge(
+    SubmissionDraft draft,
+    ApplicationDetail decided,
+  ) async {
+    if (decided.row.feeLak <= 0) return const Right<Failure, String?>(null);
+    final ResidentPayPort? port = pay;
+    if (port == null) return const Right<Failure, String?>(null);
+
+    final Either<Failure, Object?> result = await port(
+      // `current.id` — the created case, not `decided.id` (`:536`).
+      draft.id,
+      methodCode: residentMethodCodeFor(
+        state.form.payment.method,
+        state.methods.data ?? const <PaymentMethod>[],
+      ),
+    );
+    return result.map<String?>(residentReceiptOf);
+  }
 
   /// `await` on a rejected promise throws an `ApiError` the page can ask
   /// `isValidation` of; an `Either`'s `Left` has folded it to a `Failure` and

@@ -19,9 +19,38 @@
 /// **No write path lives on this entity and none may be added by B7.** The
 /// fields `ApplicationDetail` adds (`form_data`, `attachments`, `timeline`,
 /// `allowed_actions`, `linked_reference_no`, `types.ts:485-491`) are B7b's and
-/// B4's; `CreateApplicationInput` is B4's alone. Every field B7 does not render
-/// is left out so B4 **adds** rather than reconciles — which is the whole
-/// reason § 6.2's absorb is a merge and not a rewrite.
+/// B4's. Every field B7 does not render is left out so B4 **adds** rather than
+/// reconciles — which is the whole reason § 6.2's absorb is a merge and not a
+/// rewrite.
+///
+/// ## The typed create-input DTO is **REFUSED**, not reserved
+///
+/// This paragraph used to reserve `CreateApplicationInput` to B4. B4 ran, and
+/// its answer is that the type is **not created — ever, by anyone**
+/// (`GOR-245-b4-application-consolidation/specs.md` § 6.3, RULING 2). It is a
+/// refusal rather than a deferral, and the ground is measured:
+///
+/// `types.ts:500-507` declares the interface, and the five certificate wizards
+/// **do not agree about the body it would type**. Resident writes
+/// `province_id: form.province || undefined` (`ResidentCertificatePage.tsx:509`)
+/// and `JSON.stringify` **drops** the key; Marriage writes
+/// `province_id: header.provinceId` (`MarriageCertificatePage.tsx:959`) and
+/// sends `""`. Same key name, two different wire bodies. A DTO would have to
+/// model that key as one of nullable-elided or nullable-empty and would
+/// silently impose the choice on the other family — the app would compile, the
+/// form would submit, and one of five services would start receiving a six-key
+/// body where the web sends five.
+///
+/// What the type was reaching for is already delivered by a different
+/// mechanism: `EnvelopeShape`
+/// (`features/certificates/domain/submission/envelope_shape.dart`) describes
+/// the create and update bodies — key names, order, and per-key emptiness —
+/// without *being* the body, so it can represent both families at once.
+/// `SubmissionExecutor` reads it, which is the first time anything did.
+///
+/// The create envelope therefore stays an **ordered `Map<String, Object?>`**
+/// built by the page. `test/features/application/application_scope_test.dart`
+/// asserts this comment is the only occurrence of the identifier in `lib/`.
 ///
 /// **Every field the wire carries IS parsed**, including the ones no current
 /// surface draws (`applicant`, `channel`, `issued_at`, `closed_at`,
