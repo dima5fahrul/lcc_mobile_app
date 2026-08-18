@@ -516,4 +516,54 @@ class ApiEndpoint {
   /// does not call pay (`:535`).
   static String applicationSubmit(String id) =>
       '/applications/${Uri.encodeComponent(id)}/submit';
+
+  // ── The household record (F4) ──────────────────────────────────────────────
+  //
+  // **Two constants, and they are the only two this feature has.** FamilyBook
+  // is the one certificate-route page that never touches `/applications`:
+  // `FamilyBookPage.tsx:16` imports `me` and nothing else, and `fsd.md`:820
+  // measures zero `/applications` calls, zero uploads and no draft. So none of
+  // the write half above is reachable from it and none of it is reused.
+  //
+  // Both are authenticated `/me/*` reads-and-one-write — neither carries
+  // `anonymous: true` at `endpoints.ts:128-129` — so both need step 2's
+  // `ApiClient` instance for the Auth/Refresh interceptor chain.
+  //
+  // **`roadmap.md`:417 lists both of these under B5, and that line is stale.**
+  // B5's component makes ZERO API calls (`roadmap.md`:50, `:621`), and a batch
+  // whose component makes no API call cannot own an endpoint list; the two
+  // paths are a leftover from the pre-F0…F4 roadmap. They are F4's
+  // (`specs.md` § 2.2 Finding E), and the roadmap correction is FU-3, the
+  // architect's. No criterion here depends on that correction landing.
+  //
+  // Neither is parameterised, so neither needs the percent-encoding convention
+  // `newsArticle` / `helpArticle` / [meTransaction] establish above.
+
+  /// `endpoints.ts:128` — `me.familyBook`. One object (`FamilyBook`), not
+  /// paged, Bearer.
+  ///
+  /// **A 404 is a normal answer, not a fault.** `client.ts:92-94` sets
+  /// `isNotFound` and `FamilyBookPage.tsx:305`'s `error && !error.isNotFound`
+  /// routes it past the error card into *"No household on file"* (`:326`).
+  /// Measured 2026-08-13 against the one available staging account:
+  /// `404 {"success":false,"message":"family book not found","code":"NOT_FOUND"}`
+  /// (`manifest-authenticated.md`:229). That is the only branch of this
+  /// endpoint any reference in this repository exercises.
+  static const String meFamilyBook = '/me/family-book';
+
+  /// `endpoints.ts:128-129` — `me.requestFamilyBookCopy`. A POST whose body is
+  /// **exactly one key**, `{"reason": "<string>"}` (`F4-AC-22`), answering the
+  /// created case as an `ApplicationRow`.
+  ///
+  /// **The displayed fee is never charged here.** `FamilyBookPage.tsx:534`
+  /// renders `formatLak(copyFee, lang)` on the review step from the `/services`
+  /// catalogue, and the submit path calls nothing else — no
+  /// `/applications/{id}/pay`, no wallet, no payment sheet (`fsd.md`:818).
+  ///
+  /// **Not reachable on any account this programme has.** `requestCopy` sits
+  /// past the `!book` guard at `:326`, so with no household there is no CTA to
+  /// press; `oracle_coverage.yaml`'s `unreachable:` row for the `/reason` leaf
+  /// records it, and the Tier 0 leaf therefore stays Entry-B `transcribed`
+  /// (`F4-NV-3`). It is exercised against a mock transport only.
+  static const String meFamilyBookRequestCopy = '/me/family-book/request-copy';
 }

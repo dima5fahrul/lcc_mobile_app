@@ -333,7 +333,7 @@ authenticated_capture:
       the branch and its file:line (ADR-0006 field 3).
   - slot: 47-family-book-step1
     web_route: "#/service/family-book (step 1)"
-    flutter_route: null   # F1-F4 build these; no pair exists yet
+    flutter_route: "FamilyBookPage — the EMPTY state; /service/family-book is NOT mounted (F4-AC-13)"
     provenance: deployed-build
     owner: qa-lcc-mobile-app-greenfield
     manifest: manifest-authenticated.md

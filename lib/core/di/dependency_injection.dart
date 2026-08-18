@@ -35,6 +35,7 @@ import '../../features/application/di/application_feature_injection.dart';
 import '../../features/auth/di/auth_feature_injection.dart';
 import '../../features/certificates/di/certificates_feature_injection.dart';
 import '../../features/chat/di/chat_feature_injection.dart';
+import '../../features/family_book/di/family_book_feature_injection.dart';
 import '../../features/help/di/help_feature_injection.dart';
 import '../../features/history/di/history_feature_injection.dart';
 import '../../features/home/di/home_feature_injection.dart';
@@ -341,5 +342,31 @@ class DependencyInjection {
     //     `certificates_bloc_injection.dart` for why a shared submission state
     //     would PATCH the previous citizen's case.
     await CertificatesFeatureInjection.init();
+
+    // 18. Family book (DI-6, F4). One line — **and the fourth that is
+    //     deliberately not alphabetical.**
+    //
+    //     Ordering: **after step 6 (Service), and that one is a hard
+    //     requirement.** `FamilyBookBlocInjection` resolves `GetServices` out
+    //     of `serviceInjection` through a closure for the review step's fee
+    //     (`FamilyBookPage.tsx:190-191`), which is the
+    //     `ChatUsecaseInjection` -> `helpInjection` shape and the only
+    //     sanctioned cross-container form (`ssd.md` § 5.1). Alphabetically
+    //     `family_book` sorts between `chat` (step 11) and `help` (step 9),
+    //     which is ahead of nothing it needs — but appending is what steps 6
+    //     and 16 argue for and what cannot break the seventeen above, and the
+    //     deviation is stated here as steps 11, 12 and 17 state theirs.
+    //
+    //     It is **not** gated on step 14 (Application). F4 consumes that
+    //     feature's `domain/**` — `ApplicationRow`, `Jurisdiction`,
+    //     `NotFoundFailure` — which are types, not registrations, so nothing
+    //     here resolves out of `applicationInjection`. Recorded because every
+    //     other consumer of that feature does, and a reader will look for it.
+    //
+    //     Both of its endpoints are authenticated `/me/*` calls, so it needs
+    //     step 2's *instance* of `ApiClient` for the Auth/Refresh interceptor
+    //     chain — satisfied by re-exporting the same client, not by ordering
+    //     against step 3.
+    await FamilyBookFeatureInjection.init();
   }
 }
