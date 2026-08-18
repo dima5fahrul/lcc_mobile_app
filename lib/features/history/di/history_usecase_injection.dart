@@ -22,6 +22,8 @@ library;
 
 import '../../application/di/application_injection.dart';
 import '../../application/domain/usecases/application_usecases.dart';
+import '../../documents/di/documents_injection.dart';
+import '../../documents/domain/usecases/documents_usecases.dart';
 import 'history_injection.dart';
 
 class HistoryUsecaseInjection {
@@ -41,6 +43,17 @@ class HistoryUsecaseInjection {
       )
       ..registerLazySingleton<GetApplicationTimeline>(
         () => applicationInjection<GetApplicationTimeline>(),
+      )
+      // B5 — the detail's THIRD query, re-exported out of
+      // `documentsInjection` on exactly the terms above. `features/history →
+      // features/documents/domain/**` is the CFI edge (`ssd.md` § 4.3, G-L3);
+      // the closures are typed on the domain use cases and nothing here
+      // reaches into `features/documents/data/**`.
+      ..registerLazySingleton<GetCertificates>(
+        () => documentsInjection<GetCertificates>(),
+      )
+      ..registerLazySingleton<GetCertificate>(
+        () => documentsInjection<GetCertificate>(),
       );
   }
 }

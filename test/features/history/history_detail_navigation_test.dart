@@ -22,6 +22,7 @@ import 'package:lcc_mobile_app/core/error/failure.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/application_page.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/application_row.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
+import 'package:lcc_mobile_app/features/documents/domain/usecases/documents_usecases.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_bloc.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_detail_bloc.dart';
 import 'package:lcc_mobile_app/features/history/presentation/pages/history_detail_page.dart';
@@ -30,6 +31,7 @@ import 'package:lcc_mobile_app/features/history/presentation/widgets/history_row
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
 
 import '../../helpers/app_test_harness.dart';
+import '../documents/documents_test_helper.dart';
 import 'history_test_helper.dart';
 
 void main() {
@@ -51,6 +53,11 @@ void main() {
   HistoryDetailBloc detailFactory() => HistoryDetailBloc(
         getApplication: GetApplication(repository: repo),
         getApplicationTimeline: GetApplicationTimeline(repository: repo),
+        // B5's third query, over a fake that answers an empty list. These
+        // criteria are about navigation, so the certificate slice only has to
+        // be constructible.
+        getCertificates: GetCertificates(repository: FakeDocumentsRepository()),
+        getCertificate: GetCertificate(repository: FakeDocumentsRepository()),
       );
 
   /// Mounts `/history` inside a real `GoRouter`, so the location is observable.

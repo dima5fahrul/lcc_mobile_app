@@ -35,6 +35,7 @@ import '../../features/application/di/application_feature_injection.dart';
 import '../../features/auth/di/auth_feature_injection.dart';
 import '../../features/certificates/di/certificates_feature_injection.dart';
 import '../../features/chat/di/chat_feature_injection.dart';
+import '../../features/documents/di/documents_feature_injection.dart';
 import '../../features/help/di/help_feature_injection.dart';
 import '../../features/history/di/history_feature_injection.dart';
 import '../../features/home/di/home_feature_injection.dart';
@@ -341,5 +342,37 @@ class DependencyInjection {
     //     `certificates_bloc_injection.dart` for why a shared submission state
     //     would PATCH the previous citizen's case.
     await CertificatesFeatureInjection.init();
+
+    // 18. Documents — the collection slice (DI-6, B5). One line, as the rule
+    //     requires.
+    //
+    //     **Ordering: after step 2, and appended AFTER step 15 (History) even
+    //     though History resolves out of this container.** That reads
+    //     backwards, so it is stated rather than left to a reader:
+    //     `HistoryUsecaseInjection` *registers* two `registerLazySingleton`
+    //     closures over `documentsInjection`, and registering a closure does
+    //     not invoke it. The first resolution happens when `HistoryDetailBloc`
+    //     is constructed, which is in the `/history` route builder — long after
+    //     `init()` has returned. So the constraint the other cross-container
+    //     steps have (11 chat→help, 12 account→session/auth, 15 history→
+    //     application, 17 certificates→four) does not apply in this direction,
+    //     and appending keeps this file's own rule: appending is the change
+    //     that cannot break the steps above.
+    //
+    //     `history_documents_injection_test.dart` **resolves `HistoryDetailBloc`
+    //     end to end** rather than trusting this paragraph (`B5-AC-33`,
+    //     specs.md NV-5). Moving this line above step 15 would also be correct;
+    //     the test is what makes either placement provable instead of assumed.
+    //
+    //     It registers **no BLoC**: `features/documents/` is page-less, the
+    //     third such feature after steps 13 and 14. B5 creates no route and no
+    //     page; its widgets live in `lib/presentation/documents/` and are
+    //     composed in `app_routes.dart`.
+    //
+    //     Both of its endpoints are authenticated `/me/*` reads, so — like
+    //     Help, Notifications and Chat — it needs step 2's *instance* of
+    //     `ApiClient` for the Auth/Refresh interceptor chain, satisfied by
+    //     re-exporting the same client rather than by ordering against step 3.
+    await DocumentsFeatureInjection.init();
   }
 }

@@ -36,6 +36,8 @@ import 'package:lcc_mobile_app/features/application/domain/entities/jurisdiction
 import 'package:lcc_mobile_app/features/application/domain/entities/status_pipeline.dart';
 import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
+import 'package:lcc_mobile_app/features/documents/domain/usecases/documents_usecases.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_bloc.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_detail_bloc.dart';
 import 'package:lcc_mobile_app/features/history/presentation/pages/history_detail_page.dart';
@@ -44,6 +46,7 @@ import 'package:lcc_mobile_app/features/session/domain/entities/bilingual.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
 
 import '../../helpers/app_test_harness.dart';
+import '../documents/documents_test_helper.dart';
 
 /// One recorded `listApplications` invocation.
 class ListCall {
@@ -319,6 +322,13 @@ ApplicationRow rowFixture({
   String? submittedAt = '2026-03-14T09:30:00Z',
   String createdAt = '2026-03-10T08:00:00Z',
   String? assignedOfficer,
+  // B5, additive and defaulted to null so every pre-existing caller is
+  // unchanged. `certificateId` drives the single-fetch conjunct (`:157`) and
+  // the second precedence clause; `certificateNo` is the second disjunct of the
+  // card's own gate (`:456`).
+  String? certificateId,
+  String? certificateNo,
+  String? issuedAt,
 }) =>
     ApplicationRow(
       id: id,
@@ -346,6 +356,9 @@ ApplicationRow rowFixture({
       submittedAt: submittedAt,
       createdAt: createdAt,
       updatedAt: createdAt,
+      certificateId: certificateId,
+      certificateNo: certificateNo,
+      issuedAt: issuedAt,
     );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -425,6 +438,9 @@ ApplicationDetail detailFixture({
   bool isOverdue = false,
   List<Attachment> attachments = const <Attachment>[],
   List<CaseEvent>? timeline,
+  String? certificateId,
+  String? certificateNo,
+  String? issuedAt,
 }) =>
     ApplicationDetail(
       row: row ??
@@ -434,6 +450,9 @@ ApplicationDetail detailFixture({
             feeLak: feeLak,
             assignedOfficer: assignedOfficer,
             isOverdue: isOverdue,
+            certificateId: certificateId,
+            certificateNo: certificateNo,
+            issuedAt: issuedAt,
           ).copyWith(reasonNote: reasonNote, dueAt: dueAt),
       attachments: attachments,
       timeline: timeline,
@@ -499,8 +518,9 @@ CaseTimeline timelineFixture({List<CaseEvent>? events}) => CaseTimeline(
 /// criteria (`B7-AC-74`…`B7-AC-76`) go the other way and are pumped through
 /// `pumpHistoryPage`, which is the point of keeping the two helpers separate.
 ///
-/// [seams] fills the four § 6.1 slots. B7b passes null for all four, so the
-/// default is null and a test that wants to prove a slot *works* opts in.
+/// The four § 6.1 slots default to null, so a test that wants to prove a slot
+/// *works* opts in. **B5's two are builders** and B6's two are still `Widget?`
+/// (specs.md § 6.7, `B5-AC-46`).
 Future<void> pumpHistoryDetailPage(
   WidgetTester tester,
   HistoryDetailBloc bloc, {
@@ -508,10 +528,11 @@ Future<void> pumpHistoryDetailPage(
   Size surface = const Size(390, 4000),
   StatusPipeline? pipeline,
   VoidCallback? onBack,
-  Widget? documentActions,
+  Widget Function(ApplicationDetail, IssuedCertificate?)? documentActions,
   Widget? paymentAction,
   Widget? paymentPanel,
-  Widget? certificatePanel,
+  Widget Function(ApplicationDetail, IssuedCertificate?, bool)?
+      certificatePanel,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = surface;
@@ -550,10 +571,17 @@ HistoryDetailBloc detailBloc(
   FakeApplicationRepository repository, {
   String id = 'app-1',
   bool start = true,
+  FakeDocumentsRepository? documents,
 }) {
+  // B5's third query. A default fake answers an **empty list**, which is the
+  // shape every pre-B5 caller of this helper needs: a case that is not issued
+  // never asks, and one that is gets the note rather than a card.
+  final FakeDocumentsRepository docs = documents ?? FakeDocumentsRepository();
   final HistoryDetailBloc bloc = HistoryDetailBloc(
     getApplication: GetApplication(repository: repository),
     getApplicationTimeline: GetApplicationTimeline(repository: repository),
+    getCertificates: GetCertificates(repository: docs),
+    getCertificate: GetCertificate(repository: docs),
   );
   if (start) bloc.add(HistoryDetailStarted(id));
   return bloc;

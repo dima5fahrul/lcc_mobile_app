@@ -223,8 +223,18 @@
     "idVerifyDesc": "Ask the officer to scan this QR code to confirm your identity.",
     "idVerifyClose": "Close"
   },
+  "documents": {
+    "issuedCertificate": "Issued certificate",
+    "certificateNumber": "Certificate number",
+    "issuedOn": "Issued on",
+    "verificationCode": "Verification code",
+    "qrPayload": "QR payload",
+    "certificateNotAvailable": "The verification code for this certificate is not available yet."
+  },
   "history": {
     "title": "Application History",
+    "viewDocument": "View document",
+    "downloadDocument": "Download document",
     "searchPlaceholder": "Search by service or reference number...",
     "statTotal": "Total",
     "statApproved": "Approved",

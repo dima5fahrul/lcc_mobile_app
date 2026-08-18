@@ -26,6 +26,7 @@ import 'package:lcc_mobile_app/features/application/domain/entities/case_event.d
 import 'package:lcc_mobile_app/features/application/domain/entities/case_status.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/case_timeline.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/jurisdiction.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
 import 'package:lcc_mobile_app/features/history/presentation/bloc/history_detail_bloc.dart';
 import 'package:lcc_mobile_app/features/history/presentation/widgets/history_detail_cards.dart';
 import 'package:lcc_mobile_app/features/history/presentation/widgets/history_detail_hero.dart';
@@ -61,6 +62,9 @@ void main() {
   Future<void> boot(
     WidgetTester tester, {
     Locale locale = const Locale('en'),
+    // B5's two seams are builders (specs.md § 6.7); B6's two are still
+    // `Widget?`. These helpers take the widget and wrap it, so the four tests
+    // below read exactly as they did.
     Widget? documentActions,
     Widget? paymentAction,
     Widget? paymentPanel,
@@ -73,10 +77,15 @@ void main() {
       bloc,
       locale: locale,
       onBack: onBack,
-      documentActions: documentActions,
+      documentActions: documentActions == null
+          ? null
+          : (ApplicationDetail _, IssuedCertificate? __) => documentActions,
       paymentAction: paymentAction,
       paymentPanel: paymentPanel,
-      certificatePanel: certificatePanel,
+      certificatePanel: certificatePanel == null
+          ? null
+          : (ApplicationDetail _, IssuedCertificate? __, bool ___) =>
+              certificatePanel,
     );
   }
 
@@ -84,6 +93,9 @@ void main() {
   Future<void> loaded(
     WidgetTester tester, {
     Locale locale = const Locale('en'),
+    // B5's two seams are builders (specs.md § 6.7); B6's two are still
+    // `Widget?`. These helpers take the widget and wrap it, so the four tests
+    // below read exactly as they did.
     Widget? documentActions,
     Widget? paymentAction,
     Widget? paymentPanel,
@@ -470,7 +482,13 @@ void main() {
     testWidgets('certificatePanel is gated on isIssued',
         (WidgetTester tester) async {
       repo.detailAnswer = Right<Failure, ApplicationDetail>(
-        detailFixture(status: CaseStatus.issued),
+        // **`certificateNo` added by B5.** The source's gate is
+        // `isIssued && (certificate || detail.certificate_no)` (`:456`) —
+        // B7b's own library doc records both disjuncts and hands the whole
+        // gate to B5 — so an issued case with neither renders no card at all.
+        // The assertion is unchanged; only the arrangement now matches the
+        // source's condition instead of half of it.
+        detailFixture(status: CaseStatus.issued, certificateNo: 'CERT-0001'),
       );
       await loaded(tester, certificatePanel: const Text('B5-CERT'));
 

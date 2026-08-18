@@ -205,10 +205,33 @@ void main() {
       expect(lo['eta'], contains('{value}'));
     });
 
-    test('the two seam keys are NOT ported — they arrive with B5 (§ 6.11)', () {
-      // `viewDocument`/`downloadDocument` belong to the `documentActions` slot.
-      expect(en.containsKey('viewDocument'), isFalse);
-      expect(en.containsKey('downloadDocument'), isFalse);
+    test('the two seam keys arrived with B5, and carry the source arms', () {
+      // ── RETARGETED BY B5, not deleted ──────────────────────────────────────
+      //
+      // This case used to read *"the two seam keys are NOT ported — they arrive
+      // with B5 (§ 6.11)"*, and its whole content was that precondition. B5 is
+      // the batch it was waiting for: § 6.12 requires `history` to gain exactly
+      // `viewDocument` and `downloadDocument`, so the old assertion and the
+      // spec that ordered the change cannot both hold.
+      //
+      // It is **retargeted rather than deleted**, and the retarget is
+      // *stronger* than what it replaces: the keys must now exist in both
+      // locales AND their values must appear verbatim in `i18n/ns/history.ts`
+      // — which is `B5-AC-86`, checked here against the pinned source instead
+      // of against a hand-copied literal.
+      //
+      // This is the **fifth** instance of the class `ssd.md` § 4.4.1 RULING 13
+      // named and specs.md Finding K counted four of. B5's § 6.8 amendment list
+      // is closed and does not include this file, so the edit is escalated in
+      // `blocked.md` for the architect to ratify rather than absorbed.
+      for (final String key in <String>['viewDocument', 'downloadDocument']) {
+        expect(en.containsKey(key), isTrue, reason: 'en is missing $key');
+        expect(lo.containsKey(key), isTrue, reason: 'lo is missing $key');
+        expect(ns, contains('"${en[key]}"'),
+            reason: 'en.$key = "${en[key]}" is not in history.ts');
+        expect(ns, contains('"${lo[key]}"'),
+            reason: 'lo.$key = "${lo[key]}" is not in history.ts');
+      }
     });
 
     test('the 27 dead keys stay out — spot-checked (Finding G)', () {

@@ -33,6 +33,7 @@ import 'package:lcc_mobile_app/features/application/di/application_injection.dar
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
+import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
 import 'package:lcc_mobile_app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/auth/domain/repositories/auth_repository.dart';
@@ -133,6 +134,15 @@ void main() {
     // scope deviation on exactly B9a's, B9b's, B8a's, F0b's, B6a's and B7a's
     // grounds.
     await certificatesInjection.reset();
+    // B5's. TENTH occurrence of the same omission, and the fourth caught by
+    // `di_teardown_completeness_test.dart` rather than by an `ApiClient is
+    // already registered inside GetIt` cascade. `features/documents/` is
+    // page-less (the third such feature) and owns a real data layer, so it is
+    // one container with a datasource, a repository and two use cases behind
+    // it. B5's § 3.1 table names `test/features/documents/**` and not this
+    // file; the edit is a recorded scope deviation on exactly B9a's, B9b's,
+    // B8a's, F0b's, B6a's, B7a's and F1's grounds.
+    await documentsInjection.reset();
   });
 
   group('root container', () {

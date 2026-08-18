@@ -7,18 +7,27 @@
 /// (`:522-533`). A single query would make a timeline outage look like a page
 /// outage.
 ///
-/// ## The third query is a seam, not an omission
+/// ## The third query — B7b's seam, filled by B5
 ///
-/// `:149` and `:157` are `me.certificates()` and `me.certificate(id)` — **B5's**
-/// (specs.md § 6.1, § 5.1). This BLoC does not issue them, does not model a
-/// certificate, and `B7-AC-51` greps `lib/**` to prove `/me/certificates`
-/// appears nowhere. What B7b owns is `isIssued` (`application_detail.dart`),
-/// which decides whether the seam is *offered*; what goes in it is B5's.
+/// `:149` and `:157` are `me.certificates()` and `me.certificate(id)`. B7b left
+/// them out and wrote *"B5 adds it back when it fills the slot"*; **B5 took the
+/// invitation** rather than building a parallel BLoC, because the source's one
+/// *Refresh status* button re-issues all three queries and that button lives in
+/// B7b's hero. A B5-owned cubit could only learn about the refresh by importing
+/// `HistoryDetailBloc` (a G-L7/G-L3 violation) or by threading a refresh tick
+/// through three widgets to reach it. Both are worse than the
+/// `features/history → features/documents/domain` edge CFI already permits
+/// (`ssd.md` § 4.3, § 4.4.1 RULING 13) — which is the edge
+/// [_loadCertificates] uses and the one `history_detail_seams_test.dart` was
+/// narrowed to stop forbidding (specs.md § 6.8).
 ///
-/// So `refresh` here re-issues **two** requests where the source re-issues
-/// three (`:163-165`, the third being `certListQuery.refetch()`). That is not a
-/// divergence — the third query does not exist in this port yet — and B5 adds
-/// it back when it fills the slot.
+/// So `refresh` now re-issues **three** requests on an issued case and **two**
+/// on any other, which is exactly what `:162-166` does: `certListQuery.refetch()`
+/// bumps a nonce, and a disabled effect returns early (`B5-AC-42`).
+///
+/// What B5 did **not** change: the two existing queries, their two generation
+/// counters, `refreshing`, `showSkeleton`, and every `B7-AC-5x`/`B7-AC-6x`
+/// behaviour (`B5-AC-45`).
 ///
 /// ## The generation guard is ported, per query (`hooks.ts:55,65,73`)
 ///
@@ -57,11 +66,20 @@ import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/usecase/usecase.dart';
 import '../../../application/domain/application_failures.dart';
 import '../../../application/domain/entities/application_detail.dart';
 import '../../../application/domain/entities/case_event.dart';
 import '../../../application/domain/entities/case_timeline.dart';
 import '../../../application/domain/usecases/application_usecases.dart';
+// **`features/history → features/documents/domain/**` only.** CFI (`ssd.md`
+// § 4.3) names domain entities *"the only shared currency"*, G-L3 measures
+// exactly that boundary, and § 4.4.1 RULING 13 makes the edge explicit. The
+// `data/` and `presentation/` halves of `features/documents/` stay unreachable
+// from here, and the narrowed guard in `history_detail_seams_test.dart` fires
+// on a planted import of either (`B5-AC-20`, `B5-AC-52`).
+import '../../../documents/domain/entities/issued_certificate.dart';
+import '../../../documents/domain/usecases/documents_usecases.dart';
 import 'history_bloc.dart' show RegionStatus;
 
 part 'history_detail_event.dart';
@@ -72,6 +90,8 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
   HistoryDetailBloc({
     required this.getApplication,
     required this.getApplicationTimeline,
+    required this.getCertificates,
+    required this.getCertificate,
   }) : super(const HistoryDetailState()) {
     on<HistoryDetailStarted>(_onStarted);
     on<HistoryDetailRefreshed>(_onRefreshed);
@@ -82,9 +102,20 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
   final GetApplication getApplication;
   final GetApplicationTimeline getApplicationTimeline;
 
+  /// `me.certificates()` — `:149`. B5's.
+  final GetCertificates getCertificates;
+
+  /// `me.certificate(certId)` — `:157`. B5's.
+  final GetCertificate getCertificate;
+
   /// `hooks.ts:55` — `const generation = useRef(0)`, one per query.
   int _detailGeneration = 0;
   int _timelineGeneration = 0;
+
+  /// A **third** counter, not a shared one (`B5-AC-43`). The source has one
+  /// `useRef` per hook, and a shared counter would let a certificate answer
+  /// cancel a timeline answer that started after it.
+  int _certificateGeneration = 0;
 
   /// Both queries start in the same tick, as the two hooks do — `:142`, `:145`.
   Future<void> _onStarted(
@@ -101,13 +132,23 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
       _loadDetail(emit),
       _loadTimeline(emit),
     ]);
+
+    // **After** the two, never beside them (`B5-AC-36`). `certListQuery`'s
+    // `enabled: Boolean(isIssued)` (`:149`) sits in `useQuery`'s dependency
+    // array (`hooks.ts:89`), so the request fires when `isIssued` flips — i.e.
+    // once the detail has resolved — and not at mount. A `Future.wait` of all
+    // three would issue it before anyone knows whether the case is issued.
+    await _loadCertificates(emit);
   }
 
-  /// `refresh` — `:162-166`. **Both**, in parallel (`B7-AC-61`).
+  /// `refresh` — `:162-166`. **All three**, and the third only when it would
+  /// fire in the source.
   ///
-  /// Not a `_loadDetail` on its own: the source's button calls three refetches
-  /// and the two that exist here both fire. A refresh that reloaded the case
-  /// but not its trail would show a status the timeline does not explain.
+  /// `certListQuery.refetch()` is the third statement (`:165`), but `refetch`
+  /// only bumps a nonce and a disabled effect returns early — so a refresh on
+  /// an **issued** case makes three requests and on any other case **two**
+  /// (`B5-AC-42`). [_loadCertificates] returns immediately when the case is not
+  /// issued, which is that behaviour.
   Future<void> _onRefreshed(
     HistoryDetailRefreshed event,
     Emitter<HistoryDetailState> emit,
@@ -116,15 +157,23 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
       _loadDetail(emit),
       _loadTimeline(emit),
     ]);
+    await _loadCertificates(emit);
   }
 
   /// The error card's *Try again* — `:227`, `detailQuery.refetch`. **Only the
   /// detail**, because that is the only query the source's button re-runs.
+  ///
+  /// The certificate chase that follows is **not** the button: it is the same
+  /// `enabled` transition as at mount. This branch is reached only when no
+  /// detail was on screen, so a successful retry is the first moment `isIssued`
+  /// can become true, and the source's hook would fire then.
   Future<void> _onRetried(
     HistoryDetailRetried event,
     Emitter<HistoryDetailState> emit,
-  ) =>
-      _loadDetail(emit);
+  ) async {
+    await _loadDetail(emit);
+    await _loadCertificates(emit);
+  }
 
   /// The timeline card's own *Try again* — `:526`, `timelineQuery.refetch`.
   Future<void> _onTimelineRetried(
@@ -169,4 +218,99 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
     if (mine != _timelineGeneration || emit.isDone) return;
     emit(state.withTimeline(result));
   }
+
+  /// The third query — `HistoryDetailPage.tsx:148-160`, all seven lines.
+  ///
+  /// Clause for clause:
+  ///
+  /// | Source | Here |
+  /// | --- | --- |
+  /// | `enabled: Boolean(isIssued)` (`:149`) | the early return below (`B5-AC-35`, `B5-AC-37`) |
+  /// | `certFromList` three-clause `find` (`:150-156`) | [matchIssuedCertificate] |
+  /// | `enabled: isIssued && certId && !certFromList && !certListQuery.loading` (`:158`) | the four guards before the single fetch (`B5-AC-39`) |
+  /// | `certFromList ?? certOneQuery.data` (`:160`) | precedence, not a merge (`B5-AC-40`, `B5-AC-41`) |
+  Future<void> _loadCertificates(Emitter<HistoryDetailState> emit) async {
+    final ApplicationDetail? detail = state.detail;
+    // `enabled: Boolean(isIssued)`. `isIssued` is B7b's, on the entity, and is
+    // consumed rather than re-derived.
+    if (detail == null || !detail.isIssued) return;
+
+    final int mine = ++_certificateGeneration;
+    if (!emit.isDone) {
+      emit(state.copyWith(certificateStatus: RegionStatus.loading));
+    }
+
+    final Either<Failure, List<IssuedCertificate>> listResult =
+        await getCertificates(NoParams());
+
+    if (mine != _certificateGeneration || emit.isDone) return;
+
+    final IssuedCertificate? fromList = listResult.fold(
+      (Failure _) => null,
+      (List<IssuedCertificate> list) =>
+          matchIssuedCertificate(list, state.applicationId, detail),
+    );
+    emit(state.withCertificateList(listResult, fromList));
+
+    // `!certFromList` — the list already answered, so the single fetch is
+    // skipped entirely (`B5-AC-41`).
+    if (fromList != null) return;
+
+    // `Boolean(certId)` — `detail.certificate_id`, falsy when absent or empty.
+    final String? certId = detail.row.certificateId;
+    if (certId == null || certId.isEmpty) return;
+
+    // `!certListQuery.loading` — satisfied by construction: the `await` above
+    // is the list settling. Writing it as a sequence rather than as a flag is
+    // what makes "no single fetch while the list is in flight" true by
+    // structure instead of by a race (`B5-AC-39`).
+    final Either<Failure, IssuedCertificate> oneResult =
+        await getCertificate(GetCertificateParams(certId));
+
+    if (mine != _certificateGeneration || emit.isDone) return;
+    emit(state.withCertificate(oneResult));
+  }
+}
+
+/// `certFromList` — `HistoryDetailPage.tsx:150-156`.
+///
+/// ```ts
+/// (certListQuery.data ?? []).find(
+///   (c) => c.application_id === applicationId
+///       || (detail?.certificate_id && c.id === detail.certificate_id)
+///       || (detail?.reference_no  && c.reference_no === detail.reference_no),
+/// )
+/// ```
+///
+/// **`Array.prototype.find` iterates ELEMENTS, and the disjunction is evaluated
+/// per element** — so the winner is the first *certificate in list order* that
+/// satisfies any clause, not the first clause that has a match somewhere in the
+/// list. specs.md `B5-AC-38` describes the second reading; the port implements
+/// the first, because that is what the source does, and
+/// `history_detail_certificate_test.dart` asserts both orderings so the
+/// distinction cannot be lost.
+///
+/// The three clauses are still evaluated in the source's order **within** one
+/// element, which is observable when a single certificate would match two of
+/// them with different data.
+///
+/// Top-level rather than a method so a domain test can drive it without a BLoC.
+IssuedCertificate? matchIssuedCertificate(
+  List<IssuedCertificate> list,
+  String applicationId,
+  ApplicationDetail detail,
+) {
+  final String? certificateId = detail.row.certificateId;
+  final String referenceNo = detail.row.referenceNo;
+
+  for (final IssuedCertificate c in list) {
+    if (c.applicationId == applicationId) return c;
+    if (certificateId != null &&
+        certificateId.isNotEmpty &&
+        c.id == certificateId) {
+      return c;
+    }
+    if (referenceNo.isNotEmpty && c.referenceNo == referenceNo) return c;
+  }
+  return null;
 }

@@ -8,13 +8,30 @@
 /// fidelity tier. So this is a plain widget that `HistoryPage` renders in place
 /// of its list, and `app_routes.dart` is untouched.
 ///
-/// ## Four seams, all null here (§ 6.1)
+/// ## Four seams — two filled by B5, two still B6's
 ///
-/// `documentActions` and `certificatePanel` are **B5's**; `paymentAction` and
-/// `paymentPanel` are **B6's**. Each is a nullable `Widget?` that renders
-/// nothing when null, and B7b passes null for all four. What B7b *does* own is
-/// whether a slot is offered — [ApplicationDetail.isIssued] and `.canPay` — so
-/// B5 and B6 fill a slot rather than re-deriving the condition.
+/// `documentActions` and `certificatePanel` are **B5's** and are now supplied;
+/// `paymentAction` and `paymentPanel` are **B6's** and are still `Widget?`,
+/// still null (`B5-AC-46`). What B7b owns is whether a slot is offered —
+/// [ApplicationDetail.isIssued] and `.canPay` — so B5 fills a slot rather than
+/// re-deriving the condition.
+///
+/// ## The two B5 seams are BUILDERS, and that is a correction to § 6.1
+///
+/// A pre-built `Widget?` cannot be a function of the payload, and both B5
+/// regions are: the action row's spec is
+/// `docSpecFromApplication(detail, certificate, lang)`
+/// (`HistoryDetailPage.tsx:247`) and the certificate card's four rows read
+/// `certificate?.certificate_no ?? detail.certificate_no` and three more
+/// (`:468-484`). A widget that reached for `detail` itself would have to import
+/// `features/history/presentation/bloc/**`, which is a **G-L7** violation from
+/// `lib/presentation/**`. So the two are retyped to builders that receive what
+/// they need (specs.md Finding J, § 6.7); B6's two are untouched, and § 8.4
+/// FU-3 hands B6 the same finding for its own pair.
+///
+/// `history_detail_hero.dart` is **not** edited: this page calls the builder
+/// and hands the hero a resolved `Widget?`, so the hero's own field, its `Wrap`
+/// and the source's button order are byte-identical (`B5-AC-48`).
 ///
 /// The proof that the seams are real and not decoration is negative and is
 /// grepped: `lib/features/history/**` names no certificate, PDF, document-viewer
@@ -45,6 +62,10 @@ import '../../../application/domain/entities/application_detail.dart';
 import '../../../application/domain/entities/case_event.dart';
 import '../../../application/domain/entities/case_status.dart';
 import '../../../application/domain/entities/status_pipeline.dart';
+// The CFI edge, domain only — `ssd.md` § 4.3, § 4.4.1 RULING 13. The seam
+// builders' second parameter is this entity; nothing here reaches into
+// `features/documents/{data,presentation}/**` (`B5-AC-20`).
+import '../../../documents/domain/entities/issued_certificate.dart';
 // `formatLak` arrives via `application_formatting.dart:76`, which re-exports it
 // from `features/home/domain/` rather than copying it — B7a's call, and
 // `wallet_formatting.dart:29`'s precedent ("copying would be two formatLaks
@@ -90,16 +111,34 @@ class HistoryDetailPage extends StatelessWidget {
   final VoidCallback onBack;
 
   /// **B5** — the *View document* / *Download document* pair (`:379-397`).
-  final Widget? documentActions;
+  ///
+  /// A builder, not a `Widget?`: the pair's `DocSpec` is
+  /// `docSpecFromApplication(detail, certificate, lang)` (`:247`). See the
+  /// library doc.
+  final Widget Function(
+    ApplicationDetail detail,
+    IssuedCertificate? certificate,
+  )? documentActions;
 
-  /// **B6** — the *Pay …* button (`:398-409`).
+  /// **B6** — the *Pay …* button (`:398-409`). Still a plain `Widget?`; B6's
+  /// two seams have the identical defect and fixing them here would be B5
+  /// absorbing B6 (§ 8.4 FU-3).
   final Widget? paymentAction;
 
   /// **B6** — `PaymentSection` (`:425-438`).
   final Widget? paymentPanel;
 
   /// **B5** — the issued-certificate card (`:456-494`).
-  final Widget? certificatePanel;
+  ///
+  /// `certificateLoading` is a **separate** parameter and is not folded into a
+  /// nullable certificate: `:486` is a three-state gate
+  /// (`!certificate && !certListQuery.loading`), and collapsing it would render
+  /// *"not available yet"* while the list is still in flight (`B5-AC-49`).
+  final Widget Function(
+    ApplicationDetail detail,
+    IssuedCertificate? certificate,
+    bool certificateLoading,
+  )? certificatePanel;
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +279,11 @@ class HistoryDetailPage extends StatelessWidget {
           contactOfficerLabel:
               '$kHistoryNs.contactOfficer'.tr(context: context),
           // The two action-row seams, offered only when the payload says so.
-          documentActions: detail.isIssued ? documentActions : null,
+          // The gate is unchanged — `isIssued ? … : null` (`:379`) — and only
+          // what sits inside it became a call (`B5-AC-47`).
+          documentActions: detail.isIssued
+              ? documentActions?.call(detail, state.certificate)
+              : null,
           paymentAction: detail.canPay ? paymentAction : null,
         ),
 
@@ -260,11 +303,23 @@ class HistoryDetailPage extends StatelessWidget {
           ),
         ],
 
-        // B5's certificate card — see the library doc for why B7b renders
-        // nothing here rather than a one-field version.
-        if (detail.isIssued && certificatePanel != null) ...<Widget>[
+        // B5's certificate card. The gate is `isIssued && (certificate ||
+        // detail.certificate_no)` (`:456`) — **both disjuncts**, which
+        // `HistoryDetailState.showsCertificatePanel` carries so that
+        // `certificateNo` is not named in this file (the narrowed
+        // `forbiddenIdentifiers` guard scans `pages/`, § 6.8). Gating on
+        // `isIssued` alone would draw an empty white card for an issued case
+        // with neither a certificate nor a number — see that getter's doc for
+        // why this deviates from § 6.7's literal wording.
+        if (state.showsCertificatePanel && certificatePanel != null) ...<Widget>[
           const SizedBox(height: kDetailCardGap),
-          HistoryDetailCard(child: certificatePanel!),
+          HistoryDetailCard(
+            child: certificatePanel!(
+              detail,
+              state.certificate,
+              state.certificateLoading,
+            ),
+          ),
         ],
 
         const SizedBox(height: kDetailCardGap),

@@ -20,6 +20,7 @@
 library;
 
 import '../../application/domain/usecases/application_usecases.dart';
+import '../../documents/domain/usecases/documents_usecases.dart';
 import '../presentation/bloc/history_bloc.dart';
 import '../presentation/bloc/history_detail_bloc.dart';
 import 'history_injection.dart';
@@ -44,6 +45,11 @@ class HistoryFeatureInjection {
         () => HistoryDetailBloc(
           getApplication: historyInjection<GetApplication>(),
           getApplicationTimeline: historyInjection<GetApplicationTimeline>(),
+          // B5's third query. Resolved out of this container, which
+          // `HistoryUsecaseInjection` populated from `documentsInjection`, so
+          // the BLoC never learns that a second container exists.
+          getCertificates: historyInjection<GetCertificates>(),
+          getCertificate: historyInjection<GetCertificate>(),
         ),
       );
   }

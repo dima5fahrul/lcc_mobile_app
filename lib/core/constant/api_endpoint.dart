@@ -516,4 +516,70 @@ class ApiEndpoint {
   /// does not call pay (`:535`).
   static String applicationSubmit(String id) =>
       '/applications/${Uri.encodeComponent(id)}/submit';
+
+  // ── Issued certificates (B5) ───────────────────────────────────────────────
+  //
+  // **Two constants, and eight endpoints deliberately absent.** B5's dispatch
+  // named ten; specs.md § 6.0 adjudicated them row by row and two survived.
+  // Additive only (SSD § 6.5, `B5-AC-13`): nothing above changed, `baseUrl` and
+  // the release HTTPS guard are byte-identical.
+  //
+  // The eight, each with its ground — named by their `endpoints.ts` symbol
+  // rather than by their path, because `B5-AC-6` … `B5-AC-11` are **greps over
+  // `lib/`** and a comment quoting the path is a hit exactly like a constant
+  // would be. specs.md § 2.2 carries the paths; this block carries the reasons.
+  //
+  // * **`me.documents` (`:115`)** — B8's, and already shipped as [meDocuments]
+  //   above (specs.md Finding G). B5 adds nothing here.
+  // * **`me.document(id)` (`:116`)** — dead, and the B8a block above already
+  //   refused it. Its one call site (`DocumentViewer.tsx:45`) is gated
+  //   `enabled: Boolean(documentId)` (`:47`) and **neither** mount site passes
+  //   that prop: `AccountPage.tsx:740-746` passes a static URL,
+  //   `HistoryDetailPage.tsx:649-656` passes a spec. That omission is
+  //   **upheld, not reversed** (Finding D, `B5-AC-6`).
+  // * **the QR sub-path (`:133`)** — defined and never called; the payload the
+  //   card draws comes from the `Certificate` object itself
+  //   (`types.ts:638-639`, rendered at `:483`). Finding B, `B5-AC-7`.
+  // * **the two `verification.*` symbols (`:385-390`)** — the whole namespace
+  //   has **zero importers**. Both answer `200` on the live server, and that is
+  //   not reachability: `ADR-0001` puts the running web client first, so an
+  //   endpoint only the API knows about has no client behaviour to mirror.
+  //   Finding A, `B5-AC-8`, `B5-AC-9`.
+  // * **the citizen-milestone list (`:118`)** — it and its type are defined and
+  //   never consumed; there is no screen, card, row or list for them anywhere
+  //   in the client. Finding C, `B5-AC-10`.
+  // * **the household-register read and its copy request (`:127-129`)** —
+  //   **F4's, whole.** The 596-line page at `:200`/`:204` of its own component
+  //   is the only consumer of each, `roadmap.md`:344 and `fsd.md`:138 both give
+  //   that page to F4, and splitting the POST from the single page that fires
+  //   it would give two batches one wire call. Finding F, `B5-AC-11`.
+  //
+  // Same disposition this file already took for `DELETE /me/account`,
+  // `deleteNotification`, `/reference-lists`, `/news/:slug` and
+  // `DELETE /applications/{id}`.
+
+  /// `endpoints.ts:131` — `me.certificates`. A **plain array**, not paged,
+  /// Bearer.
+  ///
+  /// Consumed at `HistoryDetailPage.tsx:149`, and **not at mount**: the hook
+  /// carries `enabled: Boolean(isIssued)` and `enabled` is in `useQuery`'s own
+  /// dependency array (`hooks.ts:89`), so the request fires when the detail
+  /// resolves and the case turns out to be issued (`B5-AC-35`, `B5-AC-36`).
+  static const String meCertificates = '/me/certificates';
+
+  /// `endpoints.ts:132` — `me.certificate(id)`. One `Certificate` object,
+  /// Bearer.
+  ///
+  /// A function with the segment percent-encoded, the convention
+  /// [meNotificationRead], `newsArticle`, `helpArticle` and [meTransaction]
+  /// establish above. The id is `detail.certificate_id` — a server identifier
+  /// the citizen never types, so encoding it defends against a value the
+  /// backend chose rather than against user input, which is the case where a
+  /// missing encode survives every test and fails in production.
+  ///
+  /// Fired only when **all four** of the source's conjuncts hold — issued, a
+  /// `certificate_id` exists, the list did not already match, and the list is
+  /// no longer in flight (`:158`, `B5-AC-39`).
+  static String meCertificate(String id) =>
+      '/me/certificates/${Uri.encodeComponent(id)}';
 }
