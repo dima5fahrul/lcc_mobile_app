@@ -24,6 +24,7 @@
 /// `excluded` group below) rather than quietly compared.
 library;
 
+import 'dart:convert';
 import 'dart:ui' show Color;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -525,6 +526,210 @@ void main() {
           both.where((String n) => !lucideRegistry.containsKey(n));
 
       expect(missing, isEmpty);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // F2 — Birth and Death as Tier 2 subjects (`specs.md` § 3.1 row 8)
+  //
+  // **Additive only. Nothing above changes.** Row 8 grants "add the two pages
+  // as subjects … no change to how any tier compares", and this group adds
+  // exactly that: the two pages' colour surface, compared against the same
+  // `forms` oracle the kernel is compared against.
+  //
+  // ## What this group can and cannot discharge, measured
+  //
+  // The `forms` group's 52 entries are **all sourced from
+  // `formFields.tsx` / `formValidation.tsx`** — F0b's kernel. Not one is
+  // sourced from `BirthDeclarationPage.tsx` or `DeathDeclarationPage.tsx`.
+  // So the oracle describes the controls the two pages MOUNT and says nothing
+  // about the chrome they DRAW around them.
+  //
+  // `F2-AC-77` names six page-level values. Measured against `tokens.json`:
+  //
+  // | value      | what                        | in `forms`? |
+  // | ---------- | --------------------------- | ----------- |
+  // | `#344EAD`  | gradient stop 1 / primary   | **yes**     |
+  // | `#EEF2FF`  | toggle ON fill              | **yes**     |
+  // | `#E5E7EB`  | toggle OFF border           | **yes**     |
+  // | `#1A2D7A`  | gradient stop 2             | no — absent from tokens.json entirely |
+  // | `#D1D5DB`  | toggle dot unchecked border | no — absent entirely |
+  // | `#C7D2FE`  | in-flight CTA               | no — absent entirely |
+  //
+  // Three of the six are comparable and are compared below. The other three
+  // have no oracle entry, so asserting them here would be asserting a literal
+  // against itself — which is why they are **enumerated** instead. Extending
+  // the oracle means deriving new Tier 2 entries from the two page sources
+  // into `docs/fidelity-baseline/**`, which is read-only to F2 (§ 4.1) and is
+  // a re-baseline (`tier1_structural_parity_test.dart:133`).
+  group('Tier 2 — F2\'s pages against the `forms` group (F2-AC-77)', () {
+    /// Every colour the two F2 pages draw, by the `AppColors` token they route
+    /// through. Collected by reading the twelve page files, not by hand.
+    final Map<String, Color> f2PageColours = <String, Color>{
+      'primary': AppColors.primary,
+      'primarySoft': AppColors.primarySoft,
+      'white': AppColors.white,
+      'surface': AppColors.surface,
+      'muted': AppColors.muted,
+      'gray50': AppColors.gray50,
+      'gray100': AppColors.gray100,
+      'gray200': AppColors.gray200,
+      'gray300': AppColors.gray300,
+      'gray400Inline': AppColors.gray400Inline,
+      'dangerBorder': AppColors.dangerBorder,
+      'dangerStrong': AppColors.dangerStrong,
+      'successSoft': AppColors.successSoft,
+      'successRing': AppColors.successRing,
+      'warning': AppColors.warning,
+      'warningSurface': AppColors.warningSurface,
+      'warningOutline': AppColors.warningOutline,
+      'infoBorder': AppColors.infoBorder,
+      'brandGradientEnd': AppColors.brandGradientEnd,
+      'buttonGhostInk': AppColors.buttonGhostInk,
+    };
+
+    test('every token the two pages use that the `forms` oracle NAMES matches '
+        'the oracle\'s value', () {
+      final Map<String, dynamic> entries =
+          _forms(oracle)['entries'] as Map<String, dynamic>;
+
+      // token -> the value the oracle records for it, where it records one.
+      final Map<String, int> oracleByToken = <String, int>{};
+      entries.forEach((String _, dynamic raw) {
+        final Map<String, dynamic> e = raw as Map<String, dynamic>;
+        if (e['category'] != 'colour') return;
+        final Object? token = e['token'];
+        if (token is! String) return; // untokenised — its own group
+        oracleByToken[token] = _expectedArgb(e['value']);
+      });
+
+      final List<String> compared = <String>[];
+      final List<String> problems = <String>[];
+      f2PageColours.forEach((String token, Color used) {
+        final int? want = oracleByToken[token];
+        if (want == null) return; // not the oracle's to judge — enumerated below
+        compared.add(token);
+        // ignore: deprecated_member_use
+        if (used.value != want) {
+          problems.add('$token: pages draw '
+              // ignore: deprecated_member_use
+              '#${used.value.toRadixString(16).substring(2).toUpperCase()}, '
+              'oracle says #${want.toRadixString(16).substring(2).toUpperCase()}');
+        }
+      });
+
+      // Non-vacuity: an empty intersection would make this pass while
+      // comparing nothing, which is the AC-24 shape.
+      expect(compared.length, greaterThanOrEqualTo(8),
+          reason: 'only ${compared.length} of the pages\' tokens intersect the '
+              'forms oracle — too few for this assertion to mean anything');
+      expect(problems, isEmpty, reason: problems.join('\n'));
+      // ignore: avoid_print
+      print('F2-AC-77: ${compared.length} page tokens compared against the '
+          '`forms` oracle, 0 disagreements — ${(compared..sort()).join(', ')}');
+    });
+
+    test('the page-level values the oracle has NO entry for are ENUMERATED, '
+        'not silently skipped', () {
+      // `F2-AC-77` names these; the oracle cannot judge them. Recording the
+      // list is the honest alternative to asserting a literal against itself.
+      final String raw = jsonEncode(oracle);
+      const Map<String, String> named = <String, String>{
+        '#1A2D7A': 'success gradient stop 2 (Birth :943, Death :967)',
+        '#D1D5DB': 'toggle dot unchecked border (Birth :1352)',
+        '#C7D2FE': 'in-flight CTA background (Birth :1582)',
+      };
+      final List<String> absent = <String>[];
+      named.forEach((String hex, String what) {
+        if (!raw.contains(hex)) absent.add('$hex — $what');
+      });
+
+      expect(absent, hasLength(3),
+          reason: 'the Tier 2 oracle has gained an entry for one of these. '
+              'Good — compare it above instead of enumerating it here.');
+      // ignore: avoid_print
+      print('F2-AC-77 NOT EVALUATED by Tier 2, no oracle entry:\n  '
+          '${absent.join('\n  ')}');
+    });
+
+    test('the two NOTICE-CARD values are a known, RECORDED delta and the '
+        'oracle cannot see either', () {
+      // The finding `architecture-review.md` § 3.2 records. The source draws
+      // `bg-blue-50` / `border-blue-100`; the port draws `primarySoft` for
+      // both, following F1's precedent at `resident_fields.dart:599-601`
+      // because `presentation/theme/` is outside F2's scope.
+      //
+      // This test does not pass judgement on the mapping — it pins the fact
+      // that Tier 2 **cannot**, so nobody later reads a green Tier 2 as
+      // clearing it.
+      final String raw = jsonEncode(oracle);
+      expect(raw.contains('#EFF6FF'), isFalse,
+          reason: 'the oracle has gained bg-blue-50. The notice-card delta is '
+              'now machine-checkable — assert it rather than recording it.');
+      expect(_forms(oracle).toString().contains('#DBEAFE'), isFalse,
+          reason: 'border-blue-100 has entered the forms group');
+
+      // And the port really does collapse both onto one token, which is the
+      // half that IS checkable here.
+      expect(AppColors.primarySoft, isNot(equals(const Color(0xFFEFF6FF))));
+      // ignore: deprecated_member_use
+      expect(AppColors.primarySoft.value, 0xFFEEF2FF,
+          reason: 'a third value — neither the source fill nor its border');
+    });
+
+    test('the amber notice pair is EXACT — amber-50 fill, amber-100 border',
+        () {
+      // **A regression this batch actually shipped and then fixed.** Both
+      // pages draw `bg-amber-50 border-amber-100` (Birth `:1511`, Death
+      // `:1461`). The port first mapped the border to `warningOutline`, which
+      // is Tailwind v4 `amber-200` `#FEE685` and belongs to HomePage's action
+      // banner (`:394` — the ONLY `amber-200` in the whole of `src/`). The
+      // correct token already existed: `warningTint`, v4 `amber-100`.
+      //
+      // Pinned here because Tier 2's `forms` group cannot see it — the group
+      // is kernel-sourced and has no amber entry at all — so without this
+      // assertion nothing would catch the same mistake again.
+      //
+      // Values are Tailwind **v4** (`$WEB package.json:77` → `4.1.12`),
+      // converted from `node_modules/tailwindcss/theme.css`'s oklch. Checking
+      // a v4 source against a remembered v3 table is how a false positive gets
+      // filed; `app_colors.dart:275-290` cites the oklch for exactly that
+      // reason.
+      // ignore: deprecated_member_use
+      expect(AppColors.warningSurface.value, 0xFFFFFBEB,
+          reason: 'v4 amber-50  oklch(98.7% 0.022 95.277)');
+      // ignore: deprecated_member_use
+      expect(AppColors.warningTint.value, 0xFFFEF3C6,
+          reason: 'v4 amber-100 oklch(96.2% 0.059 95.617) — the notice BORDER');
+      // ignore: deprecated_member_use
+      expect(AppColors.warningOutline.value, 0xFFFEE685,
+          reason: 'v4 amber-200 oklch(92.4% 0.12 95.746) — HomePage only, and '
+              'NOT what either F2 page draws');
+      expect(AppColors.warningTint, isNot(equals(AppColors.warningOutline)));
+    });
+
+    test('shown able to FAIL — a drifted token is caught', () {
+      // The Capability Rule: the comparison above is only evidence if a wrong
+      // value would have been reported.
+      final Map<String, dynamic> entries =
+          _forms(oracle)['entries'] as Map<String, dynamic>;
+      int? primaryFromOracle;
+      entries.forEach((String _, dynamic raw) {
+        final Map<String, dynamic> e = raw as Map<String, dynamic>;
+        if (e['token'] == 'primary' && e['category'] == 'colour') {
+          primaryFromOracle = _expectedArgb(e['value']);
+        }
+      });
+      expect(primaryFromOracle, isNotNull);
+
+      const Color drifted = Color(0xFF344EAE); // one digit off `#344EAD`
+      // ignore: deprecated_member_use
+      expect(drifted.value == primaryFromOracle, isFalse,
+          reason: 'a one-digit drift must not compare equal — if it does, the '
+              'comparison above is inert');
+      // ignore: deprecated_member_use
+      expect(AppColors.primary.value, primaryFromOracle,
+          reason: 'and the real token still matches');
     });
   });
 }

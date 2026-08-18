@@ -10,17 +10,30 @@ library;
 
 import '../data/datasources/location_remote_datasource.dart';
 import '../data/datasources/reference_list_remote_datasource.dart';
+import '../data/datasources/prerequisite_record_remote_datasource.dart';
+import '../data/repositories/prerequisite_record_repository_impl.dart';
 import '../data/repositories/reference_repository_impl.dart';
+import '../domain/repositories/prerequisite_record_repository.dart';
 import '../domain/repositories/reference_repository.dart';
 import 'reference_injection.dart';
 
 class ReferenceRepositoryInjection {
   static void inject() {
-    referenceInjection.registerLazySingleton<ReferenceRepository>(
-      () => ReferenceRepositoryImpl(
-        referenceLists: referenceInjection<ReferenceListRemoteDatasource>(),
-        locations: referenceInjection<LocationRemoteDatasource>(),
-      ),
-    );
+    referenceInjection
+      ..registerLazySingleton<ReferenceRepository>(
+        () => ReferenceRepositoryImpl(
+          referenceLists: referenceInjection<ReferenceListRemoteDatasource>(),
+          locations: referenceInjection<LocationRemoteDatasource>(),
+        ),
+      )
+      // F3. Lazy for consistency with its neighbour, though nothing here holds
+      // state: this repository has no in-flight map, because its one caller per
+      // page is debounced and its query changes per keystroke — there are no
+      // duplicates to share.
+      ..registerLazySingleton<PrerequisiteRecordRepository>(
+        () => PrerequisiteRecordRepositoryImpl(
+          remote: referenceInjection<PrerequisiteRecordRemoteDatasource>(),
+        ),
+      );
   }
 }

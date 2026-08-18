@@ -326,26 +326,69 @@ void main() {
           reason: 'endpoints.ts:204 — `const VILLAGE_PAGE = 200;`');
     });
 
-    test('F0-AC-91 — no SECOND repository or datasource exists to serve F3',
-        () {
-      // The clause that makes this a boundary decision rather than a parameter.
-      // Asserted structurally: the reference feature declares exactly one
-      // repository abstraction and two datasource abstractions, and F3's
-      // divergence is a parameter on the one interface, not a second one.
+    test('F0-AC-91 — the LOOKUP layer is not forked, and the reference '
+        'feature admits only its two approved additions', () {
+      // ── AMENDED 2026-08-16, on the USER's architecture-override decision ──
       //
-      // A textual scan, because the property is about what is DECLARED.
+      // **This criterion's meaning changed after F0 was delivered, and that is
+      // recorded rather than absorbed.** See `ADR-0013` and F3's
+      // `qa-report.md` § 10.
+      //
+      // As written by F0a this asserted two bare directory listings. It fired
+      // against F3's `/prerequisite-records` slice, which F3's **approved**
+      // spec § 3.1 row 8 permits in as many words — *"If it needs a new data
+      // source, that is an addition, not a kernel change"* — and which § 8.3
+      // does not list among the blocked conditions. Two authoritative
+      // documents contradicted each other, so it went to the user, who ruled
+      // the slice stands and this guard is amended.
+      //
+      // **The rationale F0a gave for it is unchanged and still enforced.** Its
+      // subject is the *pagination* divergence: `PagingMode.firstPageOnly` must
+      // be a parameter on the ONE lookup interface, not a fork of it
+      // (`lookup_key.dart`'s `PagingMode` doc). `/prerequisite-records` is a
+      // different resource returning a different entity — not a divergence of
+      // that interface — so the assertion was broader than its own stated
+      // reason.
+      //
+      // **The amendment is by NAME, not by count.** A third datasource nobody
+      // has approved must still fail, and must fail naming itself. Converting
+      // this to `length == 3` would turn a boundary into a budget.
       final List<String> repoFiles = _dartFilesUnder(
         'lib/features/reference/domain/repositories',
       );
-      expect(repoFiles, <String>['reference_repository.dart']);
+      expect(repoFiles..sort(), <String>[
+        // F3, approved by the user's override of 2026-08-16.
+        'prerequisite_record_repository.dart',
+        // F0's, and still the ONLY lookup repository.
+        'reference_repository.dart',
+      ]);
 
       final List<String> datasourceFiles = _dartFilesUnder(
         'lib/features/reference/data/datasources',
       );
       expect(datasourceFiles..sort(), <String>[
         'location_remote_datasource.dart',
+        // F3, same authority.
+        'prerequisite_record_remote_datasource.dart',
         'reference_list_remote_datasource.dart',
       ]);
+
+      // The part that carries F0a's ACTUAL property, and the part a future
+      // batch cannot satisfy by adding a file: the lookup interface is still
+      // one interface, and `PagingMode` is still a parameter on it rather than
+      // a second abstraction.
+      final String lookupInterface = File(
+        'lib/features/reference/domain/repositories/reference_repository.dart',
+      ).readAsStringSync();
+      expect(
+        RegExp(r'abstract class \w+').allMatches(lookupInterface).length,
+        1,
+        reason: 'one lookup abstraction — a second would be the fork F0-AC-91 '
+            'exists to prevent, and the user\'s override does not admit one',
+      );
+      expect(lookupInterface, contains('PagingMode paging = PagingMode.all'),
+          reason: 'the divergence is still a PARAMETER with the safe default, '
+              'not a separate method or a separate interface');
     });
   });
 

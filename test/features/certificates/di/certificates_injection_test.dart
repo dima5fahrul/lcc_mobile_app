@@ -19,6 +19,8 @@
 library;
 
 import 'package:dartz/dartz.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_form_cubit.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/death/death_form_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/core/di/dependency_injection.dart';
 import 'package:lcc_mobile_app/core/error/failure.dart';
@@ -31,6 +33,8 @@ import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_bloc_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/domain/submission/submission_clock.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_form_cubit.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_form_state.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
@@ -159,6 +163,231 @@ void main() {
           Lang.lo);
       expect(certificatesInjection<ResidentFormCubit>(param1: Lang.en).lang,
           Lang.en);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // F2-AC-25 — the two new cubits resolve, and `param2` is not optional
+  //
+  // **This file is F1's and is not in F2's § 3.1 table.** Added here rather
+  // than duplicated because the `init()` + fourteen-container `reset()`
+  // scaffolding above already exists, and a second copy of it is a second
+  // thing to drift. F2 adds **no new container** — `certificatesInjection` is
+  // already in that teardown list — so no new `reset()` is required here or in
+  // `app_test_harness.dart`. Same shape as the § 3.1 row 9 grant for
+  // `test/architecture/**`; recorded in `architecture-review.md` § 3.
+  // ───────────────────────────────────────────────────────────────────────────
+  group('F2-AC-25 the Birth and Death cubits resolve from the container', () {
+    setUp(() async {
+      await const DependencyInjection().init();
+    });
+
+    tearDown(() async {
+      await injection.reset();
+      await sessionInjection.reset();
+      await authInjection.reset();
+      await serviceInjection.reset();
+      await homeInjection.reset();
+      await newsInjection.reset();
+      await helpInjection.reset();
+      await notificationsInjection.reset();
+      await chatInjection.reset();
+      await accountInjection.reset();
+      await referenceInjection.reset();
+      await walletInjection.reset();
+      await applicationInjection.reset();
+      await historyInjection.reset();
+      await certificatesInjection.reset();
+    });
+
+    BirthFormCubit birth({Lang lang = Lang.en}) =>
+        certificatesInjection<BirthFormCubit>(
+          param1: lang,
+          param2: () => 'birth.legalBasisText',
+        );
+
+    DeathFormCubit death({Lang lang = Lang.en}) =>
+        certificatesInjection<DeathFormCubit>(
+          param1: lang,
+          param2: () => 'death.legalBasisText',
+        );
+
+    test('both resolve without throwing', () {
+      expect(birth, returnsNormally);
+      expect(death, returnsNormally);
+      expect(birth(), isA<BirthFormCubit>());
+      expect(death(), isA<DeathFormCubit>());
+    });
+
+    test('both are wired to B6b\'s pay capability', () {
+      // The defect F1 shipped for one revision, asserted for F2's two call
+      // sites: a null port means a fee-bearing case yields no receipt and
+      // nothing fails until a citizen taps Pay.
+      expect(birth().pay, isNotNull);
+      expect(death().pay, isNotNull);
+    });
+
+    test('a second resolve of each repository is the SAME instance', () {
+      expect(
+        identical(
+          applicationInjection<ApplicationRepository>(),
+          applicationInjection<ApplicationRepository>(),
+        ),
+        isTrue,
+        reason: 'lazy singleton (DI-2) — both new cubits share the one '
+            'datasource and ApiClient the write slice already had',
+      );
+      expect(
+        identical(
+          referenceInjection<GetLookupOptions>(),
+          referenceInjection<GetLookupOptions>(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('each cubit is a FACTORY — two resolves are two submissions', () {
+      expect(identical(birth(), birth()), isFalse);
+      expect(identical(death(), death()), isFalse);
+      // And the two pages do not share an instance with each other or with
+      // Resident, which a mis-keyed registration would produce.
+      expect(birth().runtimeType, isNot(death().runtimeType));
+    });
+
+    test('the language parameter reaches both cubits', () {
+      expect(birth(lang: Lang.lo).lang, Lang.lo);
+      expect(birth(lang: Lang.en).lang, Lang.en);
+      expect(death(lang: Lang.lo).lang, Lang.lo);
+      expect(death(lang: Lang.en).lang, Lang.en);
+    });
+
+    test('each cubit reads ITS OWN namespace, and the two differ', () {
+      // `param2` is the namespace lookup, moved out of DI because G-L8 forbids
+      // a bare `.tr()` there. The point of the parameter is that Birth and
+      // Death cannot accidentally share one: their English `legalBasisText` is
+      // byte-identical and their Lao is not, so a crossed wire is invisible in
+      // English on all twenty Tier 0 documents (`F2-AC-36`).
+      expect(birth().readLegalBasisText(), 'birth.legalBasisText');
+      expect(death().readLegalBasisText(), 'death.legalBasisText');
+      expect(birth().readLegalBasisText(),
+          isNot(equals(death().readLegalBasisText())));
+    });
+
+    test('omitting `param2` fails AT RESOLUTION, not at first use', () {
+      // **Stronger than the guard I wrote for it.** `param2` is typed as the
+      // non-nullable `String Function()`, so GetIt refuses the resolve itself
+      // with an `ArgumentError` — the cubit is never constructed. The
+      // `?? _missingBirthLegalBasis` fallback in
+      // `certificates_bloc_injection.dart` therefore **cannot be reached
+      // through the container**; it guards only a direct constructor call.
+      // Recorded accurately rather than described as the DI-path guard,
+      // because a reader who believed that would be relying on dead code.
+      //
+      // Either way the property that matters holds: a caller who forgets the
+      // namespace gets a loud failure, never a silent default to the other
+      // page's sentence — which in Lao is a different string on all twenty
+      // Tier 0 documents (`F2-AC-36`).
+      expect(
+        () => certificatesInjection<BirthFormCubit>(param1: Lang.en),
+        throwsA(isA<ArgumentError>()),
+        reason: 'BirthFormCubit resolved without param2',
+      );
+      expect(
+        () => certificatesInjection<DeathFormCubit>(param1: Lang.en),
+        throwsA(isA<ArgumentError>()),
+        reason: 'DeathFormCubit resolved without param2',
+      );
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // F3 — the fee seam, which is the same defect shape as the pay seam
+  //
+  // `MarriageFormCubit.loadQuote` and `DivorceFormCubit.loadQuote` are optional
+  // constructor parameters, and for one revision of
+  // `certificates_bloc_injection.dart` **both were left null on purpose** while
+  // `blocked.md` § 1 waited on a decision. A null quote port compiles,
+  // analyses clean, fails no test — and renders a form whose fee card sits at
+  // `…` forever and whose pay button reads "0 LAK". Option (b) closed that,
+  // and this group is what would be red if it were reopened by accident.
+  //
+  // The *capability* half — that the adapter turns a catalogue row into a fee,
+  // and a missing row into a Failure rather than a zero — is in
+  // `certificate_quote_port_test.dart`, which needs no container.
+  // ───────────────────────────────────────────────────────────────────────────
+  group('F3 the quote seam is WIRED to the service catalogue', () {
+    setUp(() async {
+      await const DependencyInjection().init();
+    });
+
+    tearDown(() async {
+      await injection.reset();
+      await sessionInjection.reset();
+      await authInjection.reset();
+      await serviceInjection.reset();
+      await homeInjection.reset();
+      await newsInjection.reset();
+      await helpInjection.reset();
+      await notificationsInjection.reset();
+      await chatInjection.reset();
+      await accountInjection.reset();
+      await referenceInjection.reset();
+      await walletInjection.reset();
+      await applicationInjection.reset();
+      await historyInjection.reset();
+      await certificatesInjection.reset();
+    });
+
+    MarriageFormCubit marriage({Lang lang = Lang.en}) =>
+        certificatesInjection<MarriageFormCubit>(param1: lang);
+
+    DivorceFormCubit divorce({Lang lang = Lang.en}) =>
+        certificatesInjection<DivorceFormCubit>(param1: lang);
+
+    test('both resolve with param1 ALONE — `param2` is gone', () {
+      // It used to be the caller-supplied `MarriageQuotePort`/`DivorceQuotePort`
+      // and was always passed as null. It is `void` now, so the catalogue is
+      // the only fee source a resolved cubit can have: there is no longer a
+      // parameter through which a varying quote could be injected.
+      expect(marriage, returnsNormally);
+      expect(divorce, returnsNormally);
+      expect(marriage(), isA<MarriageFormCubit>());
+      expect(divorce(), isA<DivorceFormCubit>());
+    });
+
+    test('THE DEFECT — the container passes a quote port to both', () {
+      expect(
+        marriage().loadQuote,
+        isNotNull,
+        reason: 'a null port leaves the review fee card at `…` and the pay '
+            'button at 0 LAK, with nothing failing until a citizen reaches '
+            'step 6 (blocked.md § 1)',
+      );
+      expect(divorce().loadQuote, isNotNull);
+    });
+
+    test('both are still wired to B6b\'s pay capability', () {
+      expect(marriage().pay, isNotNull);
+      expect(divorce().pay, isNotNull);
+    });
+
+    test('the record picker is wired on both, with its own kind', () {
+      expect(marriage().loadRecords, isNotNull);
+      expect(marriage().openRecord, isNotNull);
+      expect(divorce().loadRecords, isNotNull);
+      expect(divorce().openRecord, isNotNull);
+    });
+
+    test('each cubit is a FACTORY — two resolves are two submissions', () {
+      expect(identical(marriage(), marriage()), isFalse);
+      expect(identical(divorce(), divorce()), isFalse);
+    });
+
+    test('the language parameter reaches both cubits', () {
+      expect(marriage(lang: Lang.lo).lang, Lang.lo);
+      expect(marriage(lang: Lang.en).lang, Lang.en);
+      expect(divorce(lang: Lang.lo).lang, Lang.lo);
+      expect(divorce(lang: Lang.en).lang, Lang.en);
     });
   });
 

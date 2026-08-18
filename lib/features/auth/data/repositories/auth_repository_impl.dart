@@ -168,6 +168,30 @@ class AuthRepositoryImpl implements AuthRepository {
       // raw server message reaches the UI on a credential endpoint is a
       // measured property of the oracle, recorded on the security review's
       // agenda (B8-AC-59 item 2) rather than silently improved here.
+      //
+      // **Corrected 2026-08-18 (B8 MAJOR-1).** Every sentence above stands; one
+      // line under them did not. `handleChangePassword` renders
+      // `(err as Error).message`, and `ApiError extends Error` with
+      // `super(message)` (`client.ts:61-68`) — so the source's `pwError` slot
+      // receives **the backend sentence alone**. `e.toString()` is
+      // `ApiException(401, UNAUTHORIZED, {sentence}, requestId: 7f3c…)`, which
+      // rendered the status, the code and an internal log-correlation token
+      // under three password inputs (`password_form.dart:149`).
+      //
+      // So the decision recorded above — *carry the server's own text, do not
+      // improve it* — was correct and this line was not executing it. Folding
+      // `e.message` is what the paragraph always intended; it is the port
+      // becoming faithful, not the port becoming safer, which is the `L-10`(b)
+      // distinction that decides whether this change is permitted at all.
+      // `B8-AC-59` item 2 stays on the security agenda unchanged: whether a raw
+      // server sentence *should* reach a credential form is the oracle's
+      // question, not this fold's.
+      //
+      // The generic arm below keeps `e.toString()` — a `DioException` or a
+      // parse error has no server-authored sentence to prefer.
+      if (e is ApiException) {
+        return Left<Failure, Unit>(Failure(e.message));
+      }
       return Left<Failure, Unit>(Failure(e.toString()));
     }
   }

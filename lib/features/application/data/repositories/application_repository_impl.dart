@@ -9,12 +9,42 @@
 /// (`:200-238`, `B7-AC-54`) and adds its own failure type additively when it
 /// lands; adding it here speculatively would be a branch with no reader.
 ///
-/// [Failure.message] carries the exception text for logs. Unlike the web —
-/// which prints `list.error.message`, the backend's own sentence
-/// (`HistoryPage.tsx:141`) — the Flutter error panel renders fixed bilingual
-/// copy, which is the disposition B2a took for `ServicePage` and which every
-/// page in this tree has followed since. Recorded as the standing divergence it
-/// is rather than re-litigated per batch.
+/// ## The error string, corrected 2026-08-18 (B7 MAJOR-1 / `FU-13`)
+///
+/// **The paragraph that stood here was stale and it was load-bearing.** It said
+/// the Flutter error panel *"renders fixed bilingual copy"* and recorded that as
+/// a standing divergence from the web's `list.error.message`. That was true of
+/// an earlier cut. B7b reversed it: `history_page.dart:268-283` renders
+/// `state.listError` **verbatim**, keeping `history.listError` only as the
+/// fallback for a `Failure` carrying no message, and its own comment cites
+/// `B7-AC-35` and `ADR-0001` for the reversal. So the premise that made
+/// `_guard`'s `e.toString()` harmless — *nobody renders this* — stopped holding,
+/// and nothing updated the doc that asserted it.
+///
+/// The consequence was measured in `GOR-245-b7-history/security-review.md`
+/// (MAJOR-1): a 500 on `/applications` put
+/// `ApiException(500, INTERNAL_ERROR, {sentence}, requestId: 7f3c…)` on the
+/// citizen's history screen — an internal log-correlation token and a
+/// validation-response shape, in front of a citizen.
+///
+/// **[_guard] now folds `e.message` on the `ApiException` arm**, matching
+/// [_guardDetail] `:90-92` and [_guardWrite] `:150-151`, which were already
+/// right. The three-guard inconsistency B7b recorded in its hand-back — *"a
+/// measured inconsistency between the two paths"* — is resolved in the
+/// direction B7b said it would have taken had `B7-AC-35` not pinned the string.
+///
+/// **`B7-AC-35` is not weakened by this; it is satisfied by it.** The criterion
+/// reads *"renders **the API's message**"*. `ApiError extends Error` with
+/// `super(message)` (`client.ts:61-68`), so the web's `list.error.message` at
+/// `HistoryPage.tsx:254` **is** the backend sentence alone. Folding `e.message`
+/// makes the Dart value equal the JS value the render site was written against;
+/// folding `e.toString()` never did. This is the port becoming faithful, not the
+/// port becoming safer — the `L-10`(b) distinction that decides whether a change
+/// like this is allowed at all.
+///
+/// [Failure.message] on the **generic** arm still carries `e.toString()`: a
+/// `DioException` or a parse error has no server-authored sentence to prefer,
+/// and its text is what a log needs.
 library;
 
 import 'package:dartz/dartz.dart';
@@ -42,7 +72,9 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
     try {
       return Right<Failure, T>(await read());
     } on ApiException catch (e) {
-      return Left<Failure, T>(Failure(e.toString()));
+      // The API's own sentence — see the library doc's 2026-08-18 section.
+      // `history_page.dart:280` renders this string verbatim.
+      return Left<Failure, T>(Failure(e.message));
     } catch (e) {
       return Left<Failure, T>(Failure(e.toString()));
     }
@@ -78,12 +110,15 @@ class ApplicationRepositoryImpl implements ApplicationRepository {
   ///    Dart type dump; putting that on a citizen's screen is not what the
   ///    source does.
   ///
-  /// **`_guard` above still folds `e.toString()`, and B7b did not change it.**
-  /// That is a measured inconsistency between the two paths, recorded in B7b's
-  /// hand-back for the architect: `B7-AC-35` pins what the list's error panel
-  /// renders, so rewriting that string is a behaviour change to a criterion
-  /// B7a already discharged, in a file B7b was asked to extend and not to
-  /// re-litigate.
+  /// **`_guard` above folded `e.toString()` until 2026-08-18, and B7b did not
+  /// change it** — correctly, at the time: `B7-AC-35` pinned what the list's
+  /// error panel renders, so rewriting that string was a behaviour change to a
+  /// criterion B7a had already discharged, in a file B7b was asked to extend and
+  /// not to re-litigate. B7b recorded the inconsistency in its hand-back instead
+  /// of resolving it unilaterally, which is what let the security review find it.
+  ///
+  /// It is now resolved in the direction this comment always pointed — see the
+  /// library doc. The two paths agree.
   Future<Either<Failure, T>> _guardDetail<T>(Future<T> Function() read) async {
     try {
       return Right<Failure, T>(await read());

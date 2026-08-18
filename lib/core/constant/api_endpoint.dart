@@ -291,6 +291,34 @@ class ApiEndpoint {
   // `betrothal` / `mediation` / the two `*_certificate_ref` keys are the FR-11
   // record-picker sub-flow that only Marriage and Divorce have — a different
   // endpoint, a different interaction and a different owner. F3's.
+  //
+  // **F3 claimed it.** The two constants below are that sub-flow's, added under
+  // `GOR-245-f3-marriage-divorce/specs.md` § 3.1 row 7 ("additive only — only
+  // `/prerequisite-records` and `/prerequisite-records/{no}` … **if absent**").
+  // They were absent. `/applications/{id}/pay` is still NOT here and is still
+  // reserved to B6b by name below.
+
+  /// `endpoints.ts:194-195` — `catalog.prerequisiteRecords({kind, search,
+  /// per_page})`, a **paged** read.
+  ///
+  /// The query is the caller's: Marriage sends `kind: "betrothal"`
+  /// (`MarriageCertificatePage.tsx:754`), Divorce `kind: "mediation"`
+  /// (`DivorceCertificatePage.tsx:660`), both with `per_page: 20`. The third
+  /// wire kind, `"marriage-certificate"`, has no caller on either page.
+  ///
+  /// **It answers `data: [] total: 0` on every account this programme has**
+  /// (`manifest-authenticated.md`:230-232), so the empty state is the only
+  /// reachable one — which is why the port renders it correctly and unit-tests
+  /// the other two against fakes rather than claiming execution evidence.
+  static const String prerequisiteRecords = '/prerequisite-records';
+
+  /// `endpoints.ts:197-198` — `catalog.prerequisiteRecord(recordNo)`.
+  ///
+  /// A function, per the `referenceList` / `newsArticle` convention: the
+  /// segment is a runtime value and is percent-encoded, so a `record_no`
+  /// carrying a `/` cannot silently retarget the request.
+  static String prerequisiteRecord(String recordNo) =>
+      '/prerequisite-records/${Uri.encodeComponent(recordNo)}';
 
   /// `endpoints.ts:185-186` — `catalog.referenceList(type)`. The `type` is the
   /// field's `lookup_key` from the form schema.

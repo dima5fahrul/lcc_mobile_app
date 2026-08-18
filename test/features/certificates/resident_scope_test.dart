@@ -208,13 +208,99 @@ void main() {
           reason: 'groups found: $groups');
     });
 
-    test('F1-AC-16 exactly ONE Bloc/Cubit under features/certificates/', () {
+    test('F1-AC-16 / F2-AC-10 ONE Bloc/Cubit per certificate page, and no '
+        'shared base class', () {
+      // **Widened by F2, from 1 to one-per-page.** `ssd.md` § 7.4 is "one BLoC
+      // per certificate page", and F1 was the only page when this was written,
+      // so "exactly one" and "one per page" were the same assertion. They stop
+      // being the same the moment F2 lands, and `F2-AC-10` requires exactly
+      // this growth: "Two BLoCs/Cubits added, one per page".
+      //
+      // **This file is not in F2's § 3.1 scope table** and the edit is stated
+      // as a deviation in `GOR-245-f2-birth-death/architecture-review.md` § 3
+      // rather than made quietly. It is the same *kind* of change § 3.1 row 9
+      // explicitly grants for `test/architecture/**` — "add
+      // `presentation/{birth,death}/` to an existing guard's subject list" —
+      // applied to a guard that happens to live under
+      // `test/features/certificates/` instead. Leaving it unedited would make
+      // F2 fail § 4.2 ("must not lose a test") no matter what it built.
+      //
+      // **Three properties, and the third was missing in F2's first revision.**
+      // The original `expect(blocs.length, 1)` did two jobs at once: one Cubit
+      // per page, AND a bound on how many certificate pages exist. Widening it
+      // to per-page kept the first and silently dropped the second, so
+      // `presentation/foo/foo_form_cubit.dart` passed. Restored below as a
+      // named allowlist, in the shape `F1-AC-8` uses twelve lines above: a
+      // bound that permits attributed growth, with a reason that prints the set.
+      //
+      // **Narrowing stated, not fixed** (`architecture-review.md` § 3): the
+      // regex admits `Bloc`, and the no-shared-base-class check below requires
+      // `extends Cubit<`. A genuine `Bloc` subclass under `certificates/` will
+      // therefore fail a test whose name says "Bloc/Cubit", which `F2-AC-10`
+      // did not ask for. It fails loudly rather than silently, so it is safe;
+      // a batch that legitimately needs a `Bloc` should widen the check and say
+      // so, not delete it.
       final List<String> blocs = scan(
         'lib/features/certificates',
         RegExp(r'^class \w+ extends (Cubit|Bloc)<'),
       );
-      expect(blocs.length, 1, reason: blocs.join('\n'));
-      expect(blocs.single, contains('ResidentFormCubit'));
+
+      const String base = 'lib/features/certificates/presentation/';
+      final Map<String, List<String>> byPage = <String, List<String>>{};
+      for (final String bloc in blocs) {
+        expect(bloc, startsWith(base),
+            reason: 'a certificate Cubit outside presentation/<page>/: $bloc');
+        final String page = bloc.substring(base.length).split('/').first;
+        (byPage[page] ??= <String>[]).add(bloc);
+      }
+
+      // (1) The BOUND. Every certificate page that holds a Cubit is one
+      //     somebody owns: `resident` is F1's, `birth` and `death` are F2's,
+      //     `marriage` and `divorce` are F3's. `certificate_forms` is F3's
+      //     shared directory and holds no Cubit — if it ever does, that is a
+      //     god-cubit and this list should NOT be widened to admit it.
+      const Set<String> attributed = <String>{
+        'resident', // F1
+        'birth', 'death', // F2
+        'marriage', 'divorce', // F3
+      };
+      final List<String> unattributed = byPage.keys
+          .where((String p) => !attributed.contains(p))
+          .toList()
+        ..sort();
+      expect(unattributed, isEmpty,
+          reason: 'certificate page(s) holding a Cubit that no batch has '
+              'claimed: $unattributed. Pages found: ${byPage.keys.toList()..sort()}. '
+              'A new name here is either this batch\'s violation or another '
+              'batch\'s and must be attributed — widen the list deliberately, '
+              'with the owning batch named, or delete the page.');
+
+      // (2) One Cubit per page (`ssd.md` § 7.4).
+      byPage.forEach((String page, List<String> found) {
+        expect(found, hasLength(1),
+            reason: '$page holds ${found.length} Cubits (ssd.md § 7.4 is one '
+                'per page):\n${found.join('\n')}');
+      });
+
+      // The three this assertion is actually about. F1 owns the first; F2 adds
+      // the other two and nothing else here is F2's to pin.
+      for (final String want in <String>[
+        'resident/resident_form_cubit.dart',
+        'birth/birth_form_cubit.dart',
+        'death/death_form_cubit.dart',
+      ]) {
+        expect(blocs.where((String b) => b.contains(want)), hasLength(1),
+            reason: '$want is missing or duplicated');
+      }
+
+      // `F2-AC-10` — **no shared base class between them.** Each extends
+      // `Cubit<…>` directly; a common ancestor would be the shared symbol
+      // § 6.2 RULING 1 forbids, arriving through inheritance instead of import.
+      for (final String bloc in blocs) {
+        expect(bloc, contains('extends Cubit<'),
+            reason: '$bloc does not extend Cubit directly — a shared base '
+                'class between the certificate pages is forbidden (F2-AC-10)');
+      }
     });
   });
 

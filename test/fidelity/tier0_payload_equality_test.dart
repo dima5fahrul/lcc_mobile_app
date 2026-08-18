@@ -40,9 +40,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'oracle.dart';
 
 import '../features/certificates/presentation/resident/resident_tier0_subject.dart';
+import '../features/certificates/presentation/birth/birth_tier0_subject.dart';
+import '../features/certificates/presentation/death/death_tier0_subject.dart';
 import 'package:lcc_mobile_app/features/certificates/domain/submission/case_reference_binding.dart';
 import 'package:lcc_mobile_app/features/certificates/domain/submission/submission_clock.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_payload.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_form_state.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_payload.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/death/death_form_state.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/death/death_payload.dart';
+
+// F3 — the nested family. Two subjects, side by side, and NO symbol crossing
+// between `marriage/` and `divorce/` (§ 6.5).
+import '../features/certificates/presentation/marriage/marriage_tier0_subject.dart';
+import '../features/certificates/presentation/divorce/divorce_tier0_subject.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_form_state.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_payload.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_form_state.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_payload.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The comparator
@@ -1421,6 +1436,568 @@ void main() {
       expect(o.formData['purpose.issue_date'], kExpectedWebUtc,
           reason: 'the oracle must still carry the WEB value, or the '
               'divergence has gone invisible');
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // F2 — Birth and Death, the harness's SECOND and THIRD real subjects
+  // ───────────────────────────────────────────────────────────────────────────
+  //
+  // `specs.md` § 3.1 row 7 registers both `buildFormData` functions here, the
+  // way F1 registered Resident's. The **per-document** comparisons live in the
+  // two page-local gates
+  // (`test/features/certificates/presentation/{birth,death}/*_tier0_test.dart`)
+  // and share their fixture readers with this file rather than duplicating
+  // them; what this group adds is the property no single page can assert —
+  // that the three registered subjects together cover the matrix, and that
+  // Birth's and Death's `header.legal_basis` relate to each other the way the
+  // two namespaces measured (`F2-AC-36`).
+  //
+  // **Nothing here compares Birth against Death's oracle or vice versa.** The
+  // two subjects are imported side by side because that is the only place the
+  // cross-page assertion can live; no symbol crosses between the two ports.
+  group('Tier 0 — F2 registration and the cross-page locale asymmetry', () {
+    test('F2-AC-27 all twenty F2 Entry A documents are on disk', () {
+      const List<String> want = <String>[
+        'birth.create.en', 'birth.create.lo',
+        'birth.update.en', 'birth.update.lo',
+        'birth.father-unknown.create.en', 'birth.father-unknown.create.lo',
+        'birth.father-unknown.update.en', 'birth.father-unknown.update.lo',
+        'death.create.en', 'death.create.lo',
+        'death.update.en', 'death.update.lo',
+        'death.father-skip.create.en', 'death.father-skip.create.lo',
+        'death.father-skip.update.en', 'death.father-skip.update.lo',
+        'death.mother-skip.create.en', 'death.mother-skip.create.lo',
+        'death.mother-skip.update.en', 'death.mother-skip.update.lo',
+      ];
+      final Set<String> got = tier0ExecutedNames().toSet();
+      final List<String> missing =
+          want.where((String n) => !got.contains(n)).toList();
+      expect(missing, isEmpty,
+          reason: 'F2 is gated on twenty executed documents; a missing one is '
+              'a missing measurement, not a pass');
+      expect(want.length, 20);
+      // ignore: avoid_print
+      print('F2-AC-27: ${want.length} Entry A documents present for '
+          'birth + death');
+    });
+
+    test('F2-AC-36 header.legal_basis MATCHES between the two pages in '
+        'English and DIFFERS in Lao', () {
+      // The sharpest trap in the batch. An implementation that noticed the
+      // English strings are identical and hoisted ONE constant passes the
+      // English half of this test and FAILS the Lao half — and an English-only
+      // run would have seen nothing on any of the twenty documents.
+      final Object? birthEn =
+          valueAt(loadTier0Executed('birth.create.en').formData,
+              '/header.legal_basis');
+      final Object? deathEn =
+          valueAt(loadTier0Executed('death.create.en').formData,
+              '/header.legal_basis');
+      final Object? birthLo =
+          valueAt(loadTier0Executed('birth.create.lo').formData,
+              '/header.legal_basis');
+      final Object? deathLo =
+          valueAt(loadTier0Executed('death.create.lo').formData,
+              '/header.legal_basis');
+
+      expect(birthEn, equals(deathEn),
+          reason: 'measured: the two English sentences are byte-identical');
+      expect(birthLo, isNot(equals(deathLo)),
+          reason: 'measured: the two Lao sentences differ in TWO places — '
+              '`ສະບັບເລກທີ` vs `ເລກທີ`, and the closing clause. Do not '
+              'harmonise them: that is the L-10(b) failure, making the port '
+              'MORE consistent than the source (specs.md § 6.3, FU-2).');
+
+      // And the two PORTS reproduce both halves, which the oracles alone
+      // cannot establish — this is the assertion a shared constant fails.
+      expect(birthLegalBasisFor('en'), equals(birthEn));
+      expect(birthLegalBasisFor('lo'), equals(birthLo));
+      expect(deathLegalBasisFor('en'), equals(deathEn));
+      expect(deathLegalBasisFor('lo'), equals(deathLo));
+      expect(birthLegalBasisFor('en'), equals(deathLegalBasisFor('en')));
+      expect(birthLegalBasisFor('lo'),
+          isNot(equals(deathLegalBasisFor('lo'))));
+    });
+
+    test('F2-AC-30/45 the two builders are separate functions with separate '
+        'parent helpers', () {
+      // Structural, not by output: on every fixture that exists the two emit
+      // byte-equal parent blocks wherever their key sets overlap, so only the
+      // shapes can distinguish them.
+      final Map<String, Object?> b =
+          birthParentData(const BirthParentInfo(), 'p');
+      final Map<String, Object?> d =
+          deathParentData(const DeathParentInfo(), 'p', false);
+      expect(b.length, 13);
+      expect(d.length, 14);
+      expect(d.keys.toSet().difference(b.keys.toSet()), <String>{'p.workplace'},
+          reason: 'the one extra key, and the whole reason a shared helper '
+              'with a `showWorkplace` flag is forbidden (specs.md § 6.2)');
+
+      // The skip branches: Birth's is at the CALL SITE and Death's is INSIDE.
+      expect(deathParentData(const DeathParentInfo(), 'p', true),
+          <String, Object?>{'p.status': 'deceased-or-unknown'});
+      expect(kBirthFatherUnknownStatus, 'unknown');
+      expect(kDeathParentSkipStatus, 'deceased-or-unknown');
+      expect(kBirthFatherUnknownStatus, isNot(equals(kDeathParentSkipStatus)));
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // F3 — Marriage and Divorce, the harness's FOURTH and FIFTH real subjects,
+  // and the FIRST NESTED ones
+  // ───────────────────────────────────────────────────────────────────────────
+  //
+  // Everything above this line that touches a nested payload does so through an
+  // oracle or a hand-built control document. This group runs the comparator
+  // against **`buildMarriageFormData` and `buildDivorceFormData`, the real port
+  // functions**, over twelve executed documents.
+  //
+  // ## The counts, measured rather than copied
+  //
+  // `specs.md` § 6.11 states 108 leaves per Marriage document, 92 per Divorce
+  // document and 1,168 in total. Measured with `len(paths)` over the executed
+  // captures on disk: **54**, **46** and **584** — each exactly half the
+  // stated figure. The spec appears to have counted a create/update *pair* as
+  // one document while also counting 4 and 8 documents. The numbers asserted
+  // below are the measured ones and `qa-report.md` records the discrepancy;
+  // `F3-AC-77`'s discipline — a LOWER count reporting "all passed" is a FAIL —
+  // is preserved against the true denominator.
+  //
+  // ## Both Divorce arms, because they split the payload
+  //
+  // `mediation.*` is non-empty only under `voluntary` + `new`, `basis.court_*`
+  // only under `contested`. A four-document Divorce run leaves a whole key
+  // group permanently `""` and a port that hardcoded `""` there would pass
+  // (`F3-AC-47`).
+  //
+  // **No symbol crosses between `marriage/` and `divorce/`.** The two subjects
+  // are imported side by side because this is the only place the shared
+  // assertions can live; § 6.5 forbids a shared `spousePayload` and
+  // `F0-AC-82`'s guard above is what would go vacuous if one appeared.
+  group('Tier 0 — F3, the nested family (Marriage + Divorce)', () {
+    final SubmissionClock marriageClock =
+        SubmissionClock.fixed(kMarriageRegisterInstant);
+    final SubmissionClock divorceClock =
+        SubmissionClock.fixed(kDivorceRegisterInstant);
+
+    /// Marriage's two bodies, built the way the page builds them: **twice**,
+    /// through `NestedParameterReference`.
+    SubmissionBodies marriageBodies(String locale) {
+      final Map<String, dynamic> fixture =
+          readMarriageJson('$kMarriageFixtureDir/asymmetric.$locale.json');
+      return marriageSubmissionBodies(
+        marriageFormFromFixture(fixture),
+        marriageClock,
+        fixture['_reference_no']! as String,
+      );
+    }
+
+    SubmissionBodies divorceBodies(String variant, String locale) {
+      final Map<String, dynamic> fixture =
+          readDivorceJson('$kDivorceFixtureDir/$variant.$locale.json');
+      return divorceSubmissionBodies(
+        divorceFormFromFixture(fixture),
+        divorceClock,
+        fixture['_reference_no']! as String,
+      );
+    }
+
+    // ── Marriage: 4 documents × 54 leaves ──────────────────────────────────
+    for (final String locale in <String>['en', 'lo']) {
+      test('F3-AC-76/77 marriage.create.$locale — 54 leaves against the '
+          'executed oracle', () {
+        final Tier0Oracle o = Tier0Oracle.load(
+            '$kMarriageOracleDir/executed', 'marriage.create.$locale');
+        final Map<String, Object?> want = o.formData.cast<String, Object?>();
+        final Map<String, Object?> got = marriageBodies(locale).create;
+
+        expect(leafPaths(want).length, 54,
+            reason: 'marriage.create.$locale carries 54 leaves, measured');
+        expect(leafPaths(got).length, 54,
+            reason: 'the port emitted a different number of leaves');
+
+        final Tier0Result r = compareTier0(
+          oracle: want,
+          actual: got,
+          exempt: kMarriageExemptFormDataPointers,
+        );
+        expect(r.passed, isTrue, reason: r.toString());
+      });
+
+      test('F3-AC-76/77 marriage.update.$locale — 54 leaves, SAME paths as '
+          'create, one value differs', () {
+        final Tier0Oracle o = Tier0Oracle.load(
+            '$kMarriageOracleDir/executed', 'marriage.update.$locale');
+        final Map<String, Object?> want = o.formData.cast<String, Object?>();
+        final SubmissionBodies bodies = marriageBodies(locale);
+        final Map<String, Object?> got = bodies.update;
+
+        // The nested mechanic, asserted on the port's own output: the key count
+        // does NOT rise. Resident's does, by exactly one (`F1-AC-35`).
+        expect(leafPaths(got).length, 54);
+        expect(leafPaths(got), equals(leafPaths(bodies.create)),
+            reason: 'nestedParameter re-invokes the builder — same paths, one '
+                'value replaced. A +1 key count is the flat mechanic.');
+
+        final Tier0Result r = compareTier0(
+          oracle: want,
+          actual: got,
+          exempt: kMarriageExemptFormDataPointers,
+        );
+        expect(r.passed, isTrue, reason: r.toString());
+      });
+    }
+
+    // ── Divorce: 8 documents × 46 leaves, BOTH arms ────────────────────────
+    for (final String arm in <String>['asymmetric', 'contested']) {
+      final String prefix = arm == 'contested' ? 'divorce.contested' : 'divorce';
+      for (final String locale in <String>['en', 'lo']) {
+        test('F3-AC-47/76/77 $prefix.create.$locale — 46 leaves against the '
+            'executed oracle', () {
+          final Tier0Oracle o = Tier0Oracle.load(
+              '$kDivorceOracleDir/executed', '$prefix.create.$locale');
+          final Map<String, Object?> want = o.formData.cast<String, Object?>();
+          final Map<String, Object?> got = divorceBodies(arm, locale).create;
+
+          expect(leafPaths(want).length, 46);
+          expect(leafPaths(got).length, 46);
+
+          final Tier0Result r = compareTier0(
+            oracle: want,
+            actual: got,
+            exempt: kDivorceExemptFormDataPointers,
+          );
+          expect(r.passed, isTrue, reason: r.toString());
+        });
+
+        test('F3-AC-47/76/77 $prefix.update.$locale — 46 leaves, same paths',
+            () {
+          final Tier0Oracle o = Tier0Oracle.load(
+              '$kDivorceOracleDir/executed', '$prefix.update.$locale');
+          final Map<String, Object?> want = o.formData.cast<String, Object?>();
+          final SubmissionBodies bodies = divorceBodies(arm, locale);
+
+          expect(leafPaths(bodies.update).length, 46);
+          expect(leafPaths(bodies.update), equals(leafPaths(bodies.create)));
+
+          final Tier0Result r = compareTier0(
+            oracle: want,
+            actual: bodies.update,
+            exempt: kDivorceExemptFormDataPointers,
+          );
+          expect(r.passed, isTrue, reason: r.toString());
+        });
+      }
+    }
+
+    test('F3-AC-77 the twelve documents and 584 compared leaves, counted', () {
+      int leaves = 0;
+      int documents = 0;
+      for (final String locale in <String>['en', 'lo']) {
+        final SubmissionBodies b = marriageBodies(locale);
+        leaves += leafPaths(b.create).length + leafPaths(b.update).length;
+        documents += 2;
+      }
+      for (final String arm in <String>['asymmetric', 'contested']) {
+        for (final String locale in <String>['en', 'lo']) {
+          final SubmissionBodies b = divorceBodies(arm, locale);
+          leaves += leafPaths(b.create).length + leafPaths(b.update).length;
+          documents += 2;
+        }
+      }
+      // ignore: avoid_print
+      print('F3-AC-77: $documents documents, $leaves leaves compared '
+          '(marriage 54/doc × 4, divorce 46/doc × 8). specs.md § 6.11 states '
+          '108/92/1168; measured is 54/46/584 — exactly half, see the group '
+          'comment.');
+      expect(documents, 12);
+      expect(leaves, 584);
+    });
+
+    test('F3-AC-82 exactly ONE pointer is exempt per page, and it bites once '
+        'per body', () {
+      // Two register rows per page — (page, create, header.dated) and
+      // (page, update, header.dated) — over ONE pointer, because the two bodies
+      // are oracled separately. Four rows across F3, and no more: a fifth is
+      // § 8.3 BLOCKED.
+      expect(kMarriageExemptFormDataPointers, <String>{'/header/dated'});
+      expect(kDivorceExemptFormDataPointers, <String>{'/header/dated'});
+      // No envelope key: `event_date` is `x || undefined` on both pages and
+      // never calls today().
+      expect(kMarriageExemptEnvelopeKeys, isEmpty);
+      expect(kDivorceExemptEnvelopeKeys, isEmpty);
+
+      for (final Map<String, Object?> body in <Map<String, Object?>>[
+        marriageBodies('en').create,
+        marriageBodies('en').update,
+        divorceBodies('asymmetric', 'en').create,
+        divorceBodies('contested', 'en').create,
+      ]) {
+        final int exemptLeaves = leafPaths(body)
+            .where(kMarriageExemptFormDataPointers.contains)
+            .length;
+        expect(exemptLeaves, 1,
+            reason: 'exactly one leaf per body is exempt; every other one is '
+                'compared byte-for-byte');
+      }
+    });
+
+    test('F3-AC-40 the clock emits the LOCAL date where UTC would be wrong, '
+        'on all four bodies', () {
+      // Both halves. Asserting only that the leaf was skipped is not
+      // sufficient: a port that reintroduced `toUtc()` would also be skipped.
+      for (final Map<String, Object?> body in <Map<String, Object?>>[
+        marriageBodies('en').create,
+        marriageBodies('en').update,
+        divorceBodies('asymmetric', 'en').create,
+        divorceBodies('asymmetric', 'en').update,
+      ]) {
+        final Map<String, Object?> header =
+            body['header']! as Map<String, Object?>;
+        expect(header['dated'], kMarriageExpectedLocal);
+      }
+      for (final String name in <String>[
+        'marriage.create.en',
+        'marriage.update.en',
+        'divorce.create.en',
+        'divorce.update.en',
+      ]) {
+        expect(valueAt(loadTier0Executed(name).formData, '/header/dated'),
+            kMarriageExpectedWebUtc,
+            reason: '$name: the oracle must still carry the WEB value, or the '
+                'divergence has gone invisible');
+      }
+    });
+
+    test('F3-AC-34 M5 FAILS on Marriage AND on Divorce — the port flattened', () {
+      // The negative control, run against the PORT's own output rather than
+      // against an oracle: flatten `header` to dotted keys and the comparator
+      // must reject it, naming both spellings.
+      for (final MapEntry<String, Map<String, Object?>> e
+          in <String, Map<String, Object?>>{
+        'marriage': marriageBodies('en').create,
+        'divorce': divorceBodies('asymmetric', 'en').create,
+      }.entries) {
+        final Map<String, Object?> good = deepCopy(e.value);
+        final Map<String, Object?> header =
+            good.remove('header')! as Map<String, Object?>;
+        final Map<String, Object?> flattened = <String, Object?>{
+          for (final MapEntry<String, Object?> h in header.entries)
+            'header.${h.key}': h.value,
+          ...good,
+        };
+        final Tier0Result r =
+            compareTier0(oracle: deepCopy(e.value), actual: flattened);
+        expect(r.passed, isFalse,
+            reason: 'M5 passed on ${e.key} — the instrument cannot tell a '
+                'nested header from a literal flat key');
+        expect(r.toString(), contains('/header/document_no'));
+        expect(r.toString(), contains('/header.document_no'));
+        // ignore: avoid_print
+        print('F3-AC-34 M5 on ${e.key}:\n$r');
+      }
+    });
+
+    test('F3-AC-80 the harness FAILS on Marriage and on Divorce from a '
+        'one-character mutation', () {
+      final Map<String, Object?> m = marriageBodies('en').create;
+      final Map<String, Object?> mBad = deepCopy(m);
+      ((mBad['spouses']! as Map<String, Object?>)['spouse_a']!
+          as Map<String, Object?>)['id_number'] = 'ID-ALPHA-0002';
+      final Tier0Result mr = compareTier0(
+        oracle: m,
+        actual: mBad,
+        exempt: kMarriageExemptFormDataPointers,
+      );
+      expect(mr.passed, isFalse);
+      expect(mr.toString(), contains('/spouses/spouse_a/id_number'));
+      // ignore: avoid_print
+      print('F3-AC-80 marriage:\n$mr');
+
+      final Map<String, Object?> d = divorceBodies('contested', 'en').create;
+      final Map<String, Object?> dBad = deepCopy(d);
+      (dBad['basis']! as Map<String, Object?>)['court_name'] = 'Other Court';
+      final Tier0Result dr = compareTier0(
+        oracle: d,
+        actual: dBad,
+        exempt: kDivorceExemptFormDataPointers,
+      );
+      expect(dr.passed, isFalse);
+      expect(dr.toString(), contains('/basis/court_name'));
+      // ignore: avoid_print
+      print('F3-AC-80 divorce:\n$dr');
+    });
+
+    test('F3-AC-78 the locale guard, BOTH directions, on the port itself', () {
+      // (i) the locale-dependent surfaces DIFFER…
+      const Set<String> localeDependent = <String>{
+        '/spouses/spouse_a/address_text',
+        '/spouses/spouse_b/address_text',
+        '/spouses/husband/address_text',
+        '/spouses/wife/address_text',
+      };
+
+      for (final List<Map<String, Object?>> pair in <List<Map<String, Object?>>>[
+        <Map<String, Object?>>[
+          marriageBodies('en').create,
+          marriageBodies('lo').create,
+        ],
+        <Map<String, Object?>>[
+          divorceBodies('asymmetric', 'en').create,
+          divorceBodies('asymmetric', 'lo').create,
+        ],
+      ]) {
+        final List<String> present =
+            leafPaths(pair[0]).where(localeDependent.contains).toList();
+        expect(present, hasLength(2), reason: 'two parties per page');
+        for (final String p in present) {
+          expect(valueAt(pair[0], p), isNot(equals(valueAt(pair[1], p))),
+              reason: '$p is equal across locales — either the fixture seed '
+                  'never took or the port hardcoded one locale');
+        }
+        // (ii) …and every OTHER leaf is byte-equal. Over-localisation is the
+        // likelier Flutter error: `.tr()` is one character from a plain string,
+        // and a one-sided guard misses it entirely.
+        int compared = 0;
+        for (final String p in leafPaths(pair[0])) {
+          if (localeDependent.contains(p)) continue;
+          expect(jsonEncode(valueAt(pair[1], p)),
+              equals(jsonEncode(valueAt(pair[0], p))),
+              reason: '$p differs across locales but is not a registered '
+                  'locale-dependent key');
+          compared++;
+        }
+        expect(compared, greaterThan(40),
+            reason: 'the complement guard is universally quantified and '
+                'therefore vacuous over an empty set');
+      }
+    });
+
+    test('F3-AC-35/36/84 the envelopes — key order on the SERIALISED string',
+        () {
+      final Map<String, dynamic> fixture =
+          readMarriageJson('$kMarriageFixtureDir/asymmetric.en.json');
+      final MarriageFormData form = marriageFormFromFixture(fixture);
+      final SubmissionBodies bodies = marriageBodies('en');
+
+      final String create = jsonEncode(
+        marriageCreateEnvelope(form: form, payload: bodies.create),
+      );
+      // Asserted on the STRING, not on a decoded map: a DeepCollectionEquality
+      // would pass a reordered transcription.
+      expect(
+        create.startsWith(
+          '{"service_code":"marriage","province_id":',
+        ),
+        isTrue,
+        reason: 'service_code, then the RAW location trio: $create',
+      );
+      expect(create.contains('"event_date":"2026-05-18","form_data":'), isTrue,
+          reason: 'event_date immediately precedes form_data when no record is '
+              'linked — linked_reference_no is ELIDED between them');
+      // `F3-AC-36`: absent, not present-and-empty and not present-and-null.
+      expect(create.contains('linked_reference_no'), isFalse);
+
+      // `F3-AC-84`: form_data FIRST on the update, LAST on the create.
+      final String update = jsonEncode(
+        marriageUpdateEnvelope(form: form, updatePayload: bodies.update),
+      );
+      expect(update.startsWith('{"form_data":'), isTrue, reason: update);
+      expect(create.endsWith('}}}'), isTrue,
+          reason: 'form_data is the last key of the create body');
+
+      // Divorce, both arms, same three properties.
+      for (final String arm in <String>['asymmetric', 'contested']) {
+        final Map<String, dynamic> dFixture =
+            readDivorceJson('$kDivorceFixtureDir/$arm.en.json');
+        final DivorceFormData dForm = divorceFormFromFixture(dFixture);
+        final SubmissionBodies dBodies = divorceBodies(arm, 'en');
+        final String dCreate = jsonEncode(
+          divorceCreateEnvelope(form: dForm, payload: dBodies.create),
+        );
+        expect(dCreate.startsWith('{"service_code":"divorce","province_id":'),
+            isTrue,
+            reason: dCreate);
+        expect(dCreate.contains('linked_reference_no'), isFalse);
+        expect(
+          jsonEncode(
+            divorceUpdateEnvelope(form: dForm, updatePayload: dBodies.update),
+          ).startsWith('{"form_data":'),
+          isTrue,
+        );
+      }
+    });
+
+    test('F3-AC-63 creates_betrothal_record is a BARE JSON boolean', () {
+      final String encoded = jsonEncode(marriageBodies('en').create);
+      expect(encoded.contains('"creates_betrothal_record":true'), isTrue,
+          reason: 'the product\'s ONLY non-string primitive '
+              '(MarriageCertificatePage.tsx:904). A quoted "true" is different '
+              'bytes and nothing else in the product would catch it.');
+      expect(encoded.contains('"creates_betrothal_record":"true"'), isFalse);
+    });
+
+    test('F3-AC-69/97 "captured-at-office" appears exactly FIVE times across '
+        'the two builders — 3 + 2 — in every document', () {
+      int marriageSites = 0;
+      int divorceSites = 0;
+      for (final String locale in <String>['en', 'lo']) {
+        for (final Map<String, Object?> body in <Map<String, Object?>>[
+          marriageBodies(locale).create,
+          marriageBodies(locale).update,
+        ]) {
+          final int n = leafPaths(body)
+              .where((String p) => valueAt(body, p) == 'captured-at-office')
+              .length;
+          expect(n, 3, reason: 'medical_certificate, couple_signatures, '
+              'registrar_signature — unconditional');
+          marriageSites = n;
+        }
+        for (final String arm in <String>['asymmetric', 'contested']) {
+          for (final Map<String, Object?> body in <Map<String, Object?>>[
+            divorceBodies(arm, locale).create,
+            divorceBodies(arm, locale).update,
+          ]) {
+            final int n = leafPaths(body)
+                .where((String p) => valueAt(body, p) == 'captured-at-office')
+                .length;
+            expect(n, 2,
+                reason: 'registrar_signature, certificate_each_spouse');
+            divorceSites = n;
+          }
+        }
+      }
+      expect(marriageSites + divorceSites, 5);
+      // R-20 itself is NOT EVALUATED — see `F3-AC-96`. Emitting the sentinels
+      // is a DIFFERENT and WEAKER claim than the server still accepting them,
+      // and reporting this test as discharging F-8 is the Capability-Rule
+      // failure `F3-AC-96` exists to block.
+    });
+
+    test('F3-AC-48 both Divorce key groups are present-and-empty, never '
+        'absent', () {
+      final Map<String, Object?> voluntary =
+          divorceBodies('asymmetric', 'en').create;
+      final Map<String, Object?> contested =
+          divorceBodies('contested', 'en').create;
+
+      final Map<String, Object?> vBasis =
+          voluntary['basis']! as Map<String, Object?>;
+      expect(vBasis.containsKey('court_name'), isTrue);
+      expect(vBasis['court_name'], '');
+      expect(vBasis['court_decision_date'], '');
+
+      final Map<String, Object?> cMediation =
+          contested['mediation']! as Map<String, Object?>;
+      // ELEVEN keys, not the nine specs.md § 6.7 states — counted at
+      // DivorceCertificatePage.tsx:802-814 and confirmed against
+      // divorce.contested.create.en.
+      expect(cMediation.length, 11);
+      for (final MapEntry<String, Object?> e in cMediation.entries) {
+        expect(e.value, '', reason: '${e.key} must be present-and-empty');
+      }
     });
   });
 }

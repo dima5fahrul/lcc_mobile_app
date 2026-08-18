@@ -1471,3 +1471,73 @@ List<String> forbiddenKernelSymbolViolations(
 
   return violations;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// certificate_page_isolation — no import edge between the sibling certificate
+// pages (F2 § 6.2 RULING 1, `F2-AC-16`)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// The three sibling directories under `features/certificates/presentation/`.
+///
+/// **Scoped to exactly these three, by name.** This is a guard over named
+/// siblings, not a general "features may not import features" rule and not a
+/// general "no presentation directory may import another" rule — `ssd.md`
+/// § 4.4.1 RULING 13 requires a guard to enforce exactly what its name claims,
+/// and three of this project's recorded governance failures (`B9-AC-10`,
+/// `B10-AC-54`, `B10-AC-4`) took a batch-scoped criterion and implemented it as
+/// a permanent global mechanism.
+///
+/// **When F3 lands it adds `marriage` and `divorce` to this list** — a one-line
+/// diff, which is the point of the list being here rather than inferred.
+const List<String> kIsolatedCertificatePages = <String>[
+  'resident',
+  'birth',
+  'death',
+];
+
+/// **certificate_page_isolation** — no file under
+/// `features/certificates/presentation/<A>/` may import
+/// `features/certificates/presentation/<B>/` for any two distinct A, B in
+/// [kIsolatedCertificatePages].
+///
+/// ## Why a guard and not a code-review rule
+///
+/// `specs.md` § 6.2: *"A prose prohibition is not enforceable at review time on
+/// 3,158 ported lines."* The nine named temptations — `parentData`, a
+/// `ParentSection` widget, an informant block, `AddressFields`,
+/// `header.legal_basis`, the success card, `methodCode`, the `TXT` tables, the
+/// 422 path — are each individually reasonable-looking, and each would show up
+/// here as one import edge.
+///
+/// ## What it does NOT forbid
+///
+/// Importing **downward** — into `features/certificates/domain/`,
+/// `lib/presentation/forms/` (F0b's kernel), `features/wallet/domain/`,
+/// `lib/i18n/`. That sharing is required, not merely permitted (§ 6.2's second
+/// table). Only the sibling-to-sibling edge is forbidden.
+List<String> certificatePageIsolationViolations(List<DartFile> files) {
+  const String base = 'features/certificates/presentation/';
+  final List<String> violations = <String>[];
+
+  /// The page a scan-root-relative path belongs to, or null.
+  String? pageOf(String path) {
+    if (!path.startsWith(base)) return null;
+    final String rest = path.substring(base.length);
+    final int slash = rest.indexOf('/');
+    if (slash < 0) return null;
+    final String page = rest.substring(0, slash);
+    return kIsolatedCertificatePages.contains(page) ? page : null;
+  }
+
+  for (final DartFile file in files) {
+    final String? from = pageOf(file.path);
+    if (from == null) continue;
+    for (final DartImport import in file.localImports) {
+      final String? to = pageOf(import.target!);
+      if (to == null || to == from) continue;
+      violations.add(cite(file, import));
+    }
+  }
+
+  return violations;
+}

@@ -308,6 +308,72 @@ void main() {
       // render it — a leak of backend detail onto a public surface.
       expect(failure.message, isNot(contains('Could not load')));
     });
+
+    // ── F3 MAJOR-1 (2026-08-18) ──────────────────────────────────────────────
+    //
+    // The test above is about `ServicePage`, which renders a fixed sentence.
+    // Four certificate pages are the repository's other consumers and they
+    // render `Failure.message` DIRECTLY — Resident `:130`, Birth `:90`, Death
+    // `:82`, and since F3's option-(b) fee wiring, Marriage
+    // `marriage_steps.dart:723-727` and Divorce `divorce_steps.dart:741-744`.
+    //
+    // With one bare `catch`, an `ApiException` reached those screens as
+    // `ApiException.toString()`, i.e. with the status, the code, the internal
+    // `requestId` and the field count. The source does not: `ApiError extends
+    // Error` with `super(message)` (`client.ts:61-68`), so
+    // `MarriageCertificatePage.tsx:1591`'s `quote.error.message` is the
+    // backend's sentence alone.
+    //
+    // These two cases are the guard. The first is the leak; the second is the
+    // negative control that keeps the first from passing vacuously — it proves
+    // a NON-`ApiException` still carries its own text, so the `on ApiException`
+    // arm is doing the discriminating rather than the message being empty.
+    test('an ApiException Failure carries the API sentence ALONE — no status, '
+        'no code, no requestId, no field count (F3 MAJOR-1)', () async {
+      const ApiException exception = ApiException(
+        status: 500,
+        code: 'INTERNAL_ERROR',
+        message: 'The fee service is temporarily unavailable.',
+        requestId: '7f3c9a21-not-for-citizens',
+      );
+      final ServiceRepositoryImpl repository =
+          const ServiceRepositoryImpl(remote: _FailingDatasource(exception));
+
+      for (final Failure failure in <Failure>[
+        (await repository.getServices())
+            .swap()
+            .getOrElse(() => const Failure('unreachable')),
+        (await repository.getCategories())
+            .swap()
+            .getOrElse(() => const Failure('unreachable')),
+      ]) {
+        expect(failure.message, 'The fee service is temporarily unavailable.',
+            reason: 'the backend sentence, verbatim and alone — this string is '
+                'rendered on four certificate screens');
+        expect(failure.message, isNot(contains('requestId')),
+            reason: 'a server-log correlation token must never reach a citizen');
+        expect(failure.message, isNot(contains('7f3c9a21')));
+        expect(failure.message, isNot(contains('ApiException')));
+        expect(failure.message, isNot(contains('INTERNAL_ERROR')));
+        expect(failure.message, isNot(contains('500')));
+      }
+    });
+
+    test('a non-ApiException still carries its own text — the arm '
+        'discriminates, the message is not merely blank', () async {
+      final ServiceRepositoryImpl repository = ServiceRepositoryImpl(
+        remote: const _FailingDatasource(FormatException('unexpected token')),
+      );
+
+      final Failure failure = (await repository.getServices())
+          .swap()
+          .getOrElse(() => const Failure('unreachable'));
+
+      expect(failure.message, contains('unexpected token'),
+          reason: 'no server sentence exists to prefer, so the log keeps the '
+              'exception text — reverting the ApiException arm must not be '
+              'the only way to make the previous test fail');
+    });
   });
 }
 

@@ -18,6 +18,7 @@ library;
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../domain/entities/citizen_document.dart';
 import '../../domain/entities/citizen_preferences.dart';
 import '../../domain/repositories/account_repository.dart';
@@ -28,9 +29,31 @@ class AccountRepositoryImpl implements AccountRepository {
 
   final AccountRemoteDatasource remote;
 
+  /// ## The `ApiException` arm (added 2026-08-18, B8 MAJOR-1)
+  ///
+  /// Three of this repository's reads reach a citizen-visible error surface:
+  /// the My Documents panel (`documents_card.dart:164-166`, `:173`) and the
+  /// notifications panel on both its read and its write path
+  /// (`preferences_panel.dart:70`, `:116`). All three render `Failure.message`
+  /// directly.
+  ///
+  /// With one bare `catch`, an `ApiException` reached them as
+  /// `ApiException.toString()` — status, code, the internal `requestId` and a
+  /// field count. `ApiError extends Error` with `super(message)`
+  /// (`client.ts:61-68`), so the source's equivalent is the backend's sentence
+  /// alone. Folding `e.message` makes the Dart value equal the JS value those
+  /// render sites were written against.
+  ///
+  /// The generic arm keeps `e.toString()`: a `DioException` or a parse error
+  /// has no server-authored sentence to prefer, and its text is what a log
+  /// needs. Same two-arm shape as
+  /// `prerequisite_record_repository_impl.dart:38-42` and
+  /// `service_repository_impl.dart:75-79`.
   Future<Either<Failure, T>> _guard<T>(Future<T> Function() read) async {
     try {
       return Right<Failure, T>(await read());
+    } on ApiException catch (e) {
+      return Left<Failure, T>(Failure(e.message));
     } catch (e) {
       return Left<Failure, T>(Failure(e.toString()));
     }
