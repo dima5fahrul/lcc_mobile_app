@@ -1,0 +1,85 @@
+{
+  "form": "resident",
+  "entries": [
+    {
+      "method": "POST",
+      "path": "/applications",
+      "body": "{\"service_code\":\"resident\",\"province_id\":\"p-1\",\"district_id\":\"d-1\",\"village_id\":\"v-1\",\"event_date\":\"2026-08-14\",\"form_data\":{\"header.province_id\":\"p-1\",\"header.district_id\":\"d-1\",\"header.village_id\":\"v-1\",\"certifying_authority.village_chief_name\":\"\",\"certifying_authority.certifying_district\":\"Chanthabouly\",\"applicant.citizen_name\":\"Somchai\",\"applicant.age\":\"34\",\"applicant.occupation\":\"\",\"applicant.nationality\":\"lao\",\"applicant.current_village_id\":\"Ban Dong\",\"applicant.group_khum\":\"\",\"applicant.unit_nuay\":\"\",\"applicant.house_no\":\"12\",\"household_reference.household_no\":\"CB-7\",\"household_reference.household_issued_at\":\"\",\"household_reference.household_district\":\"\",\"parentage.father_name\":\"\",\"parentage.mother_name\":\"\",\"parentage.native_place\":\"\",\"purpose.purpose\":\"school\",\"purpose.purpose_other\":\"\",\"purpose.issue_date\":\"2026-08-14\"}}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/applications/case-1",
+      "body": "{\"form_data\":{\"header.province_id\":\"p-1\",\"header.district_id\":\"d-1\",\"header.village_id\":\"v-1\",\"certifying_authority.village_chief_name\":\"\",\"certifying_authority.certifying_district\":\"Chanthabouly\",\"applicant.citizen_name\":\"Somchai\",\"applicant.age\":\"34\",\"applicant.occupation\":\"\",\"applicant.nationality\":\"lao\",\"applicant.current_village_id\":\"Ban Dong\",\"applicant.group_khum\":\"\",\"applicant.unit_nuay\":\"\",\"applicant.house_no\":\"12\",\"household_reference.household_no\":\"CB-7\",\"household_reference.household_issued_at\":\"\",\"household_reference.household_district\":\"\",\"parentage.father_name\":\"\",\"parentage.mother_name\":\"\",\"parentage.native_place\":\"\",\"purpose.purpose\":\"school\",\"purpose.purpose_other\":\"\",\"purpose.issue_date\":\"2026-08-14\",\"header.ref_no\":\"LCC-2026-000123\"},\"event_date\":\"2026-08-14\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=applicant.photo",
+        "field:kind=photo",
+        "file:file=photo.jpg"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=applicant.id_front",
+        "field:kind=document",
+        "file:file=front.jpg"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=applicant.id_back",
+        "field:kind=document",
+        "file:file=back.jpg"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=household_reference.family_book_upload",
+        "field:kind=document",
+        "file:file=cover.jpg"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=household_reference.family_book_contents",
+        "field:kind=document",
+        "file:file=contents.pdf"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/submit",
+      "body": "{}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/pay",
+      "body": "{\"method_code\":\"laoqr\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/applications/case-1",
+      "body": "{\"form_data\":{\"header.province_id\":\"p-1\",\"header.district_id\":\"d-1\",\"header.village_id\":\"v-1\",\"certifying_authority.village_chief_name\":\"\",\"certifying_authority.certifying_district\":\"Chanthabouly\",\"applicant.citizen_name\":\"Somchai\",\"applicant.age\":\"34\",\"applicant.occupation\":\"\",\"applicant.nationality\":\"lao\",\"applicant.current_village_id\":\"Ban Dong\",\"applicant.group_khum\":\"\",\"applicant.unit_nuay\":\"\",\"applicant.house_no\":\"12\",\"household_reference.household_no\":\"CB-7\",\"household_reference.household_issued_at\":\"\",\"household_reference.household_district\":\"\",\"parentage.father_name\":\"\",\"parentage.mother_name\":\"\",\"parentage.native_place\":\"\",\"purpose.purpose\":\"school\",\"purpose.purpose_other\":\"\",\"purpose.issue_date\":\"2026-08-14\",\"header.ref_no\":\"LCC-2026-000123\"},\"event_date\":\"2026-08-14\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/submit",
+      "body": "{}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/pay",
+      "body": "{\"method_code\":\"laoqr\"}"
+    }
+  ]
+}

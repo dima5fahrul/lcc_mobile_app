@@ -1,0 +1,80 @@
+{
+  "form": "divorce",
+  "entries": [
+    {
+      "method": "POST",
+      "path": "/applications",
+      "body": "{\"service_code\":\"divorce\",\"province_id\":\"55555555-5555-4555-8555-555555555555\",\"district_id\":\"66666666-6666-4666-8666-666666666666\",\"village_id\":\"77777777-7777-4777-8777-777777777777\",\"event_date\":\"2026-07-09\",\"form_data\":{\"header\":{\"province_id\":\"55555555-5555-4555-8555-555555555555\",\"district_id\":\"66666666-6666-4666-8666-666666666666\",\"village_id\":\"77777777-7777-4777-8777-777777777777\",\"document_no\":\"\",\"dated\":\"2026-08-14\"},\"mediation\":{\"mediation_record_no\":\"\",\"property_division\":\"\",\"custody_arrangement\":\"\",\"debt_division\":\"\",\"date_marriage_began\":\"\",\"reasons_husband\":\"\",\"reasons_wife\":\"\",\"outcome\":\"\",\"additional_assets\":\"\",\"children\":\"\",\"witnesses\":\"\"},\"spouses\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"marriage_certificate_ref\":\"MC-HUSB-0001\",\"husband\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"house_no\":\"31\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"address_text\":\"31, Test Village Three, Test District Two, Test Province One\",\"marriage_certificate_ref\":\"MC-HUSB-0001\"},\"wife\":{\"name\":\"Test Wife Beta\",\"dob\":\"1987-12-05\",\"nationality\":\"thai\",\"id_number\":\"ID-WIFE-0002\",\"house_no\":\"32\",\"current_address\":\"77777777-7777-4777-8777-777777777777\",\"address_text\":\"32, Test Village Seven, Test District Six, Test Province Five\",\"marriage_certificate_ref\":\"MC-WIFE-0002\"}},\"basis\":{\"divorce_type\":\"contested\",\"divorce_date\":\"2026-07-09\",\"registration_place\":\"Test Divorce Office\",\"custody_reference\":\"\",\"court_name\":\"Test People's Court\",\"court_decision_date\":\"2026-06-30\",\"registrar_signature\":\"captured-at-office\",\"certificate_each_spouse\":\"captured-at-office\"}}}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=basis.court_decision",
+        "field:kind=document",
+        "field:label=Court decision",
+        "file:file=decree.pdf"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=supporting.household_book",
+        "field:kind=document",
+        "field:label=Household book",
+        "file:file=book.pdf"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=supporting.guarantee_certificate",
+        "field:kind=document",
+        "field:label=Guarantee certificate",
+        "file:file=guarantee.pdf"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/attachments",
+      "parts": [
+        "field:slot=supporting.photos_3x4",
+        "field:kind=photo",
+        "field:label=3x4 photographs",
+        "file:file=photo.jpg"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/applications/case-1",
+      "body": "{\"form_data\":{\"header\":{\"province_id\":\"55555555-5555-4555-8555-555555555555\",\"district_id\":\"66666666-6666-4666-8666-666666666666\",\"village_id\":\"77777777-7777-4777-8777-777777777777\",\"document_no\":\"LCC-2026-000123\",\"dated\":\"2026-08-14\"},\"mediation\":{\"mediation_record_no\":\"\",\"property_division\":\"\",\"custody_arrangement\":\"\",\"debt_division\":\"\",\"date_marriage_began\":\"\",\"reasons_husband\":\"\",\"reasons_wife\":\"\",\"outcome\":\"\",\"additional_assets\":\"\",\"children\":\"\",\"witnesses\":\"\"},\"spouses\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"marriage_certificate_ref\":\"MC-HUSB-0001\",\"husband\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"house_no\":\"31\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"address_text\":\"31, Test Village Three, Test District Two, Test Province One\",\"marriage_certificate_ref\":\"MC-HUSB-0001\"},\"wife\":{\"name\":\"Test Wife Beta\",\"dob\":\"1987-12-05\",\"nationality\":\"thai\",\"id_number\":\"ID-WIFE-0002\",\"house_no\":\"32\",\"current_address\":\"77777777-7777-4777-8777-777777777777\",\"address_text\":\"32, Test Village Seven, Test District Six, Test Province Five\",\"marriage_certificate_ref\":\"MC-WIFE-0002\"}},\"basis\":{\"divorce_type\":\"contested\",\"divorce_date\":\"2026-07-09\",\"registration_place\":\"Test Divorce Office\",\"custody_reference\":\"\",\"court_name\":\"Test People's Court\",\"court_decision_date\":\"2026-06-30\",\"registrar_signature\":\"captured-at-office\",\"certificate_each_spouse\":\"captured-at-office\"}},\"event_date\":\"2026-07-09\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/submit",
+      "body": "{}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/pay",
+      "body": "{\"method_code\":\"laoqr\"}"
+    },
+    {
+      "method": "PATCH",
+      "path": "/applications/case-1",
+      "body": "{\"form_data\":{\"header\":{\"province_id\":\"55555555-5555-4555-8555-555555555555\",\"district_id\":\"66666666-6666-4666-8666-666666666666\",\"village_id\":\"77777777-7777-4777-8777-777777777777\",\"document_no\":\"LCC-2026-000123\",\"dated\":\"2026-08-14\"},\"mediation\":{\"mediation_record_no\":\"\",\"property_division\":\"\",\"custody_arrangement\":\"\",\"debt_division\":\"\",\"date_marriage_began\":\"\",\"reasons_husband\":\"\",\"reasons_wife\":\"\",\"outcome\":\"\",\"additional_assets\":\"\",\"children\":\"\",\"witnesses\":\"\"},\"spouses\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"marriage_certificate_ref\":\"MC-HUSB-0001\",\"husband\":{\"name\":\"Test Husband Alpha\",\"dob\":\"1985-04-17\",\"nationality\":\"lao\",\"id_number\":\"ID-HUSB-0001\",\"house_no\":\"31\",\"current_address\":\"33333333-3333-4333-8333-333333333333\",\"address_text\":\"31, Test Village Three, Test District Two, Test Province One\",\"marriage_certificate_ref\":\"MC-HUSB-0001\"},\"wife\":{\"name\":\"Test Wife Beta\",\"dob\":\"1987-12-05\",\"nationality\":\"thai\",\"id_number\":\"ID-WIFE-0002\",\"house_no\":\"32\",\"current_address\":\"77777777-7777-4777-8777-777777777777\",\"address_text\":\"32, Test Village Seven, Test District Six, Test Province Five\",\"marriage_certificate_ref\":\"MC-WIFE-0002\"}},\"basis\":{\"divorce_type\":\"contested\",\"divorce_date\":\"2026-07-09\",\"registration_place\":\"Test Divorce Office\",\"custody_reference\":\"\",\"court_name\":\"Test People's Court\",\"court_decision_date\":\"2026-06-30\",\"registrar_signature\":\"captured-at-office\",\"certificate_each_spouse\":\"captured-at-office\"}},\"event_date\":\"2026-07-09\"}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/submit",
+      "body": "{}"
+    },
+    {
+      "method": "POST",
+      "path": "/applications/case-1/pay",
+      "body": "{\"method_code\":\"laoqr\"}"
+    }
+  ]
+}
