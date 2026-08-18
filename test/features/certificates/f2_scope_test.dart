@@ -18,6 +18,39 @@ import '../../architecture/layering_rules.dart' show blankComments;
 const String kBirthDir = 'lib/features/certificates/presentation/birth';
 const String kDeathDir = 'lib/features/certificates/presentation/death';
 
+/// The last commit **before** F2's i18n append — the baseline `F2-AC-80`
+/// compares against.
+///
+/// ## Why a pinned SHA and not `HEAD` (FU-10, 2026-08-19)
+///
+/// Both reads below were `HEAD:` originally, and the reasoning was sound while
+/// F2's work sat uncommitted: `HEAD` then *was* the pre-F2 tree, and reading the
+/// baseline from git rather than hard-coding a key count made the check immune
+/// to later batches appending namespaces of their own.
+///
+/// It stopped being sound the moment F2's work was committed (`851397c`).
+/// `HEAD` became a commit containing F2, so `before` and `after` were the same
+/// 22-namespace map, and `F2-AC-80`'s byte-identity loop began comparing each
+/// namespace **with itself** — a comparison that cannot fail. The criterion's
+/// subject, *F2 changed nothing that already existed*, was no longer tested.
+/// Nothing announced this: the only symptom was the sibling `expect(…, 18)`
+/// going red, and "fix" it by writing 22 and the guard is silently inert.
+///
+/// `7ee0e0b` is `feat(F1): Resident pilot passes the hard checkpoint` — the last
+/// commit whose `assets/i18n/*.json` carries 18 namespaces, verified:
+///
+/// ```
+/// git show 7ee0e0b:assets/i18n/en.json | jq 'keys | length'  → 18
+/// git show 851397c:assets/i18n/en.json | jq 'keys | length'  → 22
+/// ```
+///
+/// **This must stay a fixed point.** "Before F2" is a moment in history; any ref
+/// that moves will eventually name a tree that contains F2, and the guard will
+/// go quiet again in exactly the same way. If this SHA ever becomes unreachable
+/// (a rebase, a squash), the correct repair is to re-pin to whatever commit then
+/// holds the 18-namespace bundle — not to fall back on a relative ref.
+const String kPreF2Ref = '7ee0e0b';
+
 List<File> _dartFiles(String dir) {
   final Directory d = Directory(dir);
   if (!d.existsSync()) return <File>[];
@@ -414,13 +447,24 @@ void main() {
       // assertion failing for a reason that is not its subject; `F2-AC-80`'s
       // subject is that **F2 changed nothing that already existed**.
       //
-      // Reading the pre-F2 file out of `HEAD` makes the check immune to
-      // whatever any other batch appends, and strengthens it from "same key
-      // count" to "same bytes".
+      // Reading the pre-F2 file out of git makes the check immune to whatever
+      // any other batch appends, and strengthens it from "same key count" to
+      // "same bytes".
+      //
+      // **`kPreF2Ref`, not `HEAD` — FU-10, fixed 2026-08-19.** This read was
+      // `HEAD:` until F2's own work was committed, at which point `HEAD` became
+      // the commit that *contains* F2 and `before` became byte-identical to
+      // `after`. The loop below then compared each namespace with itself and
+      // could not fail: the subject named three paragraphs up — *F2 changed
+      // nothing that already existed* — stopped being checked at all, and the
+      // only remaining sign was the hard-coded `18` two lines down going red.
+      //
+      // A relative ref cannot express "before F2" once F2 is history. The
+      // baseline is a fixed point, so it is spelled as one.
       for (final String locale in <String>['en', 'lo']) {
         final ProcessResult r = Process.runSync(
           'git',
-          <String>['show', 'HEAD:assets/i18n/$locale.json'],
+          <String>['show', '$kPreF2Ref:assets/i18n/$locale.json'],
         );
         expect(r.exitCode, 0,
             reason: 'could not read the pre-F2 asset out of HEAD');
@@ -454,9 +498,13 @@ void main() {
       // last is not F2's property to claim. Being after everything that
       // existed before F2 is.
       final List<String> keys = bundle('en').keys.toList();
+      // `kPreF2Ref`, not `HEAD` — see FU-10 in the test above. With `HEAD` this
+      // read returned the post-F2 bundle, so `lastPreF2` became the index of
+      // the last namespace of *all* (21) rather than the last pre-F2 one, and
+      // the assertion failed for a reason that is not its subject.
       final ProcessResult r = Process.runSync(
         'git',
-        <String>['show', 'HEAD:assets/i18n/en.json'],
+        <String>['show', '$kPreF2Ref:assets/i18n/en.json'],
       );
       final Map<String, dynamic> before =
           jsonDecode(r.stdout as String) as Map<String, dynamic>;
