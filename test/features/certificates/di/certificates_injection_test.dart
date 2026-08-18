@@ -38,6 +38,7 @@ import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marri
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_form_state.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
+import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
 import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
@@ -103,6 +104,17 @@ void main() {
       await applicationInjection.reset();
       await historyInjection.reset();
       await certificatesInjection.reset();
+      // B5's. **Eleventh** occurrence of the same omission, and the first that
+      // `di_teardown_completeness_test.dart` could NOT catch: that guard names
+      // three files (`kDiTestFiles`) and this is not one of them, so the
+      // failure arrived as `Type ApiClient is already registered inside GetIt`
+      // thrown from `DocumentsDatasourceInjection.inject` on this file's second
+      // `init()` — exactly the cascade the guard's reason string describes.
+      // Recorded as a scope deviation on B9a's, B9b's, B8a's, F0b's, B6a's,
+      // B7a's and F1's grounds; FU-8 asks for `kDiTestFiles` to be widened to
+      // every file that resets a container, which is discoverable by the same
+      // scan the guard already performs.
+      await documentsInjection.reset();
     });
 
     test('THE DEFECT — the container passes a pay port', () {

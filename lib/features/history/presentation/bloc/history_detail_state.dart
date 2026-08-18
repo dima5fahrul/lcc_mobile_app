@@ -37,6 +37,25 @@ abstract class HistoryDetailState with _$HistoryDetailState {
     /// link of `:249`'s fallback chain — see [events].
     CaseTimeline? timeline,
     @Default('') String timelineError,
+
+    // ── The certificate query (B5, specs.md § 6.6) ───────────────────────────
+
+    /// The **list** query's region status — `certListQuery` (`:149`). The
+    /// single fetch at `:157` deliberately does **not** move it: the source's
+    /// `:486` gate reads `certListQuery.loading` and nothing else, so folding
+    /// the two would make the note disappear during a fetch the source does
+    /// not wait for (`B5-AC-44`).
+    @Default(RegionStatus.initial) RegionStatus certificateStatus,
+
+    /// `certFromList ?? certOneQuery.data` — `:160`. Null until one of the two
+    /// resolves, and permanently null when neither has a match.
+    IssuedCertificate? certificate,
+
+    /// The backend's own sentence when the certificate slice fails. Carried on
+    /// its **own** field so a certificate outage cannot be mistaken for a case
+    /// outage: the source runs three independent `useQuery`s and the detail and
+    /// the timeline keep their data (`B5-AC-31`).
+    @Default('') String certificateError,
   }) = _HistoryDetailState;
 
   const HistoryDetailState._();
@@ -107,6 +126,85 @@ abstract class HistoryDetailState with _$HistoryDetailState {
           detailError: '',
           detailNotFound: false,
           detail: detail,
+        ),
+      );
+
+  /// `certListQuery.loading` — `:485`. **True only while the LIST is in
+  /// flight** (`B5-AC-44`).
+  ///
+  /// Unlike [showSkeleton], `initial` does **not** count as loading here, and
+  /// that is the source's own shape rather than an oversight: `useQuery`
+  /// initialises `loading` to `useState(enabled)` (`hooks.ts:46`), and on the
+  /// render where the detail first arrives `enabled` was still false when the
+  /// hook last ran — so the source also passes through one commit with
+  /// `isIssued == true` and `loading == false`. Counting `initial` as loading
+  /// would suppress a state the web has.
+  bool get certificateLoading => certificateStatus == RegionStatus.loading;
+
+  /// `isIssued && (certificate || detail.certificate_no)` — `:456`, **both
+  /// disjuncts**.
+  ///
+  /// B7b's own library doc (`history_detail_page.dart:24-32`) records that it
+  /// rendered neither half and handed the whole gate to B5: *"half of a card
+  /// whose other three rows need B5's payload is worse than the slot B5 fills
+  /// whole."* So this getter is the gate, and `history_detail_page.dart` reads
+  /// it instead of re-deriving `isIssued` alone.
+  ///
+  /// **This is a deviation from specs.md § 6.7's literal call-site wording**,
+  /// which keeps the gate at `detail.isIssued && certificatePanel != null`.
+  /// With the seam retyped to a builder, `certificatePanel != null` is true
+  /// from the moment `app_routes.dart` supplies one, so that form would render
+  /// an empty white card for an issued case that has neither a certificate nor
+  /// a `certificate_no` — a surface the source never draws, which L-10
+  /// corollary (b) makes a MAJOR defect. Reported against `B5-AC-47` rather
+  /// than absorbed.
+  ///
+  /// The second disjunct is JavaScript truthiness, so `certificate_no: ""`
+  /// does not open the card.
+  bool get showsCertificatePanel {
+    final ApplicationDetail? d = detail;
+    if (d == null || !d.isIssued) return false;
+    final String? no = d.row.certificateNo;
+    return certificate != null || (no != null && no.isNotEmpty);
+  }
+
+  /// Folds the **list** response, plus whatever [matchIssuedCertificate] found
+  /// in it.
+  ///
+  /// A failure leaves [certificate] as it was rather than nulling it, for
+  /// `withTimeline`'s reason: a failed refetch must not throw away what is
+  /// already on screen.
+  HistoryDetailState withCertificateList(
+    Either<Failure, List<IssuedCertificate>> response,
+    IssuedCertificate? matched,
+  ) =>
+      response.fold(
+        (Failure failure) => copyWith(
+          certificateStatus: RegionStatus.failure,
+          certificateError: failure.message,
+        ),
+        (List<IssuedCertificate> _) => copyWith(
+          certificateStatus: RegionStatus.success,
+          certificateError: '',
+          // `certFromList ?? certOneQuery.data` — precedence. A null here is
+          // *not* an erasure: the single fetch may still answer below, and if
+          // it does not, null is the correct rendered state.
+          certificate: matched ?? certificate,
+        ),
+      );
+
+  /// Folds the **single** fetch — `certOneQuery` (`:157`).
+  ///
+  /// It does not touch [certificateStatus]: that field is the list's, and the
+  /// note at `:486` gates on the list alone.
+  HistoryDetailState withCertificate(
+    Either<Failure, IssuedCertificate> response,
+  ) =>
+      response.fold(
+        (Failure failure) => copyWith(certificateError: failure.message),
+        (IssuedCertificate loaded) => copyWith(
+          certificateError: '',
+          certificate: loaded,
         ),
       );
 

@@ -111,12 +111,14 @@ import '../../features/account/presentation/bloc/account_documents_bloc.dart';
 import '../../features/account/presentation/bloc/account_preferences_bloc.dart';
 import '../../features/account/presentation/bloc/account_profile_bloc.dart';
 import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/application/domain/entities/application_detail.dart';
 import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/chat/di/chat_injection.dart';
 import '../../features/chat/presentation/bloc/chat_bloc.dart';
 import '../../features/chat/presentation/widgets/chat_launcher.dart';
+import '../../features/documents/domain/entities/issued_certificate.dart';
 import '../../features/help/di/help_injection.dart';
 import '../../features/help/presentation/bloc/help_bloc.dart';
 import '../../features/help/presentation/pages/help_page.dart';
@@ -143,7 +145,11 @@ import '../../features/service/presentation/pages/service_page.dart';
 import '../../features/wallet/di/wallet_injection.dart';
 import '../../features/wallet/presentation/bloc/wallet_bloc.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
+import '../../i18n/i18n.dart';
 import '../../presentation/boot/splash_slide_visual.dart';
+import '../../presentation/documents/document_actions_row.dart';
+import '../../presentation/documents/document_viewer.dart' show kDocumentsNs;
+import '../../presentation/documents/issued_certificate_card.dart';
 import '../../presentation/shell/app_shell.dart';
 import 'app_name_routes.dart';
 
@@ -480,6 +486,52 @@ class AppRoutes {
                 historyInjection<HistoryBloc>()..add(const HistoryStarted()),
             child: HistoryPage(
               detailBlocFactory: () => historyInjection<HistoryDetailBloc>(),
+              // B5's two seams (specs.md § 6.7). Composed here for the same
+              // reason `detailBlocFactory` is: this is the file whose whole job
+              // is resolution, and it is the only one exempt from G-L5 by
+              // construction. **No new `GoRoute`, no `_protectedPaths` entry,
+              // no reordering** — B5 creates no route and no page
+              // (`B5-AC-21`).
+              //
+              // They are **builders**, not widgets: both regions are functions
+              // of the payload, which a pre-built `Widget?` cannot see
+              // (specs.md Finding J). The six strings the card needs are
+              // resolved here too, from the `context` this builder already has,
+              // so `IssuedCertificateCard` stays pumpable without an
+              // `EasyLocalization` ancestor.
+              documentActions: (
+                ApplicationDetail detail,
+                IssuedCertificate? certificate,
+              ) =>
+                  DocumentActionsRow(
+                detail: detail,
+                certificate: certificate,
+              ),
+              certificatePanel: (
+                ApplicationDetail detail,
+                IssuedCertificate? certificate,
+                bool certificateLoading,
+              ) =>
+                  Builder(
+                builder: (BuildContext cardContext) => IssuedCertificateCard(
+                  detail: detail,
+                  certificate: certificate,
+                  certificateLoading: certificateLoading,
+                  lang: Lang.fromCode(cardContext.locale.languageCode),
+                  headingLabel:
+                      '$kDocumentsNs.issuedCertificate'.tr(context: cardContext),
+                  certificateNumberLabel: '$kDocumentsNs.certificateNumber'
+                      .tr(context: cardContext),
+                  issuedOnLabel:
+                      '$kDocumentsNs.issuedOn'.tr(context: cardContext),
+                  verificationCodeLabel: '$kDocumentsNs.verificationCode'
+                      .tr(context: cardContext),
+                  qrPayloadLabel:
+                      '$kDocumentsNs.qrPayload'.tr(context: cardContext),
+                  notAvailableLabel: '$kDocumentsNs.certificateNotAvailable'
+                      .tr(context: cardContext),
+                ),
+              ),
             ),
           ),
         ),

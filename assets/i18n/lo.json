@@ -223,8 +223,18 @@
     "idVerifyDesc": "ໃຫ້ເຈົ້າໜ້າທີ່ສະແກນ QR ນີ້ ເພື່ອຢືນຢັນຕົວຕົນຂອງທ່ານ.",
     "idVerifyClose": "ປິດ"
   },
+  "documents": {
+    "issuedCertificate": "ໃບຢັ້ງຢືນທີ່ອອກແລ້ວ",
+    "certificateNumber": "ເລກໃບຢັ້ງຢືນ",
+    "issuedOn": "ວັນທີອອກ",
+    "verificationCode": "ລະຫັດກວດສອບ",
+    "qrPayload": "QR",
+    "certificateNotAvailable": "ຍັງບໍ່ສາມາດອ່ານລະຫັດກວດສອບຂອງໃບຢັ້ງຢືນນີ້ໄດ້ໃນຂະນະນີ້."
+  },
   "history": {
     "title": "ປະຫວັດການຍື່ນຄຳຮ້ອງ",
+    "viewDocument": "ເບິ່ງເອກະສານ",
+    "downloadDocument": "ດາວໂຫຼດເອກະສານ",
     "searchPlaceholder": "ຄົ້ນຫາຕາມບໍລິການ ຫຼື ເລກອ້າງອີງ...",
     "statTotal": "ທັງໝົດ",
     "statApproved": "ອະນຸມັດແລ້ວ",

@@ -82,6 +82,11 @@ import 'package:lcc_mobile_app/features/chat/domain/repositories/chat_repository
 import 'package:lcc_mobile_app/features/chat/domain/usecases/chat_usecases.dart';
 import 'package:lcc_mobile_app/features/chat/presentation/bloc/chat_bloc.dart';
 import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
+import 'package:lcc_mobile_app/features/documents/data/datasources/documents_remote_datasource.dart';
+import 'package:lcc_mobile_app/features/documents/data/repositories/documents_repository_impl.dart';
+import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
+import 'package:lcc_mobile_app/features/documents/domain/repositories/documents_repository.dart';
+import 'package:lcc_mobile_app/features/documents/domain/usecases/documents_usecases.dart';
 import 'package:lcc_mobile_app/features/home/data/datasources/home_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/home/data/repositories/home_repository_impl.dart';
 import 'package:lcc_mobile_app/features/home/di/home_injection.dart';
@@ -643,12 +648,36 @@ Future<AppHarness> bootHarness({
       getStatusPipeline: historyInjection<GetStatusPipeline>(),
     ),
   );
+  // B5 — the collection slice, over the same mocked client. `historyInjection`
+  // re-exports its two use cases exactly as production's
+  // `HistoryUsecaseInjection` does, so the harness proves the wiring the app
+  // has rather than one it invented.
+  final DocumentsRepository documentsRepository = DocumentsRepositoryImpl(
+    remote: DocumentsRemoteDatasourceImpl(apiClient: apiClient),
+  );
+  documentsInjection
+      .registerSingleton<DocumentsRepository>(documentsRepository);
+  documentsInjection.registerLazySingleton<GetCertificates>(
+    () => GetCertificates(repository: documentsRepository),
+  );
+  documentsInjection.registerLazySingleton<GetCertificate>(
+    () => GetCertificate(repository: documentsRepository),
+  );
+  historyInjection.registerLazySingleton<GetCertificates>(
+    () => documentsInjection<GetCertificates>(),
+  );
+  historyInjection.registerLazySingleton<GetCertificate>(
+    () => documentsInjection<GetCertificate>(),
+  );
+
   // B7b's second bloc — a factory for the same reason, plus the open case's id
-  // and its two generation counters.
+  // and its three generation counters (B5 added the third).
   historyInjection.registerFactory<HistoryDetailBloc>(
     () => HistoryDetailBloc(
       getApplication: historyInjection<GetApplication>(),
       getApplicationTimeline: historyInjection<GetApplicationTimeline>(),
+      getCertificates: historyInjection<GetCertificates>(),
+      getCertificate: historyInjection<GetCertificate>(),
     ),
   );
 
@@ -904,6 +933,9 @@ Future<void> resetHarness() async {
   // misleading shape the defect has worn every time.
   await applicationInjection.reset();
   await historyInjection.reset();
+  // B5's container. `di_teardown_completeness_test.dart` discovers it by
+  // pattern and fails any DI test file that forgets it.
+  await documentsInjection.reset();
   // F1. Same harness blind spot the two lines above record. ONE container:
   // `features/certificates/` registers a BLoC and nothing else, so there is no
   // second container to bring down the way `features/application/` needs.

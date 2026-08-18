@@ -58,7 +58,11 @@ import '../../../../i18n/i18n.dart';
 import '../../../../presentation/theme/app_colors.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../application/domain/application_formatting.dart';
+import '../../../application/domain/entities/application_detail.dart';
 import '../../../application/domain/entities/application_row.dart';
+// Domain only — the CFI edge (`ssd.md` § 4.3). The two seam signatures name
+// this entity and this page reads no field of it (`B5-AC-50`).
+import '../../../documents/domain/entities/issued_certificate.dart';
 import '../bloc/history_bloc.dart';
 import '../bloc/history_detail_bloc.dart';
 import '../widgets/history_filter_chips.dart';
@@ -74,7 +78,12 @@ import 'history_detail_page.dart';
 const int kHistorySkeletonRows = 3;
 
 class HistoryPage extends StatefulWidget {
-  const HistoryPage({super.key, required this.detailBlocFactory});
+  const HistoryPage({
+    super.key,
+    required this.detailBlocFactory,
+    this.documentActions,
+    this.certificatePanel,
+  });
 
   /// Builds the BLoC for one opened case.
   ///
@@ -88,6 +97,24 @@ class HistoryPage extends StatefulWidget {
   /// Called **once per open**, so each case gets a fresh BLoC — see the
   /// `registerFactory` note in `history_feature_injection.dart`.
   final HistoryDetailBloc Function() detailBlocFactory;
+
+  /// **B5's two seams, forwarded and never inspected** (`B5-AC-50`).
+  ///
+  /// They arrive from `app_routes.dart` for the same G-L5 reason
+  /// [detailBlocFactory] does: `app_routes.dart` is the composition point, and
+  /// a `presentation/` file may not construct a widget that needs resolving. So
+  /// this page carries two more parameters it hands straight to
+  /// [HistoryDetailPage] and reads nothing out of.
+  final Widget Function(
+    ApplicationDetail detail,
+    IssuedCertificate? certificate,
+  )? documentActions;
+
+  final Widget Function(
+    ApplicationDetail detail,
+    IssuedCertificate? certificate,
+    bool certificateLoading,
+  )? certificatePanel;
 
   @override
   State<HistoryPage> createState() => _HistoryPageState();
@@ -141,7 +168,9 @@ class _HistoryPageState extends State<HistoryPage> {
       child: HistoryDetailPage(
         pipeline: state.pipeline,
         onBack: _closeDetail,
-        // § 6.1 — all four seams null in B7b. B5 and B6 fill them.
+        // § 6.1 — B5's two, forwarded verbatim. B6's two stay null.
+        documentActions: widget.documentActions,
+        certificatePanel: widget.certificatePanel,
       ),
     );
   }

@@ -33,7 +33,19 @@ mixin _$HistoryDetailState {
  bool get refreshing;// ── The timeline query ───────────────────────────────────────────────────
  RegionStatus get timelineStatus;/// **Null until the query succeeds**, and that nullability is the first
 /// link of `:249`'s fallback chain — see [events].
- CaseTimeline? get timeline; String get timelineError;
+ CaseTimeline? get timeline; String get timelineError;// ── The certificate query (B5, specs.md § 6.6) ───────────────────────────
+/// The **list** query's region status — `certListQuery` (`:149`). The
+/// single fetch at `:157` deliberately does **not** move it: the source's
+/// `:486` gate reads `certListQuery.loading` and nothing else, so folding
+/// the two would make the note disappear during a fetch the source does
+/// not wait for (`B5-AC-44`).
+ RegionStatus get certificateStatus;/// `certFromList ?? certOneQuery.data` — `:160`. Null until one of the two
+/// resolves, and permanently null when neither has a match.
+ IssuedCertificate? get certificate;/// The backend's own sentence when the certificate slice fails. Carried on
+/// its **own** field so a certificate outage cannot be mistaken for a case
+/// outage: the source runs three independent `useQuery`s and the detail and
+/// the timeline keep their data (`B5-AC-31`).
+ String get certificateError;
 /// Create a copy of HistoryDetailState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -44,16 +56,16 @@ $HistoryDetailStateCopyWith<HistoryDetailState> get copyWith => _$HistoryDetailS
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HistoryDetailState&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.detailStatus, detailStatus) || other.detailStatus == detailStatus)&&(identical(other.detail, detail) || other.detail == detail)&&(identical(other.detailError, detailError) || other.detailError == detailError)&&(identical(other.detailNotFound, detailNotFound) || other.detailNotFound == detailNotFound)&&(identical(other.refreshing, refreshing) || other.refreshing == refreshing)&&(identical(other.timelineStatus, timelineStatus) || other.timelineStatus == timelineStatus)&&(identical(other.timeline, timeline) || other.timeline == timeline)&&(identical(other.timelineError, timelineError) || other.timelineError == timelineError));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HistoryDetailState&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.detailStatus, detailStatus) || other.detailStatus == detailStatus)&&(identical(other.detail, detail) || other.detail == detail)&&(identical(other.detailError, detailError) || other.detailError == detailError)&&(identical(other.detailNotFound, detailNotFound) || other.detailNotFound == detailNotFound)&&(identical(other.refreshing, refreshing) || other.refreshing == refreshing)&&(identical(other.timelineStatus, timelineStatus) || other.timelineStatus == timelineStatus)&&(identical(other.timeline, timeline) || other.timeline == timeline)&&(identical(other.timelineError, timelineError) || other.timelineError == timelineError)&&(identical(other.certificateStatus, certificateStatus) || other.certificateStatus == certificateStatus)&&(identical(other.certificate, certificate) || other.certificate == certificate)&&(identical(other.certificateError, certificateError) || other.certificateError == certificateError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,applicationId,detailStatus,detail,detailError,detailNotFound,refreshing,timelineStatus,timeline,timelineError);
+int get hashCode => Object.hash(runtimeType,applicationId,detailStatus,detail,detailError,detailNotFound,refreshing,timelineStatus,timeline,timelineError,certificateStatus,certificate,certificateError);
 
 @override
 String toString() {
-  return 'HistoryDetailState(applicationId: $applicationId, detailStatus: $detailStatus, detail: $detail, detailError: $detailError, detailNotFound: $detailNotFound, refreshing: $refreshing, timelineStatus: $timelineStatus, timeline: $timeline, timelineError: $timelineError)';
+  return 'HistoryDetailState(applicationId: $applicationId, detailStatus: $detailStatus, detail: $detail, detailError: $detailError, detailNotFound: $detailNotFound, refreshing: $refreshing, timelineStatus: $timelineStatus, timeline: $timeline, timelineError: $timelineError, certificateStatus: $certificateStatus, certificate: $certificate, certificateError: $certificateError)';
 }
 
 
@@ -64,11 +76,11 @@ abstract mixin class $HistoryDetailStateCopyWith<$Res>  {
   factory $HistoryDetailStateCopyWith(HistoryDetailState value, $Res Function(HistoryDetailState) _then) = _$HistoryDetailStateCopyWithImpl;
 @useResult
 $Res call({
- String applicationId, RegionStatus detailStatus, ApplicationDetail? detail, String detailError, bool detailNotFound, bool refreshing, RegionStatus timelineStatus, CaseTimeline? timeline, String timelineError
+ String applicationId, RegionStatus detailStatus, ApplicationDetail? detail, String detailError, bool detailNotFound, bool refreshing, RegionStatus timelineStatus, CaseTimeline? timeline, String timelineError, RegionStatus certificateStatus, IssuedCertificate? certificate, String certificateError
 });
 
 
-$ApplicationDetailCopyWith<$Res>? get detail;$CaseTimelineCopyWith<$Res>? get timeline;
+$ApplicationDetailCopyWith<$Res>? get detail;$CaseTimelineCopyWith<$Res>? get timeline;$IssuedCertificateCopyWith<$Res>? get certificate;
 
 }
 /// @nodoc
@@ -81,7 +93,7 @@ class _$HistoryDetailStateCopyWithImpl<$Res>
 
 /// Create a copy of HistoryDetailState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? applicationId = null,Object? detailStatus = null,Object? detail = freezed,Object? detailError = null,Object? detailNotFound = null,Object? refreshing = null,Object? timelineStatus = null,Object? timeline = freezed,Object? timelineError = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? applicationId = null,Object? detailStatus = null,Object? detail = freezed,Object? detailError = null,Object? detailNotFound = null,Object? refreshing = null,Object? timelineStatus = null,Object? timeline = freezed,Object? timelineError = null,Object? certificateStatus = null,Object? certificate = freezed,Object? certificateError = null,}) {
   return _then(_self.copyWith(
 applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
 as String,detailStatus: null == detailStatus ? _self.detailStatus : detailStatus // ignore: cast_nullable_to_non_nullable
@@ -92,6 +104,9 @@ as bool,refreshing: null == refreshing ? _self.refreshing : refreshing // ignore
 as bool,timelineStatus: null == timelineStatus ? _self.timelineStatus : timelineStatus // ignore: cast_nullable_to_non_nullable
 as RegionStatus,timeline: freezed == timeline ? _self.timeline : timeline // ignore: cast_nullable_to_non_nullable
 as CaseTimeline?,timelineError: null == timelineError ? _self.timelineError : timelineError // ignore: cast_nullable_to_non_nullable
+as String,certificateStatus: null == certificateStatus ? _self.certificateStatus : certificateStatus // ignore: cast_nullable_to_non_nullable
+as RegionStatus,certificate: freezed == certificate ? _self.certificate : certificate // ignore: cast_nullable_to_non_nullable
+as IssuedCertificate?,certificateError: null == certificateError ? _self.certificateError : certificateError // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -118,6 +133,18 @@ $CaseTimelineCopyWith<$Res>? get timeline {
 
   return $CaseTimelineCopyWith<$Res>(_self.timeline!, (value) {
     return _then(_self.copyWith(timeline: value));
+  });
+}/// Create a copy of HistoryDetailState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$IssuedCertificateCopyWith<$Res>? get certificate {
+    if (_self.certificate == null) {
+    return null;
+  }
+
+  return $IssuedCertificateCopyWith<$Res>(_self.certificate!, (value) {
+    return _then(_self.copyWith(certificate: value));
   });
 }
 }
@@ -201,10 +228,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError,  RegionStatus certificateStatus,  IssuedCertificate? certificate,  String certificateError)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HistoryDetailState() when $default != null:
-return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError);case _:
+return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError,_that.certificateStatus,_that.certificate,_that.certificateError);case _:
   return orElse();
 
 }
@@ -222,10 +249,10 @@ return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detail
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError,  RegionStatus certificateStatus,  IssuedCertificate? certificate,  String certificateError)  $default,) {final _that = this;
 switch (_that) {
 case _HistoryDetailState():
-return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError);case _:
+return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError,_that.certificateStatus,_that.certificate,_that.certificateError);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -242,10 +269,10 @@ return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detail
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String applicationId,  RegionStatus detailStatus,  ApplicationDetail? detail,  String detailError,  bool detailNotFound,  bool refreshing,  RegionStatus timelineStatus,  CaseTimeline? timeline,  String timelineError,  RegionStatus certificateStatus,  IssuedCertificate? certificate,  String certificateError)?  $default,) {final _that = this;
 switch (_that) {
 case _HistoryDetailState() when $default != null:
-return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError);case _:
+return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detailError,_that.detailNotFound,_that.refreshing,_that.timelineStatus,_that.timeline,_that.timelineError,_that.certificateStatus,_that.certificate,_that.certificateError);case _:
   return null;
 
 }
@@ -257,7 +284,7 @@ return $default(_that.applicationId,_that.detailStatus,_that.detail,_that.detail
 
 
 class _HistoryDetailState extends HistoryDetailState {
-  const _HistoryDetailState({this.applicationId = '', this.detailStatus = RegionStatus.initial, this.detail, this.detailError = '', this.detailNotFound = false, this.refreshing = false, this.timelineStatus = RegionStatus.initial, this.timeline, this.timelineError = ''}): super._();
+  const _HistoryDetailState({this.applicationId = '', this.detailStatus = RegionStatus.initial, this.detail, this.detailError = '', this.detailNotFound = false, this.refreshing = false, this.timelineStatus = RegionStatus.initial, this.timeline, this.timelineError = '', this.certificateStatus = RegionStatus.initial, this.certificate, this.certificateError = ''}): super._();
   
 
 /// Which case is open. Empty before [HistoryDetailStarted].
@@ -288,6 +315,21 @@ class _HistoryDetailState extends HistoryDetailState {
 /// link of `:249`'s fallback chain — see [events].
 @override final  CaseTimeline? timeline;
 @override@JsonKey() final  String timelineError;
+// ── The certificate query (B5, specs.md § 6.6) ───────────────────────────
+/// The **list** query's region status — `certListQuery` (`:149`). The
+/// single fetch at `:157` deliberately does **not** move it: the source's
+/// `:486` gate reads `certListQuery.loading` and nothing else, so folding
+/// the two would make the note disappear during a fetch the source does
+/// not wait for (`B5-AC-44`).
+@override@JsonKey() final  RegionStatus certificateStatus;
+/// `certFromList ?? certOneQuery.data` — `:160`. Null until one of the two
+/// resolves, and permanently null when neither has a match.
+@override final  IssuedCertificate? certificate;
+/// The backend's own sentence when the certificate slice fails. Carried on
+/// its **own** field so a certificate outage cannot be mistaken for a case
+/// outage: the source runs three independent `useQuery`s and the detail and
+/// the timeline keep their data (`B5-AC-31`).
+@override@JsonKey() final  String certificateError;
 
 /// Create a copy of HistoryDetailState
 /// with the given fields replaced by the non-null parameter values.
@@ -299,16 +341,16 @@ _$HistoryDetailStateCopyWith<_HistoryDetailState> get copyWith => __$HistoryDeta
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HistoryDetailState&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.detailStatus, detailStatus) || other.detailStatus == detailStatus)&&(identical(other.detail, detail) || other.detail == detail)&&(identical(other.detailError, detailError) || other.detailError == detailError)&&(identical(other.detailNotFound, detailNotFound) || other.detailNotFound == detailNotFound)&&(identical(other.refreshing, refreshing) || other.refreshing == refreshing)&&(identical(other.timelineStatus, timelineStatus) || other.timelineStatus == timelineStatus)&&(identical(other.timeline, timeline) || other.timeline == timeline)&&(identical(other.timelineError, timelineError) || other.timelineError == timelineError));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _HistoryDetailState&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.detailStatus, detailStatus) || other.detailStatus == detailStatus)&&(identical(other.detail, detail) || other.detail == detail)&&(identical(other.detailError, detailError) || other.detailError == detailError)&&(identical(other.detailNotFound, detailNotFound) || other.detailNotFound == detailNotFound)&&(identical(other.refreshing, refreshing) || other.refreshing == refreshing)&&(identical(other.timelineStatus, timelineStatus) || other.timelineStatus == timelineStatus)&&(identical(other.timeline, timeline) || other.timeline == timeline)&&(identical(other.timelineError, timelineError) || other.timelineError == timelineError)&&(identical(other.certificateStatus, certificateStatus) || other.certificateStatus == certificateStatus)&&(identical(other.certificate, certificate) || other.certificate == certificate)&&(identical(other.certificateError, certificateError) || other.certificateError == certificateError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,applicationId,detailStatus,detail,detailError,detailNotFound,refreshing,timelineStatus,timeline,timelineError);
+int get hashCode => Object.hash(runtimeType,applicationId,detailStatus,detail,detailError,detailNotFound,refreshing,timelineStatus,timeline,timelineError,certificateStatus,certificate,certificateError);
 
 @override
 String toString() {
-  return 'HistoryDetailState(applicationId: $applicationId, detailStatus: $detailStatus, detail: $detail, detailError: $detailError, detailNotFound: $detailNotFound, refreshing: $refreshing, timelineStatus: $timelineStatus, timeline: $timeline, timelineError: $timelineError)';
+  return 'HistoryDetailState(applicationId: $applicationId, detailStatus: $detailStatus, detail: $detail, detailError: $detailError, detailNotFound: $detailNotFound, refreshing: $refreshing, timelineStatus: $timelineStatus, timeline: $timeline, timelineError: $timelineError, certificateStatus: $certificateStatus, certificate: $certificate, certificateError: $certificateError)';
 }
 
 
@@ -319,11 +361,11 @@ abstract mixin class _$HistoryDetailStateCopyWith<$Res> implements $HistoryDetai
   factory _$HistoryDetailStateCopyWith(_HistoryDetailState value, $Res Function(_HistoryDetailState) _then) = __$HistoryDetailStateCopyWithImpl;
 @override @useResult
 $Res call({
- String applicationId, RegionStatus detailStatus, ApplicationDetail? detail, String detailError, bool detailNotFound, bool refreshing, RegionStatus timelineStatus, CaseTimeline? timeline, String timelineError
+ String applicationId, RegionStatus detailStatus, ApplicationDetail? detail, String detailError, bool detailNotFound, bool refreshing, RegionStatus timelineStatus, CaseTimeline? timeline, String timelineError, RegionStatus certificateStatus, IssuedCertificate? certificate, String certificateError
 });
 
 
-@override $ApplicationDetailCopyWith<$Res>? get detail;@override $CaseTimelineCopyWith<$Res>? get timeline;
+@override $ApplicationDetailCopyWith<$Res>? get detail;@override $CaseTimelineCopyWith<$Res>? get timeline;@override $IssuedCertificateCopyWith<$Res>? get certificate;
 
 }
 /// @nodoc
@@ -336,7 +378,7 @@ class __$HistoryDetailStateCopyWithImpl<$Res>
 
 /// Create a copy of HistoryDetailState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? applicationId = null,Object? detailStatus = null,Object? detail = freezed,Object? detailError = null,Object? detailNotFound = null,Object? refreshing = null,Object? timelineStatus = null,Object? timeline = freezed,Object? timelineError = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? applicationId = null,Object? detailStatus = null,Object? detail = freezed,Object? detailError = null,Object? detailNotFound = null,Object? refreshing = null,Object? timelineStatus = null,Object? timeline = freezed,Object? timelineError = null,Object? certificateStatus = null,Object? certificate = freezed,Object? certificateError = null,}) {
   return _then(_HistoryDetailState(
 applicationId: null == applicationId ? _self.applicationId : applicationId // ignore: cast_nullable_to_non_nullable
 as String,detailStatus: null == detailStatus ? _self.detailStatus : detailStatus // ignore: cast_nullable_to_non_nullable
@@ -347,6 +389,9 @@ as bool,refreshing: null == refreshing ? _self.refreshing : refreshing // ignore
 as bool,timelineStatus: null == timelineStatus ? _self.timelineStatus : timelineStatus // ignore: cast_nullable_to_non_nullable
 as RegionStatus,timeline: freezed == timeline ? _self.timeline : timeline // ignore: cast_nullable_to_non_nullable
 as CaseTimeline?,timelineError: null == timelineError ? _self.timelineError : timelineError // ignore: cast_nullable_to_non_nullable
+as String,certificateStatus: null == certificateStatus ? _self.certificateStatus : certificateStatus // ignore: cast_nullable_to_non_nullable
+as RegionStatus,certificate: freezed == certificate ? _self.certificate : certificate // ignore: cast_nullable_to_non_nullable
+as IssuedCertificate?,certificateError: null == certificateError ? _self.certificateError : certificateError // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -374,6 +419,18 @@ $CaseTimelineCopyWith<$Res>? get timeline {
 
   return $CaseTimelineCopyWith<$Res>(_self.timeline!, (value) {
     return _then(_self.copyWith(timeline: value));
+  });
+}/// Create a copy of HistoryDetailState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$IssuedCertificateCopyWith<$Res>? get certificate {
+    if (_self.certificate == null) {
+    return null;
+  }
+
+  return $IssuedCertificateCopyWith<$Res>(_self.certificate!, (value) {
+    return _then(_self.copyWith(certificate: value));
   });
 }
 }
