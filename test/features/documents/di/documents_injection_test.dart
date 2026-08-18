@@ -30,6 +30,7 @@ import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.d
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/documents/data/datasources/documents_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
+import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
 import 'package:lcc_mobile_app/features/documents/domain/repositories/documents_repository.dart';
 import 'package:lcc_mobile_app/features/documents/domain/usecases/documents_usecases.dart';
 import 'package:lcc_mobile_app/features/help/di/help_injection.dart';
@@ -63,6 +64,7 @@ void main() {
     await historyInjection.reset();
     await certificatesInjection.reset();
     await documentsInjection.reset();
+    await familyBookInjection.reset();
   });
 
   group('DI-6 — one line in init() populates the whole slice', () {

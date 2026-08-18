@@ -17,6 +17,7 @@ import 'package:lcc_mobile_app/core/network/api_client.dart';
 import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
+import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
@@ -87,6 +88,8 @@ void main() {
     // scope deviation on exactly B9a's, B9b's, B8a's, F0b's, B6a's and B7a's
     // grounds.
     await certificatesInjection.reset();
+    await documentsInjection.reset();
+    await familyBookInjection.reset();
     // B5's. TENTH occurrence of the same omission, and the fourth caught by
     // `di_teardown_completeness_test.dart` rather than by an `ApiClient is
     // already registered inside GetIt` cascade. `features/documents/` is
@@ -95,7 +98,14 @@ void main() {
     // it. B5's § 3.1 table names `test/features/documents/**` and not this
     // file; the edit is a recorded scope deviation on exactly B9a's, B9b's,
     // B8a's, F0b's, B6a's, B7a's and F1's grounds.
-    await documentsInjection.reset();
+    // F4's. TENTH occurrence of the same omission, and the first predicted by
+    // the container's own doc before it happened
+    // (`family_book_injection.dart:16-25`). Added by the meta-orchestrator
+    // after F4's implementer was cut off mid-batch: without it,
+    // `FamilyBookDatasourceInjection.inject` re-registers `ApiClient` into a
+    // container the previous test left populated, and 43 tests fail with
+    // `Type ApiClient is already registered inside GetIt`. Recorded scope
+    // deviation on the same grounds the nine before it were.
   });
 
   group('DI-6 — one line in init() populates each whole feature', () {

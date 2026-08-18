@@ -32,6 +32,7 @@ import 'package:lcc_mobile_app/features/application/domain/usecases/application_
 import 'package:lcc_mobile_app/features/auth/di/auth_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_bloc_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
+import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/domain/submission/submission_clock.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_form_cubit.dart';
@@ -104,6 +105,8 @@ void main() {
       await applicationInjection.reset();
       await historyInjection.reset();
       await certificatesInjection.reset();
+      await documentsInjection.reset();
+      await familyBookInjection.reset();
       // B5's. **Eleventh** occurrence of the same omission, and the first that
       // `di_teardown_completeness_test.dart` could NOT catch: that guard names
       // three files (`kDiTestFiles`) and this is not one of them, so the
@@ -114,7 +117,14 @@ void main() {
       // B7a's and F1's grounds; FU-8 asks for `kDiTestFiles` to be widened to
       // every file that resets a container, which is discoverable by the same
       // scan the guard already performs.
-      await documentsInjection.reset();
+      // F4's. TENTH occurrence of the same omission, and the first predicted by
+      // the container's own doc before it happened
+      // (`family_book_injection.dart:16-25`). Added by the meta-orchestrator
+      // after F4's implementer was cut off mid-batch: without it,
+      // `FamilyBookDatasourceInjection.inject` re-registers `ApiClient` into a
+      // container the previous test left populated, and 43 tests fail with
+      // `Type ApiClient is already registered inside GetIt`. Recorded scope
+      // deviation on the same grounds the nine before it were.
     });
 
     test('THE DEFECT — the container passes a pay port', () {
@@ -210,6 +220,8 @@ void main() {
       await applicationInjection.reset();
       await historyInjection.reset();
       await certificatesInjection.reset();
+      await documentsInjection.reset();
+      await familyBookInjection.reset();
     });
 
     BirthFormCubit birth({Lang lang = Lang.en}) =>
@@ -348,6 +360,8 @@ void main() {
       await applicationInjection.reset();
       await historyInjection.reset();
       await certificatesInjection.reset();
+      await documentsInjection.reset();
+      await familyBookInjection.reset();
     });
 
     MarriageFormCubit marriage({Lang lang = Lang.en}) =>

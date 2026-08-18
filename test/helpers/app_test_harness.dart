@@ -130,6 +130,7 @@ import 'package:lcc_mobile_app/features/application/data/datasources/application
 import 'package:lcc_mobile_app/features/application/data/repositories/application_repository_impl.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
+import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
 import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
@@ -940,6 +941,15 @@ Future<void> resetHarness() async {
   // `features/certificates/` registers a BLoC and nothing else, so there is no
   // second container to bring down the way `features/application/` needs.
   await certificatesInjection.reset();
+  await familyBookInjection.reset();
+  // F4's. TENTH occurrence of the same omission, and the first predicted by
+  // the container's own doc before it happened
+  // (`family_book_injection.dart:16-25`). Added by the meta-orchestrator
+  // after F4's implementer was cut off mid-batch: without it,
+  // `FamilyBookDatasourceInjection.inject` re-registers `ApiClient` into a
+  // container the previous test left populated, and 43 tests fail with
+  // `Type ApiClient is already registered inside GetIt`. Recorded scope
+  // deviation on the same grounds the nine before it were.
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.
