@@ -51,6 +51,19 @@ const String kDeathDir = 'lib/features/certificates/presentation/death';
 /// holds the 18-namespace bundle — not to fall back on a relative ref.
 const String kPreF2Ref = '7ee0e0b';
 
+/// F2's tip — the commit that landed its i18n append.
+///
+/// The **other** endpoint of `F2-AC-80`'s comparison, and fixed for the same
+/// reason [kPreF2Ref] is. FU-10 pinned the baseline and left this side reading
+/// the working tree, which was invisible until the 2026-08-19 merge-back: B5
+/// then added two keys to `history` under its own § 6.12 grant, and this test
+/// reported them as F2 modifying a pre-F2 namespace.
+///
+/// A criterion about *F2's diff* needs both ends pinned. With only one pinned,
+/// the assertion drifts from "what F2 did" toward "what the branch has become"
+/// — quietly, and blaming the wrong batch when it finally fires.
+const String kF2Tip = '851397c';
+
 List<File> _dartFiles(String dir) {
   final Directory d = Directory(dir);
   if (!d.existsSync()) return <File>[];
@@ -470,7 +483,25 @@ void main() {
             reason: 'could not read the pre-F2 asset out of HEAD');
         final Map<String, dynamic> before =
             jsonDecode(r.stdout as String) as Map<String, dynamic>;
-        final Map<String, dynamic> after = bundle(locale);
+        // **`kF2Tip`, not the working tree — 2026-08-19.** FU-10 fixed the
+        // *baseline* side of this comparison; the merge-back exposed the same
+        // defect on the *other* side. Read against the tree, this loop blamed
+        // F2 for `history.viewDocument` and `history.downloadDocument` — two
+        // keys **B5** added under its own § 6.12 grant, in a namespace that
+        // happens to predate F2.
+        //
+        // `F2-AC-80`'s subject is *F2 changed nothing that already existed*,
+        // which is a property of F2's diff. Both endpoints of the comparison
+        // are therefore fixed points: `kPreF2Ref..kF2Tip` is F2, and no later
+        // batch's lawful append can redden it.
+        final ProcessResult tip = Process.runSync(
+          'git',
+          <String>['show', '$kF2Tip:assets/i18n/$locale.json'],
+        );
+        expect(tip.exitCode, 0,
+            reason: 'could not read the F2 tip asset out of $kF2Tip');
+        final Map<String, dynamic> after =
+            jsonDecode(tip.stdout as String) as Map<String, dynamic>;
 
         expect(before.length, 18,
             reason: 'the pre-F2 baseline is 18 namespaces');
@@ -481,8 +512,50 @@ void main() {
           expect(
             jsonEncode(after[ns]),
             equals(jsonEncode(before[ns])),
-            reason: '$locale: the `$ns` namespace is not byte-identical to '
-                'HEAD. F2 is append-only (§ 3.1 row 5).',
+            reason: '$locale: F2 modified the `$ns` namespace between '
+                '$kPreF2Ref and $kF2Tip. F2 is append-only (§ 3.1 row 5).',
+          );
+        }
+
+        // **The second half, and it is not redundant with the loop above.**
+        //
+        // Pinning both ends answers *did F2 modify a pre-F2 namespace* and is
+        // blind to the working tree by construction — a mutation in
+        // `assets/i18n/` today is invisible to it. Verified the hard way: after
+        // pinning both ends, `resident.headerTitle` was given a stray `X` and
+        // this file still reported 27/27. One blindness had been traded for
+        // another.
+        //
+        // So the pre-F2 namespaces are also checked against **what actually
+        // ships**. Later batches may append namespaces — that is lawful and the
+        // loop above no longer objects — but nobody may edit a pre-F2 one, and
+        // that is a property of the bundle on disk, not of any diff.
+        //
+        // `history` is the one exception, and it is named rather than skipped:
+        // B5 added `viewDocument`/`downloadDocument` under its own § 6.12
+        // grant, which `documents_scope_test.dart` asserts positively. Its
+        // *other* keys must still be untouched.
+        final Map<String, dynamic> shipped = bundle(locale);
+        for (final String ns in before.keys) {
+          expect(shipped.containsKey(ns), isTrue,
+              reason: '$locale: the shipped bundle lost the `$ns` namespace');
+          if (ns == 'history') {
+            final Map<String, dynamic> b = before[ns] as Map<String, dynamic>;
+            final Map<String, dynamic> s = shipped[ns] as Map<String, dynamic>;
+            for (final String key in b.keys) {
+              expect(jsonEncode(s[key]), jsonEncode(b[key]),
+                  reason: '$locale: `history.$key` was edited. B5 may add to '
+                      'this namespace (§ 6.12); nobody may change what was '
+                      'already in it.');
+            }
+            continue;
+          }
+          expect(
+            jsonEncode(shipped[ns]),
+            equals(jsonEncode(before[ns])),
+            reason: '$locale: the shipped `$ns` namespace differs from '
+                '$kPreF2Ref. Pre-F2 namespaces are append-only for every '
+                'batch, not just F2.',
           );
         }
 

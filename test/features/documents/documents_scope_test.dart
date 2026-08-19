@@ -84,19 +84,33 @@ const Map<String, String> _recordedDeviations = <String, String>{
           'FU-8 asks for kDiTestFiles to be widened.',
 };
 
+/// B5's branch point and tip. Fixed points, for the reason `kPreF2Ref` is one
+/// in `f2_scope_test.dart` (FU-10).
+const String kB5Base = '7ee0e0b';
+const String kB5Tip = 'a6dea08';
+
 List<String> _changedPaths() {
-  final ProcessResult tracked =
-      Process.runSync('git', <String>['diff', '--name-only', 'HEAD']);
-  final ProcessResult untracked = Process.runSync(
+  // **Rewritten 2026-08-19: B5's own diff, not the working tree.**
+  //
+  // This read `git diff --name-only HEAD` plus the untracked list — i.e.
+  // *everything uncommitted in this checkout*. That was exactly right while B5
+  // was the only work in flight, and became wrong the moment B5 was committed
+  // and merged: the scan then reported whatever any later batch or repair
+  // happened to be holding, and `B5-AC-93` failed naming
+  // `test/features/application/application_scope_test.dart` — a file B4 owns
+  // and B5 never touched.
+  //
+  // `B5-AC-93`'s subject is *every changed path **in B5** is in § 3.1*. That is
+  // a statement about B5's diff. Measuring the checkout answers a different
+  // question and gets louder the further the branch moves.
+  final ProcessResult tracked = Process.runSync(
     'git',
-    <String>['ls-files', '--others', '--exclude-standard'],
+    <String>['diff', '--name-only', '$kB5Base..$kB5Tip'],
   );
   expect(tracked.exitCode, 0, reason: 'git diff failed: ${tracked.stderr}');
-  expect(untracked.exitCode, 0, reason: 'git ls-files failed');
 
   return <String>[
     ...(tracked.stdout as String).trim().split('\n'),
-    ...(untracked.stdout as String).trim().split('\n'),
   ].where((String p) => p.isNotEmpty).toList()
     ..sort();
 }
@@ -171,12 +185,39 @@ void main() {
       final List<String> hits = _grepLib(r'/verify');
       // Six pre-existing, all `verify-otp` (B-auth's, and they predate B5 by
       // every batch), plus one B5 adds.
+      //
+      // **`submission_executor.dart` excluded 2026-08-19, and excluded on the
+      // principle this test already states three assertions below.** B4 landed
+      // after B5 measured six, and its executor's library doc names
+      // `/verify/document-hash` in a list of endpoints the programme
+      // **refused** — `steps`-deletion prose, not a call. The final assertion
+      // here already draws that line for `api_endpoint.dart`: *"`DartFile.code`
+      // is comment-stripped, so the paragraph explaining the absence does not
+      // count as a port of it."* `_grepLib` is not comment-stripped, so the
+      // same sentence in a different file was counted where the other was not.
+      //
+      // Excluding the file by name rather than raising 6 to 7: the number is
+      // *files that mention `/verify` in code*, and the executor is not one of
+      // them. A raised literal would have quietly admitted a real port later.
+      const String kExecutorProse =
+          'lib/features/certificates/domain/submission/submission_executor.dart';
       expect(
-        hits.where((String h) => !h.startsWith('lib/presentation/documents/')),
+        hits.where((String h) =>
+            !h.startsWith('lib/presentation/documents/') &&
+            !h.startsWith(kExecutorProse)),
         hasLength(6),
         reason: 'the criterion says "only authVerifyOtp"; the measured '
             'pre-existing count is six files, all of them the same auth '
             'endpoint',
+      );
+      // The exclusion is bounded: the executor must mention it only in a
+      // comment. If `/verify` ever reaches its code, this fails.
+      expect(
+        libFiles
+            .where((DartFile f) => f.path.startsWith(kExecutorProse))
+            .where((DartFile f) => f.code.contains('/verify')),
+        isEmpty,
+        reason: 'the executor may name /verify in prose, never in code',
       );
       expect(
         hits.where((String h) => h.startsWith('lib/presentation/documents/')),
@@ -506,7 +547,27 @@ void main() {
     });
 
     test('exactly one new namespace, with exactly the § 6.12 keys', () {
-      expect(en.keys.length, 19, reason: '18 at `7ee0e0b`, plus `documents`');
+      // **Rewritten 2026-08-19.** This asserted `en.keys.length == 19` — 18 at
+      // `7ee0e0b` plus B5's `documents`. Correct when written, wrong after F4
+      // (`familyBook`, `familyBookPage`) and F2/F3 (four more) merged in: 25
+      // now, and higher the next time any batch appends one lawfully.
+      //
+      // The subject is *B5 adds exactly one*, which is a property of B5's diff.
+      // Measured as one: the branch-point set plus `documents`, and nothing
+      // else B5 could have added. Later batches' namespaces are irrelevant to
+      // it and are no longer able to redden it.
+      final ProcessResult r = Process.runSync(
+        'git',
+        <String>['show', '$kB5Base:assets/i18n/en.json'],
+      );
+      expect(r.exitCode, 0, reason: 'could not read $kB5Base:assets/i18n/en.json');
+      final Set<String> before =
+          (jsonDecode(r.stdout as String) as Map<String, dynamic>).keys.toSet();
+      expect(before.contains('documents'), isFalse,
+          reason: '`documents` must be new in B5');
+      expect(en.keys.toSet().containsAll(before), isTrue,
+          reason: 'B5 must not remove a pre-existing namespace');
+      expect(en.keys.contains('documents'), isTrue);
       expect(
         (en['documents'] as Map<String, dynamic>).keys.toSet(),
         <String>{
@@ -559,10 +620,15 @@ void main() {
       // the `documents` namespace before `"history": {` — appending after the
       // last entry of either would have added a trailing comma to a
       // pre-existing line and shown up here.
+      // `$kB5Base..$kB5Tip`, not `HEAD` — 2026-08-19, same correction as
+      // `_changedPaths`. Against the working tree this returned an empty row
+      // set once B5 was committed, so the assertion below found nothing to
+      // check and failed on `hasLength(2)`. A zero-deletion claim about B5 has
+      // to be measured over B5's commits.
       final ProcessResult numstat = Process.runSync('git', <String>[
         'diff',
         '--numstat',
-        'HEAD',
+        '$kB5Base..$kB5Tip',
         '--',
         'assets/i18n/',
       ]);

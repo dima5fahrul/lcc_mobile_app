@@ -189,11 +189,22 @@ void main() {
       // the name and are covered by the named-absence assertions below instead.
       //
       // 18 was measured on `851397c` before B4's first edit with this exact
-      // regex; it is 18 now, with zero added and zero removed. A literal number
-      // rather than a relative check, so *adding* one and *removing* one cannot
-      // cancel out — and a `removeAttachment` path would necessarily take this
-      // form, because it needs two segments interpolated.
-      expect(endpointMembersOf(endpointSrc), hasLength(18));
+      // regex, and B4 added and removed none. **19 after the 2026-08-19
+      // merge-back**: B5 landed `meCertificate(String id)`, granted by its own
+      // § 3.1 row 10 (*"exactly two constants: `meCertificates` and
+      // `meCertificate(id)`"*), and B5 merged into this branch after B4's
+      // measurement was taken. Verified to be that one member and no other:
+      //
+      //   851397c → 18 · HEAD → 19 · delta → {meCertificate}
+      //
+      // **The literal stays a literal.** The number moved, the instrument did
+      // not: a relative check would let *adding* one path and *removing*
+      // another cancel out, and a `removeAttachment` path — the thing this
+      // assertion exists to catch — would necessarily take this form, because
+      // it needs two segments interpolated. Raising the number after measuring
+      // the delta is the correct maintenance; making it derive itself from the
+      // tree is not, and is the defect FU-10 records elsewhere in this suite.
+      expect(endpointMembersOf(endpointSrc), hasLength(19));
     });
 
     test('no member is named for either uncalled endpoint', () {
@@ -237,7 +248,10 @@ void main() {
       );
       expect(mutated, isNot(endpointSrc), reason: 'the mutation must apply');
 
-      expect(endpointMembersOf(mutated), hasLength(19));
+      // Baseline + 1. Both numbers moved together on 2026-08-19 when B5's
+      // `meCertificate` merged in (18→19 baseline, 19→20 here); the property
+      // asserted — *one more member than the tree has* — is unchanged.
+      expect(endpointMembersOf(mutated), hasLength(20));
       expect(
         endpointMembersOf(mutated),
         contains('applicationRemoveAttachment'),
@@ -424,21 +438,87 @@ void main() {
   // B4-AC-8 / B4-AC-9 — B4 renders nothing
   // ───────────────────────────────────────────────────────────────────────────
   group('B4 renders nothing', () {
-    test('B4-AC-8 the i18n namespaces are 22, and none is named `application`',
+    test('B4-AC-8 B4 adds no i18n namespace, and none is named `application`',
         () {
+      // **Rewritten 2026-08-19.** This asserted `hasLength(22)` — the count at
+      // B4's branch point. B4 added none, so the number was right when written
+      // and wrong the moment F4 (`familyBook`, `familyBookPage`) and B5
+      // (`documents`) merged in: 25 now, and 26 the next time any batch appends
+      // one legitimately.
+      //
+      // The criterion's subject is **B4 adds none**, which is a statement about
+      // B4's diff, not about the tree's total. An absolute count cannot express
+      // that and turns every later batch's lawful append into a red B4 test —
+      // the same class of defect FU-10 records in `f2_scope_test.dart`, where a
+      // guard that dereferenced a moving `HEAD` went silently inert.
+      //
+      // So: measure **B4's own diff**, not the tree. `git diff <base>..<tip>`
+      // over `assets/i18n/` across B4's two commits must be empty — that is the
+      // statement *B4 added none*, and it stays true no matter what F4, B5 or
+      // any later batch appends afterwards.
+      //
+      // A first attempt at this fix compared the branch point against the
+      // working tree and failed, blaming B4 for `history.viewDocument` — a key
+      // **B5** added under its own § 6.12 grant. Measuring the tree cannot tell
+      // you whose change it is; measuring the diff can. `kB4Base`/`kB4Tip` are
+      // fixed points for the same reason `kPreF2Ref` is.
+      const String kB4Base = '851397c';
+      const String kB4Tip = '66d757b';
+      final ProcessResult diff = Process.runSync(
+        'git',
+        <String>['diff', '--name-only', '$kB4Base..$kB4Tip', '--', 'assets/'],
+      );
+      expect(diff.exitCode, 0, reason: 'could not diff B4 over assets/');
+      expect((diff.stdout as String).trim(), isEmpty,
+          reason: 'B4 touched assets/: ${diff.stdout}');
+
+      // And no namespace is named `application`, measured on the tree — this
+      // half is a property of the shipped bundle, not of B4's diff, so it is
+      // correct to read the tree here.
       for (final String locale in <String>['en', 'lo']) {
         final Map<String, dynamic> json =
             jsonDecode(File('assets/i18n/$locale.json').readAsStringSync())
                 as Map<String, dynamic>;
-        expect(json.keys, hasLength(22), reason: '$locale: ${json.keys}');
         expect(json.keys, isNot(contains('application')));
       }
     });
 
     test('B4-AC-9 features/application has no route and no page', () {
+      // **Narrowed 2026-08-19, and narrowed rather than relaxed.** The original
+      // regex was `features/application` over the whole routes directory, which
+      // read every mention as evidence of a route. After the merge-back it
+      // matched `app_routes.dart:114`:
+      //
+      //   import '../../features/application/domain/entities/application_detail.dart';
+      //
+      // That import is **B5's**, granted by its § 3.1 row 9 — the route builder
+      // supplies `HistoryPage`'s two document seams and needs the domain type to
+      // spell their signatures. A domain-entity import is exactly what CFI
+      // *requires* of a cross-feature reference (`ssd.md` § 4.3); reading it as
+      // a route inverted the rule it was written to protect.
+      //
+      // The subject is this group's title — *B4 renders nothing*. So the scan
+      // now looks for what a route or a page would actually be: a `GoRoute`
+      // naming an application path, or any import reaching into
+      // `features/application/presentation/`, which does not exist and must not
+      // come to exist. A `domain/` import is permitted **and named as
+      // permitted**, so a future reader does not re-widen this on the
+      // assumption the narrowing was a workaround.
+      final List<String> routeShaped = scan(
+        'lib/utils/routes',
+        RegExp(r"features/application/presentation|GoRoute\([^)]*application"),
+      );
+      expect(routeShaped, isEmpty, reason: routeShaped.join('\n'));
+
+      // The capability half: prove the scan can still see a violation. Without
+      // this the assertion above passes on any tree in which the regex has
+      // silently stopped matching — the failure mode FU-10 records.
+      const String planted =
+          "import '../../features/application/presentation/foo_page.dart';";
       expect(
-        scan('lib/utils/routes', RegExp(r'features/application')),
-        isEmpty,
+        RegExp(r'features/application/presentation').hasMatch(planted),
+        isTrue,
+        reason: 'the narrowed pattern must still catch a real page import',
       );
     });
   });
