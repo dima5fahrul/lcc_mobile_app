@@ -19,6 +19,22 @@ enum SaveOutcome {
   nothingChanged,
 }
 
+/// Whether an avatar upload has just succeeded — B8b's analogue of
+/// [SaveOutcome.saved], and for the same mechanical reason.
+///
+/// `AccountPage.tsx:240-241` runs **two** refreshes after a successful upload:
+/// `profileQuery.refetch()` and `await session.refresh()`. The first is this
+/// BLoC's; the second needs `SessionBloc`, which arrives by context and which a
+/// BLoC therefore cannot reach — so the page listens for [uploaded] and
+/// dispatches it, exactly as it already does for [SaveOutcome.saved].
+///
+/// An enum rather than a `bool` so that a **second** upload re-fires the
+/// listener: the handler resets to [none] before each attempt, so
+/// `listenWhen`'s edge exists every time. A latching `bool` would refresh the
+/// session after the first upload of a session and never again — invisible in
+/// a single-upload test, and `B8-AC-54` guarantees repeat uploads happen.
+enum AvatarOutcome { none, uploaded }
+
 /// `pwError` when it came from the two client-side rules — `:276-277`.
 ///
 /// Separate from [AccountProfileState.passwordServerError] for the same reason
@@ -58,6 +74,37 @@ abstract class AccountProfileState with _$AccountProfileState {
     /// `address` is present in this map when the server sends it and is
     /// **never rendered**, matching the source (B8-AC-49).
     @Default(<String, String>{}) Map<String, String> fieldErrors,
+
+    // ── The avatar upload — B8b ────────────────────────────────────────────
+
+    /// `uploadAvatar.pending` — `AccountPage.tsx:349`, the badge's spinner
+    /// branch.
+    ///
+    /// **Last-writer-wins under concurrency, faithfully.** `useMutation` sets
+    /// `pending` true at the top of `run` and false in its `finally`
+    /// (`hooks.ts:133`, `:147-149`), so two overlapping uploads in the web app
+    /// clear the spinner when the *first* finishes, not the last. One boolean
+    /// here reproduces that. A counter would be the tidier engineering and a
+    /// different observable — `B8b-5`/GG-8 says record the weakness, do not
+    /// repair it.
+    @Default(false) bool uploadingAvatar,
+
+    /// Set to [AvatarOutcome.uploaded] on success and reset to
+    /// [AvatarOutcome.none] before each attempt. The page's `BlocListener`
+    /// keys `session.refresh()` off the transition — see [AvatarOutcome].
+    @Default(AvatarOutcome.none) AvatarOutcome avatarOutcome,
+
+    // **There is no `avatarError` field, and its absence is the port.**
+    // `AccountPage.tsx:242-243` catches and discards, with the comment
+    // *"uploadAvatar.error carries the message"* — which is false:
+    // `uploadAvatar` is read at `:239` (`.run`) and `:349` (`.pending`) and
+    // nowhere else, so the error `useMutation` captures is **never rendered**.
+    // A failed upload is completely silent in the shipped web app: the spinner
+    // stops and the citizen has no way to know whether their face arrived.
+    // That is `security-review-b8b.md`'s `B8b-4` (MEDIUM), and it is the
+    // oracle's defect, not the port's. Adding a field here would create the
+    // only path by which a future edit could render it — an error surface the
+    // web has no analogue for, which is L-10(b). Recorded as **GG-7**.
 
     // ── The password form ──────────────────────────────────────────────────
 

@@ -35,6 +35,28 @@ final class AccountProfileSaved extends AccountProfileEvent {
   final String address;
 }
 
+/// The citizen picked a photograph for their avatar — `handleAvatar`'s body
+/// after the early return (`AccountPage.tsx:238`). B8b.
+///
+/// **One event per pick, and no in-flight guard anywhere.** The source's
+/// button has no `disabled` attribute (`:333-340`) and `handleAvatar` has no
+/// pending check (`:234-245`), so tapping the avatar twice starts two
+/// concurrent multipart POSTs and network ordering decides which photograph
+/// becomes the citizen's identity avatar. That is `security-review-b8b.md`'s
+/// `B8b-5` (MEDIUM): a real weakness, **ported as measured** and recorded as
+/// **GG-8**, because adding a guard the web does not have is L-10(b) — the same
+/// rule that forbids stripping EXIF two files away.
+///
+/// It also carries `B8-AC-54`: re-picking the **same** file fires a second
+/// upload. Nothing memoises a picker result, and
+/// [UploadAvatarParams] compares on identity rather than bytes so that two
+/// picks of one photograph cannot collapse into one.
+final class AccountAvatarPicked extends AccountProfileEvent {
+  const AccountAvatarPicked(this.file);
+
+  final PickedAvatar file;
+}
+
 /// The password form's submit — `AccountPage.tsx:673`.
 ///
 /// [confirmPassword] is carried so the BLoC can run the source's second check

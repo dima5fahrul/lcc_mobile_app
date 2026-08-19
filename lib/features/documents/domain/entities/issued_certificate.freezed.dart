@@ -28,8 +28,8 @@ mixin _$IssuedCertificate {
 /// wire sends is parsed.
  String? get verifyUrl; String? get qrPayload;/// Parsed, **not rendered** — the History path always *generates* the
 /// document (`HistoryDetailPage.tsx:651` passes a `spec`, never a URL).
-/// The `staticUrl` branch that would read this is `features/account/`'s
-/// and stays deferred (specs.md § 6.11, FU-1).
+/// The Account branch that would read this — a remote PDF URL in an
+/// `<iframe>` — stays deferred (specs.md § 6.11, FU-1).
  String? get fileUrl;/// Parsed, **not rendered** — its only reader in the source was the
 /// document-hash check in the `verification` namespace, whose two endpoints
 /// have zero call sites (specs.md Finding A).
@@ -291,8 +291,8 @@ class _IssuedCertificate extends IssuedCertificate {
 @override final  String? qrPayload;
 /// Parsed, **not rendered** — the History path always *generates* the
 /// document (`HistoryDetailPage.tsx:651` passes a `spec`, never a URL).
-/// The `staticUrl` branch that would read this is `features/account/`'s
-/// and stays deferred (specs.md § 6.11, FU-1).
+/// The Account branch that would read this — a remote PDF URL in an
+/// `<iframe>` — stays deferred (specs.md § 6.11, FU-1).
 @override final  String? fileUrl;
 /// Parsed, **not rendered** — its only reader in the source was the
 /// document-hash check in the `verification` namespace, whose two endpoints

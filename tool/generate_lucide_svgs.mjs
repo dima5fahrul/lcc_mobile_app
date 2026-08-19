@@ -98,6 +98,32 @@ const RESTORE_COMMAND = 'cd projects/lcc-mobile-app/sources/lcc-app && pnpm inst
  * here — a bundled glyph with no renderer is the shape B9a refused for
  * `deleteNotification`.
  *
+ * ── B8b: +1 = 93 ────────────────────────────────────────────────────────────
+ *
+ * `Camera`, as the paragraph above reserved. B8b ships the avatar upload, so
+ * `AccountPage.tsx:354`'s third badge branch now has a renderer and the glyph
+ * stops being bundled-with-nothing-behind-it.
+ *
+ * **Why it could not be skipped.** `LucideIcon` does not fail on an unbundled
+ * name: `app_icons.dart:115` substitutes `AppIcons.fallback`, which is
+ * `FileText`. So omitting `Camera` does not omit the badge — it renders a
+ * **document glyph** on a citizen's avatar, and no fidelity tier in this
+ * project can see it (Tier 1 reads text, Tier 2 reads colour tokens, Tier 3
+ * has no reference for this page, § 2.2 Finding C). `B8-AC-55` requires the
+ * three-way badge; `FileText` would satisfy a `find.byType(LucideIcon)`
+ * assertion and fail the criterion.
+ *
+ * **Recorded scope deviation, in the shape B8a used.** specs.md § 3.1's B8b
+ * table does not name `tool/`, `assets/icons/lucide/`,
+ * `lib/presentation/icons/` or `test/presentation/icons/` either — the same
+ * four paths B8a and B12 took for the same reason, with this batch named in
+ * advance by the paragraph above as the one that adds this glyph. The change
+ * is additive, generated and deterministic; **`pubspec.yaml` is untouched**
+ * (`- assets/icons/lucide/` is declared as a directory, `:88`), so
+ * `B8-AC-15` and `B8-AC-57`-as-amended both hold; and neither resolver scope
+ * in `app_icons.dart` changes (still 54 and 12), because this is page chrome
+ * and not an API-supplied name.
+ *
  * **`Globe` is NOT `Globe2`.** `Globe2` is already in the list above and is
  * lucide's alias for `icons/earth.js`; `Globe` is `icons/globe.js`, a
  * different drawing. Reusing the bundled one because the name looks close is
@@ -118,7 +144,7 @@ const NAMES = [
   'Accessibility', 'AlertCircle', 'AlertOctagon', 'AlertTriangle', 'ArrowRight',
   'Award', 'Baby', 'BadgeCheck', 'Bell', 'BookOpen',
   'BookX', 'Building', 'Building2', 'Bus', 'Calendar',
-  'CalendarCheck', 'Car', 'CarFront', 'Check', 'CheckCircle',
+  'CalendarCheck', 'Camera', 'Car', 'CarFront', 'Check', 'CheckCircle',
   'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ClipboardList', 'Clock',
   'Coins', 'CreditCard', 'Crown', 'Download', 'Eye',
   'EyeOff', 'FileCheck2', 'FileClock', 'FileText', 'Gavel',
@@ -136,9 +162,11 @@ const NAMES = [
   'X', 'Zap',
 ];
 
-const EXPECTED_NAME_COUNT = 92; // 86 (B2a) + 3 (B8a: CreditCard, Globe, LogOut)
+const EXPECTED_NAME_COUNT = 93; // 86 (B2a) + 3 (B8a: CreditCard, Globe, LogOut)
                                 //          + 3 (B12: BookX, RotateCcw, Crown — F4's
                                 //            B-3, which routing made visible)
+                                //          + 1 (B8b: Camera — the avatar badge's
+                                //            third branch, reserved by B8a above)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers

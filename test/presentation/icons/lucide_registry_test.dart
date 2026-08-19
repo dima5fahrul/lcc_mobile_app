@@ -38,10 +38,24 @@ import 'package:lcc_mobile_app/presentation/shell/language_toggle.dart';
 /// wrong glyph on the empty state, which B-3 itself calls the single most
 /// visible element on slot 47. Bundled here on that ground.
 ///
+/// ── B8b: +1 = 93 ────────────────────────────────────────────────────────────
+///
+/// `Camera` — `AccountPage.tsx:19`, rendered at `:354` as the avatar badge's
+/// third branch. B8a bundled its own three and **reserved this one for B8b by
+/// name** (`tool/generate_lucide_svgs.mjs`), on the ground that a bundled glyph
+/// with no renderer is what B9a refused for `deleteNotification`. B8b ships the
+/// upload, so the renderer now exists.
+///
+/// The failure mode this closes is the one F4's B-3 hit above, before it was
+/// visible: `AppIcons.assetFor` falls back to `FileText`, so an unbundled
+/// `Camera` does not render *nothing* — it renders a **document** on a
+/// citizen's avatar, and `B8-AC-55`'s three-way badge would look satisfied to
+/// any assertion that only counted `LucideIcon`s.
+///
 /// Generated, not drawn: `node tool/generate_lucide_svgs.mjs`, reading the
 /// in-tree pinned `lucide-react@0.487.0`. `--check` re-run afterwards reports
 /// `written 0`, so the output is idempotent and the geometry is the web's own.
-const int kLucideUnionSize = 92;
+const int kLucideUnionSize = 93;
 
 /// § 6.3.3's ceiling for `assets/icons/**` in total.
 const int kIconByteCeiling = 120000;
@@ -50,7 +64,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('B2-AC-13 assets resolve through rootBundle', () {
-    test('the registry holds the 92-name union', () {
+    test('the registry holds the 93-name union', () {
       expect(lucideRegistry, hasLength(kLucideUnionSize));
       expect(lucideRegistry.values.toSet(), hasLength(kLucideUnionSize),
           reason: 'two names sharing one asset path would make the byte '

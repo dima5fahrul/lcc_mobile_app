@@ -50,10 +50,24 @@ CitizenAccount account({
       createdAt: '2020-01-01T00:00:00Z',
     );
 
+/// A `const`-able default for [pumpHeader]'s `onPickAvatar`.
+void _noop() {}
+
+/// B8b added two required parameters to [AccountHeader] — `uploading` and
+/// `onPickAvatar`. They are surfaced here with defaults so B8a's cases keep
+/// their subject (the render, not the control): every case below still pumps
+/// the not-uploading state, which is what they were written to assert.
+///
+/// **The upload control has its own file** — `account_avatar_test.dart` — which
+/// drives `uploading: true` and a real tap. A default here is a convenience for
+/// callers that do not exercise the control, not a way for the control to go
+/// untested.
 Future<void> pumpHeader(
   WidgetTester tester, {
   required CitizenAccount? subject,
   bool loading = false,
+  bool uploading = false,
+  VoidCallback onPickAvatar = _noop,
   Locale locale = const Locale('en'),
 }) async {
   tester.view.devicePixelRatio = 1.0;
@@ -73,7 +87,12 @@ Future<void> pumpHeader(
         supportedLocales: context.supportedLocales,
         locale: context.locale,
         home: Scaffold(
-          body: AccountHeader(account: subject, loading: loading),
+          body: AccountHeader(
+            account: subject,
+            loading: loading,
+            uploading: uploading,
+            onPickAvatar: onPickAvatar,
+          ),
         ),
       ),
     ),

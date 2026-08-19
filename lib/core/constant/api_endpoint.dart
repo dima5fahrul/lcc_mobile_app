@@ -262,6 +262,27 @@ class ApiEndpoint {
   /// `endpoints.ts:115` — `me.documents`. A **plain array**, not paged.
   static const String meDocuments = '/me/documents';
 
+  // ── Avatar upload (authenticated, multipart) — B8b ─────────────────────────
+  //
+  // `endpoints.ts:107-111`'s `me.uploadAvatar`. Additive only (SSD § 6.5,
+  // B8-AC-63): nothing above changed, `baseUrl` and the release HTTPS guard are
+  // byte-identical.
+  //
+  // **The send direction has the host constraint the render direction lacks.**
+  // This POST goes through [baseUrl] and its release HTTPS guard (`:31-42`);
+  // the `avatar_url` that comes back is fetched by `Image.network` with no host
+  // constraint and no `Authorization` header (`account_header.dart:261`,
+  // B8a `security-review.md` MEDIUM-2). `security-review-b8b.md` § 6 names that
+  // asymmetry, and FU-12 owns it — it is not closed here.
+
+  /// `endpoints.ts:110` — `me.uploadAvatar`.
+  ///
+  /// Multipart, one part named exactly `file`, and the caller sets **no**
+  /// `Content-Type` so Dio owns the boundary — `api_client.dart:253-257`, the
+  /// mirror of `client.ts:236`'s *"the browser sets the multipart boundary
+  /// itself"*. B8-AC-56.
+  static const String meAvatar = '/me/avatar';
+
   // ── Reference lists and locations (public, anonymous) — F0b ────────────────
   //
   // `endpoints.ts:185-186`'s `catalog.referenceList` and `:215-252`'s three

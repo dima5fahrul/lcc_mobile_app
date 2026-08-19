@@ -67,6 +67,7 @@ import 'package:lcc_mobile_app/features/account/data/datasources/account_remote_
 import 'package:lcc_mobile_app/features/account/data/repositories/account_repository_impl.dart';
 import 'package:lcc_mobile_app/features/account/domain/entities/citizen_document.dart';
 import 'package:lcc_mobile_app/features/account/domain/entities/citizen_preferences.dart';
+import 'package:lcc_mobile_app/features/account/domain/entities/picked_avatar.dart';
 import 'package:lcc_mobile_app/features/application/data/datasources/application_remote_datasource.dart';
 import 'package:lcc_mobile_app/features/application/data/repositories/application_repository_impl.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/application_detail.dart';
@@ -288,4 +289,14 @@ class _ThrowingAccount implements AccountRemoteDatasource {
 
   @override
   Future<List<CitizenDocument>> getDocuments() async => throw error;
+
+  /// B8b's fourth call. Added because the interface grew, not because the
+  /// avatar path is under test here: its `Failure` is **discarded** by
+  /// `AccountProfileBloc._onAvatarPicked` — the oracle renders nothing on a
+  /// failed upload (`security-review-b8b.md` `B8b-4`) — so unlike the three
+  /// above it reaches no widget and adds no render site for `MAJOR-1`'s
+  /// surviving generic arm. `AccountRepositoryImpl.uploadAvatar` documents that
+  /// in full.
+  @override
+  Future<String> uploadAvatar(PickedAvatar file) async => throw error;
 }

@@ -4,7 +4,7 @@
 //          sources/lcc-app/node_modules/lucide-react — the same package the web
 //          application renders. No network fetch is involved (§ 6.3.2).
 // Command: node tool/generate_lucide_svgs.mjs
-// Entries: 92
+// Entries: 93
 //
 // The key is the web's own component name, which is also the name the
 // catalogue API sends and the SVG's file name — one string end to end, so no
@@ -34,6 +34,7 @@ const Map<String, String> lucideRegistry = <String, String>{
   'Bus': 'assets/icons/lucide/Bus.svg',
   'Calendar': 'assets/icons/lucide/Calendar.svg',
   'CalendarCheck': 'assets/icons/lucide/CalendarCheck.svg',
+  'Camera': 'assets/icons/lucide/Camera.svg',
   'Car': 'assets/icons/lucide/Car.svg',
   'CarFront': 'assets/icons/lucide/CarFront.svg',
   'Check': 'assets/icons/lucide/Check.svg',

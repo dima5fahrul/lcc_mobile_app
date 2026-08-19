@@ -9,6 +9,8 @@
 /// token, no real password (specs.md § 6.11's fixture rule, B8-AC-35).
 library;
 
+import 'dart:typed_data';
+
 import 'package:dartz/dartz.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/core/error/failure.dart';
 import 'package:lcc_mobile_app/features/account/domain/entities/citizen_document.dart';
 import 'package:lcc_mobile_app/features/account/domain/entities/citizen_preferences.dart';
+import 'package:lcc_mobile_app/features/account/domain/entities/picked_avatar.dart';
 import 'package:lcc_mobile_app/features/account/domain/usecases/account_usecases.dart';
 import 'package:lcc_mobile_app/features/auth/domain/usecases/change_password.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/bilingual.dart';
@@ -41,6 +44,33 @@ class MockGetProfileUseCase extends Mock implements GetProfile {}
 class MockUpdateProfileUseCase extends Mock implements UpdateProfile {}
 
 class MockChangePassword extends Mock implements ChangePassword {}
+
+/// B8b — `POST /me/avatar`.
+class MockUploadAvatar extends Mock implements UploadAvatar {}
+
+/// A synthetic picked photograph.
+///
+/// **Invented, like everything else in this file** (B8-AC-35): the bytes are a
+/// four-byte sentinel, not an image, and no real citizen's face is or ever
+/// should be in this repository. The upload path never decodes the bytes — that
+/// is the whole point of the send-raw ruling — so a sentinel exercises it
+/// exactly as a JPEG would, and is the only thing a byte-identity assertion
+/// needs.
+///
+/// The default [name] carries a space and a non-ASCII character on purpose:
+/// phone filenames routinely do, they go on the wire unsanitised
+/// (`security-review-b8b.md` `B8b-6`, F1's `S-3`), and a fixture of
+/// `test.jpg` would not notice if something started escaping them.
+PickedAvatar tPickedAvatar({
+  String name = 'ຮູບ ຖ່າຍ 2026-08-19.jpg',
+  List<int> bytes = const <int>[0xFF, 0xD8, 0xFF, 0xE0],
+  String? path,
+}) =>
+    PickedAvatar(
+      name: name,
+      bytes: Uint8List.fromList(bytes),
+      path: path,
+    );
 
 // ── Synthetic entities ───────────────────────────────────────────────────────
 

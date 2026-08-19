@@ -47,6 +47,10 @@ class AccountFeatureInjection {
           getProfile: accountInjection<GetProfile>(),
           updateProfile: accountInjection<UpdateProfile>(),
           changePassword: accountInjection<ChangePassword>(),
+          // B8b. `di/` is in B8b's § 3.1 row by `specs.md` § 9.11
+          // Amendment 3; `account_usecase_injection.dart`'s header carries the
+          // reasoning so it is stated once.
+          uploadAvatar: accountInjection<UploadAvatar>(),
         ),
       )
       ..registerFactory<AccountPreferencesBloc>(

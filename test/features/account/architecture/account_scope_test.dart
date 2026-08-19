@@ -326,10 +326,24 @@ void main() {
       // ignore: avoid_print
       print('account namespace: en=${en.length} keys, lo=${lo.length} keys '
           '(B8a added 48: 23 from `src/app/i18n/ns/account.ts` + 25 from '
-          '`AccountPage.tsx`\'s COPY; 1 pre-existing `signOut`)');
+          '`AccountPage.tsx`\'s COPY; 1 pre-existing `signOut`; '
+          'B8b added 1: `photoHint`)');
 
-      expect(en.length, 49);
-      expect(lo.length, 49);
+      // **49 → 50 at B8b.** `photoHint` (`AccountPage.tsx:73`) is the avatar
+      // control's accessible label — `aria-label`, `title` and the `sr-only`
+      // span all read it (`:335`, `:336`, `:339`). It is the only key B8b adds,
+      // specs.md § 3.1's B8b row says so, and this number is the criterion that
+      // notices if a second one appears.
+      //
+      // Inserted between `passwordShort` and `uin`, matching the source's own
+      // COPY declaration order (`:72-74`) — which also makes the JSON diff
+      // `+1/−0` rather than `+2/−1`, because the previous last line does not
+      // need a comma. B8-AC-63.
+      expect(en.length, 50);
+      expect(lo.length, 50);
+      expect(en['photoHint'], 'Change photo');
+      expect(lo['photoHint'], isNot('Change photo'),
+          reason: 'the Lao column is where an untranslated string hides');
       expect(en.keys.toSet(), lo.keys.toSet());
       // Every value non-empty in both — an empty Lao string renders as blank
       // and would pass a key-set check.

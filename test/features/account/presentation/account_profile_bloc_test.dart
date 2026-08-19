@@ -27,6 +27,11 @@ void main() {
   late MockUpdateProfileUseCase updateProfile;
   late MockChangePassword changePassword;
 
+  /// B8b's fourth use case. Declared and injected here so this file compiles
+  /// against the widened constructor; the **upload's own behaviour** is
+  /// asserted in `account_avatar_test.dart`, not bolted onto B8a's cases.
+  late MockUploadAvatar uploadAvatar;
+
   setUpAll(() {
     registerFallbackValue(NoParams());
     registerFallbackValue(const UpdateProfileParams(ProfileUpdate()));
@@ -40,6 +45,7 @@ void main() {
     getProfile = MockGetProfileUseCase();
     updateProfile = MockUpdateProfileUseCase();
     changePassword = MockChangePassword();
+    uploadAvatar = MockUploadAvatar();
     when(() => getProfile(any()))
         .thenAnswer((_) async => ok<CitizenProfile>(tProfile()));
   });
@@ -48,6 +54,7 @@ void main() {
         getProfile: getProfile,
         updateProfile: updateProfile,
         changePassword: changePassword,
+        uploadAvatar: uploadAvatar,
       );
 
   Future<AccountProfileBloc> loaded() async {
