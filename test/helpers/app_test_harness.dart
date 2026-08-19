@@ -528,6 +528,9 @@ Future<AppHarness> bootHarness({
         getProfile: sessionInjection<GetProfile>(),
         updateProfile: sessionInjection<UpdateProfile>(),
         changePassword: authInjection<ChangePassword>(),
+        // B8b, over the same `accountRepository` the two BLoCs below use —
+        // one repository, never a second parse, as production's DI does.
+        uploadAvatar: UploadAvatar(repository: accountRepository),
       ),
     )
     ..registerFactory<AccountPreferencesBloc>(

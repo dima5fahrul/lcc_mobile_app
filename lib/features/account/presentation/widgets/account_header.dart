@@ -55,16 +55,33 @@
 /// security review's agenda by name so they are not absorbed into V-16/V-17's
 /// closure.
 ///
-/// ## B8b is not here
+/// ## B8b IS here now — the avatar is the upload control
 ///
-/// The source's avatar is also the **upload control** (`:333-340`, a
-/// transparent button over the image) with a three-way badge (`:348-356`).
-/// Uploading a live citizen's likeness is a new PII flow that V-16 and V-17 do
-/// not cover, so it is split into B8b behind its own security review
-/// (specs.md § 2.3, § 6.7, B8-AC-58). **B8a therefore renders no camera glyph
-/// and no tap target on the avatar** — § 6.14 item 5 requires that a
-/// non-shipping B8b leaves no dead affordance behind. The badge's other two
-/// branches (`verified` → check) do ship, because they are not upload.
+/// B8a rendered no camera glyph and no tap target, because § 6.14 item 5
+/// requires that a non-shipping B8b leave no dead affordance behind. **B8b
+/// ships, so both arrive**: the disc is a tap target (`:333-340`, a transparent
+/// button over the image — B8-AC-53) and the badge becomes the source's
+/// three-way (`:348-356` — B8-AC-55). The paragraph that used to say "B8b is
+/// not here" is replaced rather than deleted, because the *reason* it said so
+/// is still the reason the two batches are separate.
+///
+/// **What B8b does NOT change is the ruling above.** V-16 and V-17 are about a
+/// stranger's face being *shown* to a citizen; B8b is about a citizen's own
+/// face being *sent* to a server. They share this widget and nothing else, and
+/// `security-review-b8b.md` § 6 re-verified against both findings' own text
+/// that the closure neither extends to the upload nor is threatened by it. The
+/// `avatar_url`-absent branch is still the initial tile, in every case.
+///
+/// **One property this file makes worse, named rather than left to inference.**
+/// B8a's `MEDIUM-2` (`security-review.md` § 3.5) records that
+/// [_Avatar]'s `Image.network` carries no `Authorization` header, no host
+/// constraint and caches outside `FlutterSecureStorage`. Those were latent: the
+/// test citizen has no `avatar_url` and `B8-AC-42` is NOT EVALUATED, so the
+/// branch may never have run against real data. **B8b makes it run for every
+/// citizen who uploads** — `security-review-b8b.md` `B8b-8` (INFO). That is not
+/// a reason to withhold B8b; it is why **FU-12** (constrain the host against
+/// `ApiEndpoint.baseUrl`'s authority) stops being an optional B11 improvement
+/// and becomes a precondition on a real citizen's avatar (§ 12(c) R-3).
 library;
 
 import 'package:easy_localization/easy_localization.dart';
@@ -81,6 +98,8 @@ class AccountHeader extends StatelessWidget {
     super.key,
     required this.account,
     required this.loading,
+    required this.uploading,
+    required this.onPickAvatar,
   });
 
   /// Null until the first `GET /me/profile` lands.
@@ -88,6 +107,17 @@ class AccountHeader extends StatelessWidget {
 
   /// `profileQuery.loading && !account` — `:359`. Drives the name skeleton.
   final bool loading;
+
+  /// `uploadAvatar.pending` — `:349`. Drives the badge's spinner branch. B8b.
+  final bool uploading;
+
+  /// The avatar tap — `onClick={() => fileRef.current?.click()}` (`:334`).
+  ///
+  /// **Required, not nullable, and not defaulted.** The source renders the
+  /// button unconditionally; a nullable callback would make a
+  /// tap-target-less avatar a reachable configuration, and `B8-AC-53` would
+  /// then be satisfiable by a widget with no control on it. B8b.
+  final VoidCallback onPickAvatar;
 
   /// `background-size: 24px 24px` on the radial-dot overlay — `:320`.
   static const double dotSpacing = 24;
@@ -135,7 +165,11 @@ class AccountHeader extends StatelessWidget {
             ),
             child: Column(
               children: <Widget>[
-                _Avatar(account: account),
+                _Avatar(
+                  account: account,
+                  uploading: uploading,
+                  onPick: onPickAvatar,
+                ),
                 const SizedBox(height: AppSpacing.gap12),
                 _Name(account: account, loading: loading),
                 const SizedBox(height: AppSpacing.gap4),
@@ -198,11 +232,18 @@ class _Name extends StatelessWidget {
   }
 }
 
-/// The avatar disc — V-16 / V-17's ruling in code. See the library doc.
+/// The avatar disc — V-16 / V-17's ruling in code, and B8b's upload control.
+/// See the library doc.
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.account});
+  const _Avatar({
+    required this.account,
+    required this.uploading,
+    required this.onPick,
+  });
 
   final CitizenAccount? account;
+  final bool uploading;
+  final VoidCallback onPick;
 
   @override
   Widget build(BuildContext context) {
@@ -242,47 +283,94 @@ class _Avatar extends StatelessWidget {
       ),
     );
 
+    final Widget disc = Container(
+      width: AccountHeader.avatarSize,
+      height: AccountHeader.avatarSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: AppColors.white.withValues(alpha: 0.3),
+          width: AccountHeader.avatarRingWidth,
+        ),
+      ),
+      child: ClipOval(
+        child: url.isEmpty
+            ? tile
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                // **The initial tile is the error state as well as the
+                // absent state** (B8-AC-14). A broken-image glyph on a
+                // government identity surface is worse than no photo, and
+                // this is the second of the two details
+                // `lao_id_card.dart` records as easy to miss.
+                errorBuilder: (_, __, ___) => tile,
+                semanticLabel: name,
+              ),
+      ),
+    );
+
     return Stack(
       clipBehavior: Clip.none,
       children: <Widget>[
-        Container(
-          width: AccountHeader.avatarSize,
-          height: AccountHeader.avatarSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: AppColors.white.withValues(alpha: 0.3),
-              width: AccountHeader.avatarRingWidth,
-            ),
-          ),
-          child: ClipOval(
-            child: url.isEmpty
-                ? tile
-                : Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    // **The initial tile is the error state as well as the
-                    // absent state** (B8-AC-14). A broken-image glyph on a
-                    // government identity surface is worse than no photo, and
-                    // this is the second of the two details
-                    // `lao_id_card.dart` records as easy to miss.
-                    errorBuilder: (_, __, ___) => tile,
-                    semanticLabel: name,
-                  ),
+        // ── B8-AC-53 — the photo IS the control ────────────────────────────
+        //
+        // ```tsx
+        // <button onClick={() => fileRef.current?.click()}
+        //         aria-label={c("photoHint")} title={c("photoHint")}
+        //         className="absolute inset-0 rounded-full">
+        //   <span className="sr-only">{c("photoHint")}</span>
+        // </button>
+        // ```
+        //
+        // A transparent button over the image, `inset-0` on the disc's box —
+        // **not** a separate visible camera button beside it. In Flutter that
+        // is a `Semantics(button: true, label:)` wrapping a bare
+        // `GestureDetector`.
+        //
+        // `GestureDetector` and **not** `InkWell`: the source's button has no
+        // hover, focus or active styling of any kind, so a Material ripple
+        // would be a visual affordance the web does not have — L-10(b) in its
+        // smallest form.
+        //
+        // `photoHint` carries all three of the source's accessible strings
+        // (`aria-label`, `title`, and the `sr-only` span) because Flutter has
+        // one slot where the DOM has three, and they hold the same value.
+        //
+        // **There is no `disabled` and no in-flight check here**, exactly as
+        // `:333-340` has none. Tapping during an upload starts a second
+        // concurrent POST — `security-review-b8b.md` `B8b-5`, GG-8, ported as
+        // measured. See `AccountAvatarPicked`.
+        Semantics(
+          button: true,
+          // `context:` — G-L8. `tr_allowlist.yaml` is a ceiling that every
+          // batch after B10 must leave shorter, and its one rule is that a new
+          // site is never added to it to make a build pass. This one has a
+          // context, so it takes it.
+          label: 'account.photoHint'.tr(context: context),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onPick,
+            child: disc,
           ),
         ),
         // `bottom-0 right-0 w-6 h-6 bg-green-400 rounded-full border-2
-        // border-white` — `:348`. **The badge is always green**, even when it
-        // shows something other than a tick; that is the source's styling and
-        // it is ported as-is.
+        // border-white` — `:348`. **The badge is always green**, in all three
+        // branches, even when it shows a camera; that is the source's styling
+        // and it is ported as-is (B8-AC-55).
         //
-        // Only the `verified` branch ships in B8a: `uploadAvatar.pending` and
-        // the camera glyph are B8b's, and rendering a camera with nothing
-        // behind it would be the dead affordance § 6.14 item 5 forbids.
-        if (account?.verified ?? false)
-          Positioned(
-            right: 0,
-            bottom: 0,
+        // **`AbsorbPointer`, and it is a port rather than a precaution.** In
+        // the DOM the badge is a sibling *after* the button (`:348` vs `:333`),
+        // so it paints on top and a click on it hits a `<div>` with no handler
+        // — the upload does not open. A Flutter `Stack` hit-tests in reverse
+        // paint order, but a bare `Container` does not absorb, so without this
+        // the tap would fall through to the `GestureDetector` beneath and
+        // tapping the green dot would open the picker. That is a behaviour the
+        // web does not have.
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: AbsorbPointer(
             child: Container(
               width: AppSpacing.gap24,
               height: AppSpacing.gap24,
@@ -291,18 +379,89 @@ class _Avatar extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.white, width: 2),
               ),
-              child: const Center(
-                child: LucideIcon(
-                  name: 'CheckCircle',
-                  size: AppSpacing.gap12,
-                  color: AppColors.white,
-                ),
-              ),
+              child: Center(child: _badgeGlyph()),
             ),
           ),
+        ),
       ],
     );
   }
+
+  /// The three-way, in the source's own order — `:349-355`. B8-AC-55.
+  ///
+  /// ```tsx
+  /// {uploadAvatar.pending ? <RefreshCw … animate-spin />
+  ///  : account?.verified  ? <CheckCircle … />
+  ///  :                      <Camera … />}
+  /// ```
+  ///
+  /// **Order is observable**: an unverified citizen mid-upload shows the
+  /// spinner, and a *verified* citizen mid-upload shows the spinner too, not
+  /// the tick. A port that tested `verified` first would look right in the only
+  /// state most fixtures exercise.
+  ///
+  /// All three are `w-3 h-3 text-white` on the same always-green disc.
+  Widget _badgeGlyph() {
+    if (uploading) {
+      return const _SpinningGlyph(
+        child: LucideIcon(
+          name: 'RefreshCw',
+          size: AppSpacing.gap12,
+          color: AppColors.white,
+        ),
+      );
+    }
+    if (account?.verified ?? false) {
+      return const LucideIcon(
+        name: 'CheckCircle',
+        size: AppSpacing.gap12,
+        color: AppColors.white,
+      );
+    }
+    // `Camera` was bundled by B8b — see `tool/generate_lucide_svgs.mjs`. Before
+    // that it was not in the registry, and `AppIcons.assetFor` would have
+    // silently rendered `FileText`: a document glyph on a citizen's avatar,
+    // invisible to every fidelity tier this project owns.
+    return const LucideIcon(
+      name: 'Camera',
+      size: AppSpacing.gap12,
+      color: AppColors.white,
+    );
+  }
+}
+
+/// `animate-spin` — a continuous 1 s rotation, Tailwind's default.
+///
+/// The shape is `history_detail_hero.dart`'s `_Spinner`, which is private to
+/// that library and so is reproduced rather than imported. Its reasoning holds
+/// here too: a `RotationTransition` over an explicit controller is
+/// deterministic under `pumpWidget`, where an implicit animation plus
+/// `pumpAndSettle` on an infinite repeat never settles.
+class _SpinningGlyph extends StatefulWidget {
+  const _SpinningGlyph({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_SpinningGlyph> createState() => _SpinningGlyphState();
+}
+
+class _SpinningGlyphState extends State<_SpinningGlyph>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 1),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      RotationTransition(turns: _controller, child: widget.child);
 }
 
 /// `{account?.verified && …}` — `:368-375`. `bg-white/10 border-white/20

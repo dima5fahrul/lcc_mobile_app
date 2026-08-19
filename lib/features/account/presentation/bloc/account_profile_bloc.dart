@@ -56,6 +56,8 @@ import '../../../session/domain/entities/citizen_profile.dart';
 import '../../../session/domain/entities/profile_update.dart';
 import '../../../session/domain/usecases/get_profile.dart';
 import '../../../session/domain/usecases/update_profile.dart';
+import '../../domain/entities/picked_avatar.dart';
+import '../../domain/usecases/account_usecases.dart';
 import 'account_region_status.dart';
 
 part 'account_profile_event.dart';
@@ -75,16 +77,25 @@ class AccountProfileBloc
     required this.getProfile,
     required this.updateProfile,
     required this.changePassword,
+    required this.uploadAvatar,
   }) : super(const AccountProfileState()) {
     on<AccountProfileRequested>(_onRequested);
     on<AccountProfileRetried>(_onRequested);
     on<AccountProfileSaved>(_onSaved);
     on<AccountPasswordSubmitted>(_onPasswordSubmitted);
+    // **Registered with the default transformer, i.e. concurrently.** A
+    // `sequential()` or `droppable()` transformer here would serialise or drop
+    // the second of two rapid picks — a guard the source does not have
+    // (`B8b-5`, GG-8). See [_onAvatarPicked].
+    on<AccountAvatarPicked>(_onAvatarPicked);
   }
 
   final GetProfile getProfile;
   final UpdateProfile updateProfile;
   final ChangePassword changePassword;
+
+  /// `POST /me/avatar` — B8b. See [_onAvatarPicked].
+  final UploadAvatar uploadAvatar;
 
   /// `hooks.ts:55`. See `account_documents_bloc.dart` for why.
   int _generation = 0;
@@ -194,6 +205,72 @@ class AccountProfileBloc
       if (emit.isDone) return;
       emit(state.copyWith(saving: false, saveError: e.toString()));
     }
+  }
+
+  // ── handleAvatar — `AccountPage.tsx:234-245` (B8b) ─────────────────────────
+
+  /// The upload, and the two refreshes after it.
+  ///
+  /// ```tsx
+  /// try {
+  ///   await uploadAvatar.run(file);
+  ///   profileQuery.refetch();
+  ///   await session.refresh();
+  /// } catch {
+  ///   /* uploadAvatar.error carries the message */
+  /// }
+  /// ```
+  ///
+  /// Four properties, each ported deliberately:
+  ///
+  /// 1. **No in-flight guard.** Nothing here checks
+  ///    [AccountProfileState.uploadingAvatar] before starting, so two rapid
+  ///    picks produce two concurrent POSTs — `B8b-5`/GG-8, faithful. The
+  ///    picking itself is the widget's and is equally unguarded.
+  /// 2. **The refetch, then the session refresh, in that order.** `_load` here;
+  ///    `session.refresh()` is the page's `BlocListener` on
+  ///    [AvatarOutcome.uploaded], for the reason the library doc gives about
+  ///    `SessionBloc` and context. The `saveOutcome` path does exactly this.
+  /// 3. **A failure shows nothing.** The `Left` is discarded without reaching
+  ///    any state field: `uploadAvatar.error` is never rendered in the source
+  ///    (`B8b-4`/GG-7 — see [AccountProfileState]). This is also where the
+  ///    `e.toString()` text that `AccountRepositoryImpl._guard` builds for a
+  ///    non-`ApiException` failure stops: it is constructed and dropped, so
+  ///    `MAJOR-1`'s surviving disclosure arm gains no render site from B8b.
+  /// 4. **The returned `avatar_url` is discarded.** The source refetches the
+  ///    profile rather than reading `uploadAvatar.data`, and so does this.
+  Future<void> _onAvatarPicked(
+    AccountAvatarPicked event,
+    Emitter<AccountProfileState> emit,
+  ) async {
+    // Reset before the attempt so a *second* upload re-fires the page's
+    // listener — see [AvatarOutcome].
+    emit(state.copyWith(
+      uploadingAvatar: true,
+      avatarOutcome: AvatarOutcome.none,
+    ));
+
+    final Either<Failure, String> result =
+        await uploadAvatar(UploadAvatarParams(event.file));
+    if (emit.isDone) return;
+
+    final bool failed = result.isLeft();
+    if (failed) {
+      // `catch { /* … */ }` — `:242-243`. `finally { setPending(false) }`
+      // (`hooks.ts:147-149`) is the only visible effect. Nothing is shown.
+      emit(state.copyWith(uploadingAvatar: false));
+      return;
+    }
+
+    emit(state.copyWith(
+      uploadingAvatar: false,
+      avatarOutcome: AvatarOutcome.uploaded,
+    ));
+    if (emit.isDone) return;
+
+    // `profileQuery.refetch()` — `:240`. `_load` carries the generation guard,
+    // so an in-flight read from a concurrent upload cannot land out of order.
+    await _load(emit);
   }
 
   // ── handleChangePassword — `AccountPage.tsx:273-286` ───────────────────────

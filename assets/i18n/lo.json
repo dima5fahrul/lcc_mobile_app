@@ -375,6 +375,7 @@
     "passwordChanged": "ປ່ຽນລະຫັດຜ່ານແລ້ວ.",
     "passwordMismatch": "ລະຫັດຜ່ານທັງສອງບໍ່ກົງກັນ.",
     "passwordShort": "ຢ່າງໜ້ອຍ 8 ຕົວອັກສອນ.",
+    "photoHint": "ປ່ຽນຮູບ",
     "uin": "ເລກປະຈຳຕົວ",
     "signOut": "ອອກຈາກລະບົບ"
   },

@@ -64,6 +64,34 @@ const String kPreF2Ref = '7ee0e0b';
 /// — quietly, and blaming the wrong batch when it finally fires.
 const String kF2Tip = '851397c';
 
+/// Pre-F2 namespaces a **later** batch holds a spec-level grant to append to.
+///
+/// The value is the grant, so a reader never has to take the exemption on
+/// trust. Membership buys exactly one thing: new keys are permitted. Every key
+/// that existed at [kPreF2Ref] is still compared individually, so an *edit* to
+/// a listed namespace fails here exactly as it would for an unlisted one.
+///
+/// **Adding an entry to make a build pass is the failure mode this comment
+/// exists to prevent.** An entry is legitimate only when a signed spec's § 3.1
+/// names the append, and the batch's own scope test asserts the new key
+/// positively — otherwise the guard's subject, *nobody edits a pre-F2
+/// namespace*, quietly becomes *nobody edits a namespace nobody has excused*.
+///
+/// `account` is here rather than frozen because the guard and B8b's spec are in
+/// direct conflict otherwise: `account` had 49 keys at `7ee0e0b` (B8a's i18n
+/// landed before F1's commit in this history), and B8b's § 3.1 row reads
+/// `assets/i18n/{en,lo}.json` | **append** | `photoHint`. The newer, explicit
+/// grant wins, and it is recorded here rather than resolved by loosening the
+/// comparison for everyone.
+const Map<String, String> kAppendGrants = <String, String>{
+  'history': 'B5 § 6.12 added `viewDocument`/`downloadDocument`; '
+      '`documents_scope_test.dart` asserts them positively',
+  'account': 'B8b (`GOR-245-b8-account-profile/specs.md` § 3.1) added '
+      '`photoHint`, the avatar upload control\'s accessible label; '
+      '`account_scope_test.dart` B8-AC-46 asserts the count and the '
+      'en/lo key-set identity',
+};
+
 List<File> _dartFiles(String dir) {
   final Directory d = Directory(dir);
   if (!d.existsSync()) return <File>[];
@@ -531,22 +559,22 @@ void main() {
         // loop above no longer objects — but nobody may edit a pre-F2 one, and
         // that is a property of the bundle on disk, not of any diff.
         //
-        // `history` is the one exception, and it is named rather than skipped:
-        // B5 added `viewDocument`/`downloadDocument` under its own § 6.12
-        // grant, which `documents_scope_test.dart` asserts positively. Its
-        // *other* keys must still be untouched.
+        // [kAppendGrants] are the exceptions, and they are **named rather
+        // than skipped**: each carries the spec grant that authorises the
+        // append, and each still has every pre-existing key checked one by one.
+        // Appending is lawful under a grant; editing is not, under any.
         final Map<String, dynamic> shipped = bundle(locale);
         for (final String ns in before.keys) {
           expect(shipped.containsKey(ns), isTrue,
               reason: '$locale: the shipped bundle lost the `$ns` namespace');
-          if (ns == 'history') {
+          if (kAppendGrants.containsKey(ns)) {
             final Map<String, dynamic> b = before[ns] as Map<String, dynamic>;
             final Map<String, dynamic> s = shipped[ns] as Map<String, dynamic>;
             for (final String key in b.keys) {
               expect(jsonEncode(s[key]), jsonEncode(b[key]),
-                  reason: '$locale: `history.$key` was edited. B5 may add to '
-                      'this namespace (§ 6.12); nobody may change what was '
-                      'already in it.');
+                  reason: '$locale: `$ns.$key` was edited. ${kAppendGrants[ns]} '
+                      '— that grant permits ADDING to this namespace; nobody '
+                      'may change what was already in it.');
             }
             continue;
           }

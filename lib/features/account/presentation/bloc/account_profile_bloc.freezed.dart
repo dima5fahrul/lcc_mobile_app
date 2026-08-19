@@ -27,7 +27,32 @@ mixin _$AccountProfileState {
 /// name (`name`, `email`), because that is what the 422 body names.
 /// `address` is present in this map when the server sends it and is
 /// **never rendered**, matching the source (B8-AC-49).
- Map<String, String> get fieldErrors;// ── The password form ──────────────────────────────────────────────────
+ Map<String, String> get fieldErrors;// ── The avatar upload — B8b ────────────────────────────────────────────
+/// `uploadAvatar.pending` — `AccountPage.tsx:349`, the badge's spinner
+/// branch.
+///
+/// **Last-writer-wins under concurrency, faithfully.** `useMutation` sets
+/// `pending` true at the top of `run` and false in its `finally`
+/// (`hooks.ts:133`, `:147-149`), so two overlapping uploads in the web app
+/// clear the spinner when the *first* finishes, not the last. One boolean
+/// here reproduces that. A counter would be the tidier engineering and a
+/// different observable — `B8b-5`/GG-8 says record the weakness, do not
+/// repair it.
+ bool get uploadingAvatar;/// Set to [AvatarOutcome.uploaded] on success and reset to
+/// [AvatarOutcome.none] before each attempt. The page's `BlocListener`
+/// keys `session.refresh()` off the transition — see [AvatarOutcome].
+ AvatarOutcome get avatarOutcome;// **There is no `avatarError` field, and its absence is the port.**
+// `AccountPage.tsx:242-243` catches and discards, with the comment
+// *"uploadAvatar.error carries the message"* — which is false:
+// `uploadAvatar` is read at `:239` (`.run`) and `:349` (`.pending`) and
+// nowhere else, so the error `useMutation` captures is **never rendered**.
+// A failed upload is completely silent in the shipped web app: the spinner
+// stops and the citizen has no way to know whether their face arrived.
+// That is `security-review-b8b.md`'s `B8b-4` (MEDIUM), and it is the
+// oracle's defect, not the port's. Adding a field here would create the
+// only path by which a future edit could render it — an error surface the
+// web has no analogue for, which is L-10(b). Recorded as **GG-7**.
+// ── The password form ──────────────────────────────────────────────────
 /// `changePassword.pending` — `:703`.
  bool get changingPassword;/// The client-side rule that failed, if any.
  PasswordError get passwordError;/// `setPwError((err as Error).message)` — `:284`. The **server's** text.
@@ -45,16 +70,16 @@ $AccountProfileStateCopyWith<AccountProfileState> get copyWith => _$AccountProfi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountProfileState&&(identical(other.status, status) || other.status == status)&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.saving, saving) || other.saving == saving)&&(identical(other.saveOutcome, saveOutcome) || other.saveOutcome == saveOutcome)&&(identical(other.saveError, saveError) || other.saveError == saveError)&&const DeepCollectionEquality().equals(other.fieldErrors, fieldErrors)&&(identical(other.changingPassword, changingPassword) || other.changingPassword == changingPassword)&&(identical(other.passwordError, passwordError) || other.passwordError == passwordError)&&(identical(other.passwordServerError, passwordServerError) || other.passwordServerError == passwordServerError)&&(identical(other.passwordChanged, passwordChanged) || other.passwordChanged == passwordChanged));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountProfileState&&(identical(other.status, status) || other.status == status)&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.saving, saving) || other.saving == saving)&&(identical(other.saveOutcome, saveOutcome) || other.saveOutcome == saveOutcome)&&(identical(other.saveError, saveError) || other.saveError == saveError)&&const DeepCollectionEquality().equals(other.fieldErrors, fieldErrors)&&(identical(other.uploadingAvatar, uploadingAvatar) || other.uploadingAvatar == uploadingAvatar)&&(identical(other.avatarOutcome, avatarOutcome) || other.avatarOutcome == avatarOutcome)&&(identical(other.changingPassword, changingPassword) || other.changingPassword == changingPassword)&&(identical(other.passwordError, passwordError) || other.passwordError == passwordError)&&(identical(other.passwordServerError, passwordServerError) || other.passwordServerError == passwordServerError)&&(identical(other.passwordChanged, passwordChanged) || other.passwordChanged == passwordChanged));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,profile,errorMessage,saving,saveOutcome,saveError,const DeepCollectionEquality().hash(fieldErrors),changingPassword,passwordError,passwordServerError,passwordChanged);
+int get hashCode => Object.hash(runtimeType,status,profile,errorMessage,saving,saveOutcome,saveError,const DeepCollectionEquality().hash(fieldErrors),uploadingAvatar,avatarOutcome,changingPassword,passwordError,passwordServerError,passwordChanged);
 
 @override
 String toString() {
-  return 'AccountProfileState(status: $status, profile: $profile, errorMessage: $errorMessage, saving: $saving, saveOutcome: $saveOutcome, saveError: $saveError, fieldErrors: $fieldErrors, changingPassword: $changingPassword, passwordError: $passwordError, passwordServerError: $passwordServerError, passwordChanged: $passwordChanged)';
+  return 'AccountProfileState(status: $status, profile: $profile, errorMessage: $errorMessage, saving: $saving, saveOutcome: $saveOutcome, saveError: $saveError, fieldErrors: $fieldErrors, uploadingAvatar: $uploadingAvatar, avatarOutcome: $avatarOutcome, changingPassword: $changingPassword, passwordError: $passwordError, passwordServerError: $passwordServerError, passwordChanged: $passwordChanged)';
 }
 
 
@@ -65,7 +90,7 @@ abstract mixin class $AccountProfileStateCopyWith<$Res>  {
   factory $AccountProfileStateCopyWith(AccountProfileState value, $Res Function(AccountProfileState) _then) = _$AccountProfileStateCopyWithImpl;
 @useResult
 $Res call({
- RegionStatus status, CitizenProfile? profile, String? errorMessage, bool saving, SaveOutcome saveOutcome, String? saveError, Map<String, String> fieldErrors, bool changingPassword, PasswordError passwordError, String? passwordServerError, bool passwordChanged
+ RegionStatus status, CitizenProfile? profile, String? errorMessage, bool saving, SaveOutcome saveOutcome, String? saveError, Map<String, String> fieldErrors, bool uploadingAvatar, AvatarOutcome avatarOutcome, bool changingPassword, PasswordError passwordError, String? passwordServerError, bool passwordChanged
 });
 
 
@@ -82,7 +107,7 @@ class _$AccountProfileStateCopyWithImpl<$Res>
 
 /// Create a copy of AccountProfileState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? profile = freezed,Object? errorMessage = freezed,Object? saving = null,Object? saveOutcome = null,Object? saveError = freezed,Object? fieldErrors = null,Object? changingPassword = null,Object? passwordError = null,Object? passwordServerError = freezed,Object? passwordChanged = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? status = null,Object? profile = freezed,Object? errorMessage = freezed,Object? saving = null,Object? saveOutcome = null,Object? saveError = freezed,Object? fieldErrors = null,Object? uploadingAvatar = null,Object? avatarOutcome = null,Object? changingPassword = null,Object? passwordError = null,Object? passwordServerError = freezed,Object? passwordChanged = null,}) {
   return _then(_self.copyWith(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as RegionStatus,profile: freezed == profile ? _self.profile : profile // ignore: cast_nullable_to_non_nullable
@@ -91,7 +116,9 @@ as String?,saving: null == saving ? _self.saving : saving // ignore: cast_nullab
 as bool,saveOutcome: null == saveOutcome ? _self.saveOutcome : saveOutcome // ignore: cast_nullable_to_non_nullable
 as SaveOutcome,saveError: freezed == saveError ? _self.saveError : saveError // ignore: cast_nullable_to_non_nullable
 as String?,fieldErrors: null == fieldErrors ? _self.fieldErrors : fieldErrors // ignore: cast_nullable_to_non_nullable
-as Map<String, String>,changingPassword: null == changingPassword ? _self.changingPassword : changingPassword // ignore: cast_nullable_to_non_nullable
+as Map<String, String>,uploadingAvatar: null == uploadingAvatar ? _self.uploadingAvatar : uploadingAvatar // ignore: cast_nullable_to_non_nullable
+as bool,avatarOutcome: null == avatarOutcome ? _self.avatarOutcome : avatarOutcome // ignore: cast_nullable_to_non_nullable
+as AvatarOutcome,changingPassword: null == changingPassword ? _self.changingPassword : changingPassword // ignore: cast_nullable_to_non_nullable
 as bool,passwordError: null == passwordError ? _self.passwordError : passwordError // ignore: cast_nullable_to_non_nullable
 as PasswordError,passwordServerError: freezed == passwordServerError ? _self.passwordServerError : passwordServerError // ignore: cast_nullable_to_non_nullable
 as String?,passwordChanged: null == passwordChanged ? _self.passwordChanged : passwordChanged // ignore: cast_nullable_to_non_nullable
@@ -192,10 +219,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool uploadingAvatar,  AvatarOutcome avatarOutcome,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AccountProfileState() when $default != null:
-return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
+return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.uploadingAvatar,_that.avatarOutcome,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
   return orElse();
 
 }
@@ -213,10 +240,10 @@ return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool uploadingAvatar,  AvatarOutcome avatarOutcome,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)  $default,) {final _that = this;
 switch (_that) {
 case _AccountProfileState():
-return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
+return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.uploadingAvatar,_that.avatarOutcome,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -233,10 +260,10 @@ return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( RegionStatus status,  CitizenProfile? profile,  String? errorMessage,  bool saving,  SaveOutcome saveOutcome,  String? saveError,  Map<String, String> fieldErrors,  bool uploadingAvatar,  AvatarOutcome avatarOutcome,  bool changingPassword,  PasswordError passwordError,  String? passwordServerError,  bool passwordChanged)?  $default,) {final _that = this;
 switch (_that) {
 case _AccountProfileState() when $default != null:
-return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
+return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that.saveOutcome,_that.saveError,_that.fieldErrors,_that.uploadingAvatar,_that.avatarOutcome,_that.changingPassword,_that.passwordError,_that.passwordServerError,_that.passwordChanged);case _:
   return null;
 
 }
@@ -248,7 +275,7 @@ return $default(_that.status,_that.profile,_that.errorMessage,_that.saving,_that
 
 
 class _AccountProfileState extends AccountProfileState {
-  const _AccountProfileState({this.status = RegionStatus.initial, this.profile, this.errorMessage, this.saving = false, this.saveOutcome = SaveOutcome.none, this.saveError, final  Map<String, String> fieldErrors = const <String, String>{}, this.changingPassword = false, this.passwordError = PasswordError.none, this.passwordServerError, this.passwordChanged = false}): _fieldErrors = fieldErrors,super._();
+  const _AccountProfileState({this.status = RegionStatus.initial, this.profile, this.errorMessage, this.saving = false, this.saveOutcome = SaveOutcome.none, this.saveError, final  Map<String, String> fieldErrors = const <String, String>{}, this.uploadingAvatar = false, this.avatarOutcome = AvatarOutcome.none, this.changingPassword = false, this.passwordError = PasswordError.none, this.passwordServerError, this.passwordChanged = false}): _fieldErrors = fieldErrors,super._();
   
 
 @override@JsonKey() final  RegionStatus status;
@@ -281,6 +308,33 @@ class _AccountProfileState extends AccountProfileState {
   return EqualUnmodifiableMapView(_fieldErrors);
 }
 
+// ── The avatar upload — B8b ────────────────────────────────────────────
+/// `uploadAvatar.pending` — `AccountPage.tsx:349`, the badge's spinner
+/// branch.
+///
+/// **Last-writer-wins under concurrency, faithfully.** `useMutation` sets
+/// `pending` true at the top of `run` and false in its `finally`
+/// (`hooks.ts:133`, `:147-149`), so two overlapping uploads in the web app
+/// clear the spinner when the *first* finishes, not the last. One boolean
+/// here reproduces that. A counter would be the tidier engineering and a
+/// different observable — `B8b-5`/GG-8 says record the weakness, do not
+/// repair it.
+@override@JsonKey() final  bool uploadingAvatar;
+/// Set to [AvatarOutcome.uploaded] on success and reset to
+/// [AvatarOutcome.none] before each attempt. The page's `BlocListener`
+/// keys `session.refresh()` off the transition — see [AvatarOutcome].
+@override@JsonKey() final  AvatarOutcome avatarOutcome;
+// **There is no `avatarError` field, and its absence is the port.**
+// `AccountPage.tsx:242-243` catches and discards, with the comment
+// *"uploadAvatar.error carries the message"* — which is false:
+// `uploadAvatar` is read at `:239` (`.run`) and `:349` (`.pending`) and
+// nowhere else, so the error `useMutation` captures is **never rendered**.
+// A failed upload is completely silent in the shipped web app: the spinner
+// stops and the citizen has no way to know whether their face arrived.
+// That is `security-review-b8b.md`'s `B8b-4` (MEDIUM), and it is the
+// oracle's defect, not the port's. Adding a field here would create the
+// only path by which a future edit could render it — an error surface the
+// web has no analogue for, which is L-10(b). Recorded as **GG-7**.
 // ── The password form ──────────────────────────────────────────────────
 /// `changePassword.pending` — `:703`.
 @override@JsonKey() final  bool changingPassword;
@@ -303,16 +357,16 @@ _$AccountProfileStateCopyWith<_AccountProfileState> get copyWith => __$AccountPr
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountProfileState&&(identical(other.status, status) || other.status == status)&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.saving, saving) || other.saving == saving)&&(identical(other.saveOutcome, saveOutcome) || other.saveOutcome == saveOutcome)&&(identical(other.saveError, saveError) || other.saveError == saveError)&&const DeepCollectionEquality().equals(other._fieldErrors, _fieldErrors)&&(identical(other.changingPassword, changingPassword) || other.changingPassword == changingPassword)&&(identical(other.passwordError, passwordError) || other.passwordError == passwordError)&&(identical(other.passwordServerError, passwordServerError) || other.passwordServerError == passwordServerError)&&(identical(other.passwordChanged, passwordChanged) || other.passwordChanged == passwordChanged));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AccountProfileState&&(identical(other.status, status) || other.status == status)&&(identical(other.profile, profile) || other.profile == profile)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage)&&(identical(other.saving, saving) || other.saving == saving)&&(identical(other.saveOutcome, saveOutcome) || other.saveOutcome == saveOutcome)&&(identical(other.saveError, saveError) || other.saveError == saveError)&&const DeepCollectionEquality().equals(other._fieldErrors, _fieldErrors)&&(identical(other.uploadingAvatar, uploadingAvatar) || other.uploadingAvatar == uploadingAvatar)&&(identical(other.avatarOutcome, avatarOutcome) || other.avatarOutcome == avatarOutcome)&&(identical(other.changingPassword, changingPassword) || other.changingPassword == changingPassword)&&(identical(other.passwordError, passwordError) || other.passwordError == passwordError)&&(identical(other.passwordServerError, passwordServerError) || other.passwordServerError == passwordServerError)&&(identical(other.passwordChanged, passwordChanged) || other.passwordChanged == passwordChanged));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,status,profile,errorMessage,saving,saveOutcome,saveError,const DeepCollectionEquality().hash(_fieldErrors),changingPassword,passwordError,passwordServerError,passwordChanged);
+int get hashCode => Object.hash(runtimeType,status,profile,errorMessage,saving,saveOutcome,saveError,const DeepCollectionEquality().hash(_fieldErrors),uploadingAvatar,avatarOutcome,changingPassword,passwordError,passwordServerError,passwordChanged);
 
 @override
 String toString() {
-  return 'AccountProfileState(status: $status, profile: $profile, errorMessage: $errorMessage, saving: $saving, saveOutcome: $saveOutcome, saveError: $saveError, fieldErrors: $fieldErrors, changingPassword: $changingPassword, passwordError: $passwordError, passwordServerError: $passwordServerError, passwordChanged: $passwordChanged)';
+  return 'AccountProfileState(status: $status, profile: $profile, errorMessage: $errorMessage, saving: $saving, saveOutcome: $saveOutcome, saveError: $saveError, fieldErrors: $fieldErrors, uploadingAvatar: $uploadingAvatar, avatarOutcome: $avatarOutcome, changingPassword: $changingPassword, passwordError: $passwordError, passwordServerError: $passwordServerError, passwordChanged: $passwordChanged)';
 }
 
 
@@ -323,7 +377,7 @@ abstract mixin class _$AccountProfileStateCopyWith<$Res> implements $AccountProf
   factory _$AccountProfileStateCopyWith(_AccountProfileState value, $Res Function(_AccountProfileState) _then) = __$AccountProfileStateCopyWithImpl;
 @override @useResult
 $Res call({
- RegionStatus status, CitizenProfile? profile, String? errorMessage, bool saving, SaveOutcome saveOutcome, String? saveError, Map<String, String> fieldErrors, bool changingPassword, PasswordError passwordError, String? passwordServerError, bool passwordChanged
+ RegionStatus status, CitizenProfile? profile, String? errorMessage, bool saving, SaveOutcome saveOutcome, String? saveError, Map<String, String> fieldErrors, bool uploadingAvatar, AvatarOutcome avatarOutcome, bool changingPassword, PasswordError passwordError, String? passwordServerError, bool passwordChanged
 });
 
 
@@ -340,7 +394,7 @@ class __$AccountProfileStateCopyWithImpl<$Res>
 
 /// Create a copy of AccountProfileState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? profile = freezed,Object? errorMessage = freezed,Object? saving = null,Object? saveOutcome = null,Object? saveError = freezed,Object? fieldErrors = null,Object? changingPassword = null,Object? passwordError = null,Object? passwordServerError = freezed,Object? passwordChanged = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? status = null,Object? profile = freezed,Object? errorMessage = freezed,Object? saving = null,Object? saveOutcome = null,Object? saveError = freezed,Object? fieldErrors = null,Object? uploadingAvatar = null,Object? avatarOutcome = null,Object? changingPassword = null,Object? passwordError = null,Object? passwordServerError = freezed,Object? passwordChanged = null,}) {
   return _then(_AccountProfileState(
 status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as RegionStatus,profile: freezed == profile ? _self.profile : profile // ignore: cast_nullable_to_non_nullable
@@ -349,7 +403,9 @@ as String?,saving: null == saving ? _self.saving : saving // ignore: cast_nullab
 as bool,saveOutcome: null == saveOutcome ? _self.saveOutcome : saveOutcome // ignore: cast_nullable_to_non_nullable
 as SaveOutcome,saveError: freezed == saveError ? _self.saveError : saveError // ignore: cast_nullable_to_non_nullable
 as String?,fieldErrors: null == fieldErrors ? _self._fieldErrors : fieldErrors // ignore: cast_nullable_to_non_nullable
-as Map<String, String>,changingPassword: null == changingPassword ? _self.changingPassword : changingPassword // ignore: cast_nullable_to_non_nullable
+as Map<String, String>,uploadingAvatar: null == uploadingAvatar ? _self.uploadingAvatar : uploadingAvatar // ignore: cast_nullable_to_non_nullable
+as bool,avatarOutcome: null == avatarOutcome ? _self.avatarOutcome : avatarOutcome // ignore: cast_nullable_to_non_nullable
+as AvatarOutcome,changingPassword: null == changingPassword ? _self.changingPassword : changingPassword // ignore: cast_nullable_to_non_nullable
 as bool,passwordError: null == passwordError ? _self.passwordError : passwordError // ignore: cast_nullable_to_non_nullable
 as PasswordError,passwordServerError: freezed == passwordServerError ? _self.passwordServerError : passwordServerError // ignore: cast_nullable_to_non_nullable
 as String?,passwordChanged: null == passwordChanged ? _self.passwordChanged : passwordChanged // ignore: cast_nullable_to_non_nullable

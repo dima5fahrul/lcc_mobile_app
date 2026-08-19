@@ -26,9 +26,11 @@
 /// See `documents_card.dart` for the four grounds. This is the one place B8 is
 /// not a complete port of `AccountPage`.
 ///
-/// **Avatar upload is B8b**, behind its own security review (specs.md § 2.3,
-/// B8-AC-58) — so the avatar here is a render, not a control, and there is no
-/// camera glyph anywhere (§ 6.14 item 5).
+/// **Avatar upload is B8b**, and B8b has shipped — the § 6.7 security review
+/// (`security-review-b8b.md`) and B8a's § 8.1 exit gate both closed on
+/// 2026-08-19, which is what `B8-AC-58` required. The avatar is now a control
+/// as well as a render (`account_header.dart`). The `DocumentViewer` deferral
+/// above is unaffected and is still the one place B8 is not a complete port.
 ///
 /// **`DELETE /me/account` does not exist and must not be added.**
 /// `me.deactivate` is defined at `endpoints.ts:125` and called from nowhere in
@@ -81,9 +83,11 @@ import '../../../session/domain/entities/citizen_account.dart';
 import '../bloc/account_documents_bloc.dart';
 import '../bloc/account_preferences_bloc.dart';
 import '../bloc/account_profile_bloc.dart';
+import '../../domain/entities/picked_avatar.dart';
 import '../bloc/account_profile_state_view.dart';
 import '../widgets/account_header.dart';
 import '../widgets/account_primitives.dart';
+import '../widgets/avatar_picker.dart';
 import '../widgets/documents_card.dart';
 import '../widgets/language_panel.dart';
 import '../widgets/password_form.dart';
@@ -100,7 +104,17 @@ import '../widgets/settings_card.dart';
 enum AccountPanel { profile, notifications, language, security }
 
 class AccountPage extends StatefulWidget {
-  const AccountPage({super.key});
+  const AccountPage({super.key, this.pickAvatar = pickAvatarFile});
+
+  /// The OS picker, hoisted so a widget test can drive the whole upload path
+  /// without a platform channel — the `ResidentFilePicker` idiom
+  /// (`resident_fields.dart:50`). B8b.
+  ///
+  /// A default rather than a required parameter because `app_routes.dart`
+  /// builds this page with no arguments and § 4.1 keeps that file out of B8b's
+  /// scope. The default **is** the real picker, so production wiring is the
+  /// zero-argument case and a test must opt *out*.
+  final AvatarFilePicker pickAvatar;
 
   @override
   State<AccountPage> createState() => _AccountPageState();
@@ -127,21 +141,71 @@ class _AccountPageState extends State<AccountPage> {
         _openPanel = _openPanel == panel ? null : panel;
       });
 
+  /// `handleAvatar`'s first three lines — `AccountPage.tsx:234-237`. B8b.
+  ///
+  /// ```tsx
+  /// const file = e.target.files?.[0];
+  /// e.target.value = "";
+  /// if (!file) return;
+  /// ```
+  ///
+  /// **`e.target.value = ""` runs *before* the early return**, and that
+  /// ordering is the whole point: it clears the input whether or not a file
+  /// came back, so re-picking the *same* file fires `onChange` again. Flutter
+  /// has no input element to clear, so the analogue is that **nothing here
+  /// memoises a picker result** — every tap calls [AvatarFilePicker] afresh and
+  /// every non-null result dispatches. B8-AC-54.
+  ///
+  /// A cancelled pick returns null and does nothing at all. It must **not**
+  /// clear an existing avatar: `if (!file) return` returns before the upload,
+  /// and there is no delete path in the source (`endpoints.ts` has no avatar
+  /// DELETE; FU-4's reasoning about `me.deactivate` applies here in miniature).
+  ///
+  /// **No in-flight guard**, matching `:234-245` — `B8b-5`/GG-8.
+  Future<void> _pickAvatar() async {
+    final AccountProfileBloc bloc = context.read<AccountProfileBloc>();
+    final PickedAvatar? file = await widget.pickAvatar();
+    if (file == null) return;
+    bloc.add(AccountAvatarPicked(file));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AccountProfileBloc, AccountProfileState>(
-      // `await session.refresh()` — `AccountPage.tsx:224`, the second half of
-      // B8-AC-51. The first half (`profileQuery.refetch()`) is the BLoC's.
-      //
-      // A listener rather than a BLoC-to-BLoC call because `SessionBloc`
-      // arrives by context and a BLoC has no context; see the file's doc.
-      listenWhen: (AccountProfileState was, AccountProfileState now) =>
-          now.saveOutcome == SaveOutcome.saved &&
-          was.saveOutcome != SaveOutcome.saved,
-      listener: (BuildContext context, AccountProfileState _) {
-        BlocProvider.of<SessionBloc>(context)
-            .add(const SessionEvent.refreshProfile());
-      },
+    return MultiBlocListener(
+      listeners: <BlocListener<AccountProfileBloc, AccountProfileState>>[
+        BlocListener<AccountProfileBloc, AccountProfileState>(
+          // `await session.refresh()` — `AccountPage.tsx:224`, the second half
+          // of B8-AC-51. The first half (`profileQuery.refetch()`) is the
+          // BLoC's.
+          //
+          // A listener rather than a BLoC-to-BLoC call because `SessionBloc`
+          // arrives by context and a BLoC has no context; see the file's doc.
+          listenWhen: (AccountProfileState was, AccountProfileState now) =>
+              now.saveOutcome == SaveOutcome.saved &&
+              was.saveOutcome != SaveOutcome.saved,
+          listener: (BuildContext context, AccountProfileState _) {
+            BlocProvider.of<SessionBloc>(context)
+                .add(const SessionEvent.refreshProfile());
+          },
+        ),
+        // The **same** two refreshes after a successful avatar upload —
+        // `AccountPage.tsx:240-241`. A second listener rather than a widened
+        // `listenWhen` on the first, because the two are different source
+        // lines with different triggers and collapsing them would make a
+        // future change to one silently change the other.
+        //
+        // The BLoC resets `avatarOutcome` to `none` before each attempt, so
+        // this edge exists on every upload, not only the first. B8b.
+        BlocListener<AccountProfileBloc, AccountProfileState>(
+          listenWhen: (AccountProfileState was, AccountProfileState now) =>
+              now.avatarOutcome == AvatarOutcome.uploaded &&
+              was.avatarOutcome != AvatarOutcome.uploaded,
+          listener: (BuildContext context, AccountProfileState _) {
+            BlocProvider.of<SessionBloc>(context)
+                .add(const SessionEvent.refreshProfile());
+          },
+        ),
+      ],
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -151,6 +215,8 @@ class _AccountPageState extends State<AccountPage> {
                   AccountHeader(
                 account: state.account,
                 loading: state.isLoadingHeader,
+                uploading: state.uploadingAvatar,
+                onPickAvatar: _pickAvatar,
               ),
             ),
             Padding(

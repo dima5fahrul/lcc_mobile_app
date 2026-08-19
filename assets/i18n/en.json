@@ -375,6 +375,7 @@
     "passwordChanged": "Password changed.",
     "passwordMismatch": "The two passwords do not match.",
     "passwordShort": "At least 8 characters.",
+    "photoHint": "Change photo",
     "uin": "UIN",
     "signOut": "Sign Out"
   },
