@@ -17,6 +17,7 @@ import 'package:lcc_mobile_app/features/session/domain/repositories/session_repo
 import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart';
 import 'package:lcc_mobile_app/features/session/domain/usecases/update_profile.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:lcc_mobile_app/features/session/domain/entities/jurisdiction.dart';
 
 import 'auth_mock_data.dart';
 
@@ -93,7 +94,7 @@ CitizenAccount tCitizenAccount({String name = 'Test Citizen', String? avatarUrl}
     gender: 'male',
     avatarUrl: avatarUrl,
     preferredLang: 'lo',
-    jurisdiction: 'Vientiane',
+    jurisdiction: const Jurisdiction(provinceName: 'Vientiane'),
     householdNo: 'H001',
     address: 'Vientiane',
     verified: true,

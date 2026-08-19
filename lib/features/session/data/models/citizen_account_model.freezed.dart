@@ -15,7 +15,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CitizenAccountModel {
 
- String get id; String get uin; String get name; String get phone; String get email;@JsonKey(name: 'national_id_no') String get nationalIdNo;@JsonKey(name: 'date_of_birth') String get dateOfBirth; String get gender;@JsonKey(name: 'avatar_url') String? get avatarUrl;@JsonKey(name: 'preferred_lang') String get preferredLang; String get jurisdiction;@JsonKey(name: 'household_no') String get householdNo; String get address; bool get verified;@JsonKey(name: 'eid_verified') bool get eidVerified; bool get active;@JsonKey(name: 'last_login_at') String? get lastLoginAt;@JsonKey(name: 'created_at') String get createdAt;
+ String get id; String get name; String get phone; String get email;@JsonKey(name: 'preferred_lang') String get preferredLang; bool get verified;@JsonKey(name: 'eid_verified') bool get eidVerified; bool get active;@JsonKey(name: 'created_at') String get createdAt;// Absent on a real staging payload — see the library doc.
+ String? get uin;@JsonKey(name: 'national_id_no') String? get nationalIdNo;@JsonKey(name: 'date_of_birth') String? get dateOfBirth; String? get gender;@JsonKey(name: 'household_no') String? get householdNo; String? get address;/// An object on the wire (`types.ts` `interface Jurisdiction`), never a
+/// string. `json_serializable` builds the nested parse from this type.
+ JurisdictionModel? get jurisdiction;@JsonKey(name: 'avatar_url') String? get avatarUrl;@JsonKey(name: 'last_login_at') String? get lastLoginAt;
 /// Create a copy of CitizenAccountModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +31,16 @@ $CitizenAccountModelCopyWith<CitizenAccountModel> get copyWith => _$CitizenAccou
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CitizenAccountModel&&(identical(other.id, id) || other.id == id)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.nationalIdNo, nationalIdNo) || other.nationalIdNo == nationalIdNo)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.preferredLang, preferredLang) || other.preferredLang == preferredLang)&&(identical(other.jurisdiction, jurisdiction) || other.jurisdiction == jurisdiction)&&(identical(other.householdNo, householdNo) || other.householdNo == householdNo)&&(identical(other.address, address) || other.address == address)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.eidVerified, eidVerified) || other.eidVerified == eidVerified)&&(identical(other.active, active) || other.active == active)&&(identical(other.lastLoginAt, lastLoginAt) || other.lastLoginAt == lastLoginAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CitizenAccountModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.preferredLang, preferredLang) || other.preferredLang == preferredLang)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.eidVerified, eidVerified) || other.eidVerified == eidVerified)&&(identical(other.active, active) || other.active == active)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.nationalIdNo, nationalIdNo) || other.nationalIdNo == nationalIdNo)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.householdNo, householdNo) || other.householdNo == householdNo)&&(identical(other.address, address) || other.address == address)&&(identical(other.jurisdiction, jurisdiction) || other.jurisdiction == jurisdiction)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.lastLoginAt, lastLoginAt) || other.lastLoginAt == lastLoginAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,uin,name,phone,email,nationalIdNo,dateOfBirth,gender,avatarUrl,preferredLang,jurisdiction,householdNo,address,verified,eidVerified,active,lastLoginAt,createdAt);
+int get hashCode => Object.hash(runtimeType,id,name,phone,email,preferredLang,verified,eidVerified,active,createdAt,uin,nationalIdNo,dateOfBirth,gender,householdNo,address,jurisdiction,avatarUrl,lastLoginAt);
 
 @override
 String toString() {
-  return 'CitizenAccountModel(id: $id, uin: $uin, name: $name, phone: $phone, email: $email, nationalIdNo: $nationalIdNo, dateOfBirth: $dateOfBirth, gender: $gender, avatarUrl: $avatarUrl, preferredLang: $preferredLang, jurisdiction: $jurisdiction, householdNo: $householdNo, address: $address, verified: $verified, eidVerified: $eidVerified, active: $active, lastLoginAt: $lastLoginAt, createdAt: $createdAt)';
+  return 'CitizenAccountModel(id: $id, name: $name, phone: $phone, email: $email, preferredLang: $preferredLang, verified: $verified, eidVerified: $eidVerified, active: $active, createdAt: $createdAt, uin: $uin, nationalIdNo: $nationalIdNo, dateOfBirth: $dateOfBirth, gender: $gender, householdNo: $householdNo, address: $address, jurisdiction: $jurisdiction, avatarUrl: $avatarUrl, lastLoginAt: $lastLoginAt)';
 }
 
 
@@ -48,11 +51,11 @@ abstract mixin class $CitizenAccountModelCopyWith<$Res>  {
   factory $CitizenAccountModelCopyWith(CitizenAccountModel value, $Res Function(CitizenAccountModel) _then) = _$CitizenAccountModelCopyWithImpl;
 @useResult
 $Res call({
- String id, String uin, String name, String phone, String email,@JsonKey(name: 'national_id_no') String nationalIdNo,@JsonKey(name: 'date_of_birth') String dateOfBirth, String gender,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'preferred_lang') String preferredLang, String jurisdiction,@JsonKey(name: 'household_no') String householdNo, String address, bool verified,@JsonKey(name: 'eid_verified') bool eidVerified, bool active,@JsonKey(name: 'last_login_at') String? lastLoginAt,@JsonKey(name: 'created_at') String createdAt
+ String id, String name, String phone, String email,@JsonKey(name: 'preferred_lang') String preferredLang, bool verified,@JsonKey(name: 'eid_verified') bool eidVerified, bool active,@JsonKey(name: 'created_at') String createdAt, String? uin,@JsonKey(name: 'national_id_no') String? nationalIdNo,@JsonKey(name: 'date_of_birth') String? dateOfBirth, String? gender,@JsonKey(name: 'household_no') String? householdNo, String? address, JurisdictionModel? jurisdiction,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'last_login_at') String? lastLoginAt
 });
 
 
-
+$JurisdictionModelCopyWith<$Res>? get jurisdiction;
 
 }
 /// @nodoc
@@ -65,30 +68,42 @@ class _$CitizenAccountModelCopyWithImpl<$Res>
 
 /// Create a copy of CitizenAccountModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? uin = null,Object? name = null,Object? phone = null,Object? email = null,Object? nationalIdNo = null,Object? dateOfBirth = null,Object? gender = null,Object? avatarUrl = freezed,Object? preferredLang = null,Object? jurisdiction = null,Object? householdNo = null,Object? address = null,Object? verified = null,Object? eidVerified = null,Object? active = null,Object? lastLoginAt = freezed,Object? createdAt = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? email = null,Object? preferredLang = null,Object? verified = null,Object? eidVerified = null,Object? active = null,Object? createdAt = null,Object? uin = freezed,Object? nationalIdNo = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? householdNo = freezed,Object? address = freezed,Object? jurisdiction = freezed,Object? avatarUrl = freezed,Object? lastLoginAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,uin: null == uin ? _self.uin : uin // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,nationalIdNo: null == nationalIdNo ? _self.nationalIdNo : nationalIdNo // ignore: cast_nullable_to_non_nullable
-as String,dateOfBirth: null == dateOfBirth ? _self.dateOfBirth : dateOfBirth // ignore: cast_nullable_to_non_nullable
-as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
-as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,preferredLang: null == preferredLang ? _self.preferredLang : preferredLang // ignore: cast_nullable_to_non_nullable
-as String,jurisdiction: null == jurisdiction ? _self.jurisdiction : jurisdiction // ignore: cast_nullable_to_non_nullable
-as String,householdNo: null == householdNo ? _self.householdNo : householdNo // ignore: cast_nullable_to_non_nullable
-as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String,preferredLang: null == preferredLang ? _self.preferredLang : preferredLang // ignore: cast_nullable_to_non_nullable
 as String,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable
 as bool,eidVerified: null == eidVerified ? _self.eidVerified : eidVerified // ignore: cast_nullable_to_non_nullable
 as bool,active: null == active ? _self.active : active // ignore: cast_nullable_to_non_nullable
-as bool,lastLoginAt: freezed == lastLoginAt ? _self.lastLoginAt : lastLoginAt // ignore: cast_nullable_to_non_nullable
-as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as String,
+as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String,uin: freezed == uin ? _self.uin : uin // ignore: cast_nullable_to_non_nullable
+as String?,nationalIdNo: freezed == nationalIdNo ? _self.nationalIdNo : nationalIdNo // ignore: cast_nullable_to_non_nullable
+as String?,dateOfBirth: freezed == dateOfBirth ? _self.dateOfBirth : dateOfBirth // ignore: cast_nullable_to_non_nullable
+as String?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String?,householdNo: freezed == householdNo ? _self.householdNo : householdNo // ignore: cast_nullable_to_non_nullable
+as String?,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,jurisdiction: freezed == jurisdiction ? _self.jurisdiction : jurisdiction // ignore: cast_nullable_to_non_nullable
+as JurisdictionModel?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
+as String?,lastLoginAt: freezed == lastLoginAt ? _self.lastLoginAt : lastLoginAt // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
+/// Create a copy of CitizenAccountModel
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$JurisdictionModelCopyWith<$Res>? get jurisdiction {
+    if (_self.jurisdiction == null) {
+    return null;
+  }
 
+  return $JurisdictionModelCopyWith<$Res>(_self.jurisdiction!, (value) {
+    return _then(_self.copyWith(jurisdiction: value));
+  });
+}
 }
 
 
@@ -170,10 +185,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String uin,  String name,  String phone,  String email, @JsonKey(name: 'national_id_no')  String nationalIdNo, @JsonKey(name: 'date_of_birth')  String dateOfBirth,  String gender, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'preferred_lang')  String preferredLang,  String jurisdiction, @JsonKey(name: 'household_no')  String householdNo,  String address,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'last_login_at')  String? lastLoginAt, @JsonKey(name: 'created_at')  String createdAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  String phone,  String email, @JsonKey(name: 'preferred_lang')  String preferredLang,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'created_at')  String createdAt,  String? uin, @JsonKey(name: 'national_id_no')  String? nationalIdNo, @JsonKey(name: 'date_of_birth')  String? dateOfBirth,  String? gender, @JsonKey(name: 'household_no')  String? householdNo,  String? address,  JurisdictionModel? jurisdiction, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'last_login_at')  String? lastLoginAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CitizenAccountModel() when $default != null:
-return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.avatarUrl,_that.preferredLang,_that.jurisdiction,_that.householdNo,_that.address,_that.verified,_that.eidVerified,_that.active,_that.lastLoginAt,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.phone,_that.email,_that.preferredLang,_that.verified,_that.eidVerified,_that.active,_that.createdAt,_that.uin,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.householdNo,_that.address,_that.jurisdiction,_that.avatarUrl,_that.lastLoginAt);case _:
   return orElse();
 
 }
@@ -191,10 +206,10 @@ return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nati
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String uin,  String name,  String phone,  String email, @JsonKey(name: 'national_id_no')  String nationalIdNo, @JsonKey(name: 'date_of_birth')  String dateOfBirth,  String gender, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'preferred_lang')  String preferredLang,  String jurisdiction, @JsonKey(name: 'household_no')  String householdNo,  String address,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'last_login_at')  String? lastLoginAt, @JsonKey(name: 'created_at')  String createdAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  String phone,  String email, @JsonKey(name: 'preferred_lang')  String preferredLang,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'created_at')  String createdAt,  String? uin, @JsonKey(name: 'national_id_no')  String? nationalIdNo, @JsonKey(name: 'date_of_birth')  String? dateOfBirth,  String? gender, @JsonKey(name: 'household_no')  String? householdNo,  String? address,  JurisdictionModel? jurisdiction, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'last_login_at')  String? lastLoginAt)  $default,) {final _that = this;
 switch (_that) {
 case _CitizenAccountModel():
-return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.avatarUrl,_that.preferredLang,_that.jurisdiction,_that.householdNo,_that.address,_that.verified,_that.eidVerified,_that.active,_that.lastLoginAt,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.phone,_that.email,_that.preferredLang,_that.verified,_that.eidVerified,_that.active,_that.createdAt,_that.uin,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.householdNo,_that.address,_that.jurisdiction,_that.avatarUrl,_that.lastLoginAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -211,10 +226,10 @@ return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nati
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String uin,  String name,  String phone,  String email, @JsonKey(name: 'national_id_no')  String nationalIdNo, @JsonKey(name: 'date_of_birth')  String dateOfBirth,  String gender, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'preferred_lang')  String preferredLang,  String jurisdiction, @JsonKey(name: 'household_no')  String householdNo,  String address,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'last_login_at')  String? lastLoginAt, @JsonKey(name: 'created_at')  String createdAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  String phone,  String email, @JsonKey(name: 'preferred_lang')  String preferredLang,  bool verified, @JsonKey(name: 'eid_verified')  bool eidVerified,  bool active, @JsonKey(name: 'created_at')  String createdAt,  String? uin, @JsonKey(name: 'national_id_no')  String? nationalIdNo, @JsonKey(name: 'date_of_birth')  String? dateOfBirth,  String? gender, @JsonKey(name: 'household_no')  String? householdNo,  String? address,  JurisdictionModel? jurisdiction, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'last_login_at')  String? lastLoginAt)?  $default,) {final _that = this;
 switch (_that) {
 case _CitizenAccountModel() when $default != null:
-return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.avatarUrl,_that.preferredLang,_that.jurisdiction,_that.householdNo,_that.address,_that.verified,_that.eidVerified,_that.active,_that.lastLoginAt,_that.createdAt);case _:
+return $default(_that.id,_that.name,_that.phone,_that.email,_that.preferredLang,_that.verified,_that.eidVerified,_that.active,_that.createdAt,_that.uin,_that.nationalIdNo,_that.dateOfBirth,_that.gender,_that.householdNo,_that.address,_that.jurisdiction,_that.avatarUrl,_that.lastLoginAt);case _:
   return null;
 
 }
@@ -226,27 +241,30 @@ return $default(_that.id,_that.uin,_that.name,_that.phone,_that.email,_that.nati
 @JsonSerializable()
 
 class _CitizenAccountModel implements CitizenAccountModel {
-  const _CitizenAccountModel({required this.id, required this.uin, required this.name, required this.phone, required this.email, @JsonKey(name: 'national_id_no') required this.nationalIdNo, @JsonKey(name: 'date_of_birth') required this.dateOfBirth, required this.gender, @JsonKey(name: 'avatar_url') this.avatarUrl, @JsonKey(name: 'preferred_lang') required this.preferredLang, required this.jurisdiction, @JsonKey(name: 'household_no') required this.householdNo, required this.address, required this.verified, @JsonKey(name: 'eid_verified') required this.eidVerified, required this.active, @JsonKey(name: 'last_login_at') this.lastLoginAt, @JsonKey(name: 'created_at') required this.createdAt});
+  const _CitizenAccountModel({required this.id, required this.name, required this.phone, required this.email, @JsonKey(name: 'preferred_lang') required this.preferredLang, required this.verified, @JsonKey(name: 'eid_verified') required this.eidVerified, required this.active, @JsonKey(name: 'created_at') required this.createdAt, this.uin, @JsonKey(name: 'national_id_no') this.nationalIdNo, @JsonKey(name: 'date_of_birth') this.dateOfBirth, this.gender, @JsonKey(name: 'household_no') this.householdNo, this.address, this.jurisdiction, @JsonKey(name: 'avatar_url') this.avatarUrl, @JsonKey(name: 'last_login_at') this.lastLoginAt});
   factory _CitizenAccountModel.fromJson(Map<String, dynamic> json) => _$CitizenAccountModelFromJson(json);
 
 @override final  String id;
-@override final  String uin;
 @override final  String name;
 @override final  String phone;
 @override final  String email;
-@override@JsonKey(name: 'national_id_no') final  String nationalIdNo;
-@override@JsonKey(name: 'date_of_birth') final  String dateOfBirth;
-@override final  String gender;
-@override@JsonKey(name: 'avatar_url') final  String? avatarUrl;
 @override@JsonKey(name: 'preferred_lang') final  String preferredLang;
-@override final  String jurisdiction;
-@override@JsonKey(name: 'household_no') final  String householdNo;
-@override final  String address;
 @override final  bool verified;
 @override@JsonKey(name: 'eid_verified') final  bool eidVerified;
 @override final  bool active;
-@override@JsonKey(name: 'last_login_at') final  String? lastLoginAt;
 @override@JsonKey(name: 'created_at') final  String createdAt;
+// Absent on a real staging payload — see the library doc.
+@override final  String? uin;
+@override@JsonKey(name: 'national_id_no') final  String? nationalIdNo;
+@override@JsonKey(name: 'date_of_birth') final  String? dateOfBirth;
+@override final  String? gender;
+@override@JsonKey(name: 'household_no') final  String? householdNo;
+@override final  String? address;
+/// An object on the wire (`types.ts` `interface Jurisdiction`), never a
+/// string. `json_serializable` builds the nested parse from this type.
+@override final  JurisdictionModel? jurisdiction;
+@override@JsonKey(name: 'avatar_url') final  String? avatarUrl;
+@override@JsonKey(name: 'last_login_at') final  String? lastLoginAt;
 
 /// Create a copy of CitizenAccountModel
 /// with the given fields replaced by the non-null parameter values.
@@ -261,16 +279,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CitizenAccountModel&&(identical(other.id, id) || other.id == id)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.nationalIdNo, nationalIdNo) || other.nationalIdNo == nationalIdNo)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.preferredLang, preferredLang) || other.preferredLang == preferredLang)&&(identical(other.jurisdiction, jurisdiction) || other.jurisdiction == jurisdiction)&&(identical(other.householdNo, householdNo) || other.householdNo == householdNo)&&(identical(other.address, address) || other.address == address)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.eidVerified, eidVerified) || other.eidVerified == eidVerified)&&(identical(other.active, active) || other.active == active)&&(identical(other.lastLoginAt, lastLoginAt) || other.lastLoginAt == lastLoginAt)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CitizenAccountModel&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.email, email) || other.email == email)&&(identical(other.preferredLang, preferredLang) || other.preferredLang == preferredLang)&&(identical(other.verified, verified) || other.verified == verified)&&(identical(other.eidVerified, eidVerified) || other.eidVerified == eidVerified)&&(identical(other.active, active) || other.active == active)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.nationalIdNo, nationalIdNo) || other.nationalIdNo == nationalIdNo)&&(identical(other.dateOfBirth, dateOfBirth) || other.dateOfBirth == dateOfBirth)&&(identical(other.gender, gender) || other.gender == gender)&&(identical(other.householdNo, householdNo) || other.householdNo == householdNo)&&(identical(other.address, address) || other.address == address)&&(identical(other.jurisdiction, jurisdiction) || other.jurisdiction == jurisdiction)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.lastLoginAt, lastLoginAt) || other.lastLoginAt == lastLoginAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,uin,name,phone,email,nationalIdNo,dateOfBirth,gender,avatarUrl,preferredLang,jurisdiction,householdNo,address,verified,eidVerified,active,lastLoginAt,createdAt);
+int get hashCode => Object.hash(runtimeType,id,name,phone,email,preferredLang,verified,eidVerified,active,createdAt,uin,nationalIdNo,dateOfBirth,gender,householdNo,address,jurisdiction,avatarUrl,lastLoginAt);
 
 @override
 String toString() {
-  return 'CitizenAccountModel(id: $id, uin: $uin, name: $name, phone: $phone, email: $email, nationalIdNo: $nationalIdNo, dateOfBirth: $dateOfBirth, gender: $gender, avatarUrl: $avatarUrl, preferredLang: $preferredLang, jurisdiction: $jurisdiction, householdNo: $householdNo, address: $address, verified: $verified, eidVerified: $eidVerified, active: $active, lastLoginAt: $lastLoginAt, createdAt: $createdAt)';
+  return 'CitizenAccountModel(id: $id, name: $name, phone: $phone, email: $email, preferredLang: $preferredLang, verified: $verified, eidVerified: $eidVerified, active: $active, createdAt: $createdAt, uin: $uin, nationalIdNo: $nationalIdNo, dateOfBirth: $dateOfBirth, gender: $gender, householdNo: $householdNo, address: $address, jurisdiction: $jurisdiction, avatarUrl: $avatarUrl, lastLoginAt: $lastLoginAt)';
 }
 
 
@@ -281,11 +299,11 @@ abstract mixin class _$CitizenAccountModelCopyWith<$Res> implements $CitizenAcco
   factory _$CitizenAccountModelCopyWith(_CitizenAccountModel value, $Res Function(_CitizenAccountModel) _then) = __$CitizenAccountModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String uin, String name, String phone, String email,@JsonKey(name: 'national_id_no') String nationalIdNo,@JsonKey(name: 'date_of_birth') String dateOfBirth, String gender,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'preferred_lang') String preferredLang, String jurisdiction,@JsonKey(name: 'household_no') String householdNo, String address, bool verified,@JsonKey(name: 'eid_verified') bool eidVerified, bool active,@JsonKey(name: 'last_login_at') String? lastLoginAt,@JsonKey(name: 'created_at') String createdAt
+ String id, String name, String phone, String email,@JsonKey(name: 'preferred_lang') String preferredLang, bool verified,@JsonKey(name: 'eid_verified') bool eidVerified, bool active,@JsonKey(name: 'created_at') String createdAt, String? uin,@JsonKey(name: 'national_id_no') String? nationalIdNo,@JsonKey(name: 'date_of_birth') String? dateOfBirth, String? gender,@JsonKey(name: 'household_no') String? householdNo, String? address, JurisdictionModel? jurisdiction,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'last_login_at') String? lastLoginAt
 });
 
 
-
+@override $JurisdictionModelCopyWith<$Res>? get jurisdiction;
 
 }
 /// @nodoc
@@ -298,31 +316,43 @@ class __$CitizenAccountModelCopyWithImpl<$Res>
 
 /// Create a copy of CitizenAccountModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? uin = null,Object? name = null,Object? phone = null,Object? email = null,Object? nationalIdNo = null,Object? dateOfBirth = null,Object? gender = null,Object? avatarUrl = freezed,Object? preferredLang = null,Object? jurisdiction = null,Object? householdNo = null,Object? address = null,Object? verified = null,Object? eidVerified = null,Object? active = null,Object? lastLoginAt = freezed,Object? createdAt = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? phone = null,Object? email = null,Object? preferredLang = null,Object? verified = null,Object? eidVerified = null,Object? active = null,Object? createdAt = null,Object? uin = freezed,Object? nationalIdNo = freezed,Object? dateOfBirth = freezed,Object? gender = freezed,Object? householdNo = freezed,Object? address = freezed,Object? jurisdiction = freezed,Object? avatarUrl = freezed,Object? lastLoginAt = freezed,}) {
   return _then(_CitizenAccountModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as String,uin: null == uin ? _self.uin : uin // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
 as String,phone: null == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
-as String,nationalIdNo: null == nationalIdNo ? _self.nationalIdNo : nationalIdNo // ignore: cast_nullable_to_non_nullable
-as String,dateOfBirth: null == dateOfBirth ? _self.dateOfBirth : dateOfBirth // ignore: cast_nullable_to_non_nullable
-as String,gender: null == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
-as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,preferredLang: null == preferredLang ? _self.preferredLang : preferredLang // ignore: cast_nullable_to_non_nullable
-as String,jurisdiction: null == jurisdiction ? _self.jurisdiction : jurisdiction // ignore: cast_nullable_to_non_nullable
-as String,householdNo: null == householdNo ? _self.householdNo : householdNo // ignore: cast_nullable_to_non_nullable
-as String,address: null == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String,preferredLang: null == preferredLang ? _self.preferredLang : preferredLang // ignore: cast_nullable_to_non_nullable
 as String,verified: null == verified ? _self.verified : verified // ignore: cast_nullable_to_non_nullable
 as bool,eidVerified: null == eidVerified ? _self.eidVerified : eidVerified // ignore: cast_nullable_to_non_nullable
 as bool,active: null == active ? _self.active : active // ignore: cast_nullable_to_non_nullable
-as bool,lastLoginAt: freezed == lastLoginAt ? _self.lastLoginAt : lastLoginAt // ignore: cast_nullable_to_non_nullable
-as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as String,
+as bool,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
+as String,uin: freezed == uin ? _self.uin : uin // ignore: cast_nullable_to_non_nullable
+as String?,nationalIdNo: freezed == nationalIdNo ? _self.nationalIdNo : nationalIdNo // ignore: cast_nullable_to_non_nullable
+as String?,dateOfBirth: freezed == dateOfBirth ? _self.dateOfBirth : dateOfBirth // ignore: cast_nullable_to_non_nullable
+as String?,gender: freezed == gender ? _self.gender : gender // ignore: cast_nullable_to_non_nullable
+as String?,householdNo: freezed == householdNo ? _self.householdNo : householdNo // ignore: cast_nullable_to_non_nullable
+as String?,address: freezed == address ? _self.address : address // ignore: cast_nullable_to_non_nullable
+as String?,jurisdiction: freezed == jurisdiction ? _self.jurisdiction : jurisdiction // ignore: cast_nullable_to_non_nullable
+as JurisdictionModel?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
+as String?,lastLoginAt: freezed == lastLoginAt ? _self.lastLoginAt : lastLoginAt // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
+/// Create a copy of CitizenAccountModel
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$JurisdictionModelCopyWith<$Res>? get jurisdiction {
+    if (_self.jurisdiction == null) {
+    return null;
+  }
 
+  return $JurisdictionModelCopyWith<$Res>(_self.jurisdiction!, (value) {
+    return _then(_self.copyWith(jurisdiction: value));
+  });
+}
 }
 
 // dart format on

@@ -91,7 +91,12 @@ void main() {
       expect(entity.gender, 'male');
       expect(entity.avatarUrl, 'https://x/y.png');
       expect(entity.preferredLang, 'lo');
-      expect(entity.jurisdiction, 'Vientiane');
+      // `jurisdiction` is an object, not a string — corrected 2026-08-19 with
+      // the login fix. The assertion reaches into the member the fixture sets
+      // rather than comparing the whole value, so a future fixture that fills
+      // in district or village does not redden a test about mapping.
+      expect(entity.jurisdiction?.provinceName, 'Vientiane');
+      expect(entity.jurisdiction?.provinceId, 'P-VTE');
       expect(entity.householdNo, 'H001');
       expect(entity.address, 'Vientiane');
       expect(entity.verified, isTrue);

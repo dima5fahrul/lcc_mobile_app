@@ -30,6 +30,7 @@ import 'package:lcc_mobile_app/features/session/domain/usecases/get_profile.dart
 import 'package:lcc_mobile_app/features/session/domain/usecases/update_profile.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:lcc_mobile_app/features/session/domain/entities/jurisdiction.dart';
 
 import '../../helpers/app_test_harness.dart';
 
@@ -94,7 +95,7 @@ CitizenAccount tAccount({
       gender: 'male',
       avatarUrl: avatarUrl,
       preferredLang: 'lo',
-      jurisdiction: 'synthetic',
+      jurisdiction: const Jurisdiction(provinceName: 'synthetic'),
       householdNo: 'HH-SYNTHETIC-0001',
       address: address,
       verified: verified,

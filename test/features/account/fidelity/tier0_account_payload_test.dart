@@ -50,6 +50,7 @@ import 'package:lcc_mobile_app/features/account/domain/entities/citizen_preferen
 import 'package:lcc_mobile_app/features/session/data/models/profile_update_body.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/citizen_account.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/profile_update.dart';
+import 'package:lcc_mobile_app/features/session/domain/entities/jurisdiction.dart';
 
 import '../../../fidelity/oracle.dart' show kWebCommit;
 
@@ -86,7 +87,20 @@ CitizenAccount _account() {
     dateOfBirth: j['date_of_birth'] as String,
     gender: j['gender'] as String,
     preferredLang: j['preferred_lang'] as String,
-    jurisdiction: j['jurisdiction'] as String,
+    // `jurisdiction` is an object on the wire (`types.ts` `interface
+    // Jurisdiction`) — it was typed `String` here and in production until
+    // 2026-08-19, which is what broke citizen login. This fixture parse
+    // mirrors the production one so the oracle measures the shipped shape.
+    jurisdiction: j['jurisdiction'] is Map<String, dynamic>
+        ? Jurisdiction(
+            provinceId: (j['jurisdiction'] as Map<String, dynamic>)['province_id'] as String?,
+            provinceName: (j['jurisdiction'] as Map<String, dynamic>)['province_name'] as String?,
+            districtId: (j['jurisdiction'] as Map<String, dynamic>)['district_id'] as String?,
+            districtName: (j['jurisdiction'] as Map<String, dynamic>)['district_name'] as String?,
+            villageId: (j['jurisdiction'] as Map<String, dynamic>)['village_id'] as String?,
+            villageName: (j['jurisdiction'] as Map<String, dynamic>)['village_name'] as String?,
+          )
+        : null,
     householdNo: j['household_no'] as String,
     address: j['address'] as String,
     verified: j['verified'] as bool,
@@ -123,7 +137,7 @@ Map<String, dynamic> _naiveSymmetricBody({
       (String, String, String)>[
     ('name', name.trim(), account.name),
     ('email', email.trim(), account.email),
-    ('address', address.trim(), account.address),
+    ('address', address.trim(), account.address ?? ''),
   ]) {
     if (value != current) body[key] = value;
   }
@@ -345,8 +359,8 @@ void main() {
             address: a,
           ));
 
-      expect(diff('', account.email, account.address), isEmpty);
-      expect(diff(account.name, '', account.address), <String, dynamic>{
+      expect(diff('', account.email, account.address ?? ''), isEmpty);
+      expect(diff(account.name, '', account.address ?? ''), <String, dynamic>{
         'email': '',
       });
       expect(diff(account.name, account.email, ''), <String, dynamic>{

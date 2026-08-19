@@ -15,7 +15,15 @@ const Map<String, dynamic> tCitizenAccountJson = {
   'date_of_birth': '1990-01-01',
   'gender': 'male',
   'preferred_lang': 'lo',
-  'jurisdiction': 'Vientiane',
+  // An OBJECT, not a string — `types.ts` `interface Jurisdiction`. This
+  // fixture said `'Vientiane'` until 2026-08-19, and being wrong in the same
+  // direction as the production model is exactly why 13 tests over this data
+  // could not see that citizen login was broken. A fixture that agrees with
+  // the code it feeds proves the two agree, not that either is right.
+  'jurisdiction': <String, dynamic>{
+    'province_id': 'P-VTE',
+    'province_name': 'Vientiane',
+  },
   'household_no': 'H001',
   'address': 'Vientiane',
   'verified': true,

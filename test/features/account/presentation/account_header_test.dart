@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/features/account/presentation/widgets/account_header.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/citizen_account.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
+import 'package:lcc_mobile_app/features/session/domain/entities/jurisdiction.dart';
 
 import '../../../helpers/app_test_harness.dart';
 
@@ -41,7 +42,7 @@ CitizenAccount account({
       gender: 'male',
       avatarUrl: avatarUrl,
       preferredLang: 'lo',
-      jurisdiction: 'synthetic',
+      jurisdiction: const Jurisdiction(provinceName: 'synthetic'),
       householdNo: 'HH-SYNTHETIC-0001',
       address: 'Ban Synthetic, Sisattanak, Vientiane',
       verified: verified,
