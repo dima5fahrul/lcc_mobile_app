@@ -27,7 +27,21 @@ import 'package:lcc_mobile_app/presentation/shell/language_toggle.dart';
 /// well inside [kIconByteCeiling]. B8's § 3.1 table does not name this file —
 /// a recorded scope deviation, on the same grounds as the DI tearDowns: the
 /// page cannot render its own rows without its own glyphs.
-const int kLucideUnionSize = 89;
+/// ── B12: +3 = 92 ────────────────────────────────────────────────────────────
+///
+/// F4's `blocked.md` B-3 recorded `BookX`, `RotateCcw` and `Crown` as unbundled:
+/// `family_book_states.dart` names them and `AppIcons.assetFor` fell back to
+/// `FileText`. F4 left it — the icon set was outside its § 3.1 — and noted the
+/// consequence would change once the page was reachable.
+///
+/// B12 made it reachable. A wrong glyph on a page no citizen can open became a
+/// wrong glyph on the empty state, which B-3 itself calls the single most
+/// visible element on slot 47. Bundled here on that ground.
+///
+/// Generated, not drawn: `node tool/generate_lucide_svgs.mjs`, reading the
+/// in-tree pinned `lucide-react@0.487.0`. `--check` re-run afterwards reports
+/// `written 0`, so the output is idempotent and the geometry is the web's own.
+const int kLucideUnionSize = 92;
 
 /// § 6.3.3's ceiling for `assets/icons/**` in total.
 const int kIconByteCeiling = 120000;
@@ -36,7 +50,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('B2-AC-13 assets resolve through rootBundle', () {
-    test('the registry holds the 89-name union', () {
+    test('the registry holds the 92-name union', () {
       expect(lucideRegistry, hasLength(kLucideUnionSize));
       expect(lucideRegistry.values.toSet(), hasLength(kLucideUnionSize),
           reason: 'two names sharing one asset path would make the byte '

@@ -116,24 +116,29 @@ const RESTORE_COMMAND = 'cd projects/lcc-mobile-app/sources/lcc-app && pnpm inst
  */
 const NAMES = [
   'Accessibility', 'AlertCircle', 'AlertOctagon', 'AlertTriangle', 'ArrowRight',
-  'Award', 'Baby', 'BadgeCheck', 'Bell', 'BookOpen', 'Building', 'Building2',
-  'Bus', 'Calendar', 'CalendarCheck', 'Car', 'CarFront', 'Check', 'CheckCircle',
+  'Award', 'Baby', 'BadgeCheck', 'Bell', 'BookOpen',
+  'BookX', 'Building', 'Building2', 'Bus', 'Calendar',
+  'CalendarCheck', 'Car', 'CarFront', 'Check', 'CheckCircle',
   'ChevronDown', 'ChevronLeft', 'ChevronRight', 'ClipboardList', 'Clock',
-  'Coins', 'CreditCard', 'Download', 'Eye', 'EyeOff', 'FileCheck2',
-  'FileClock', 'FileText',
-  'Gavel', 'Globe', 'Globe2', 'GraduationCap', 'Hammer', 'HandCoins', 'HandHeart',
-  'Hash', 'Heart', 'HeartCrack', 'HeartHandshake', 'HeartPulse', 'HelpCircle',
-  'Home', 'IdCard', 'Landmark', 'LayoutGrid', 'LifeBuoy', 'LogOut', 'Mail',
-  'Map',
-  'MapPin', 'MapPinned', 'Megaphone', 'MessageCircle', 'Phone', 'PiggyBank',
-  'Plane', 'QrCode', 'Receipt', 'RefreshCw', 'Rocket', 'Route', 'School',
-  'ScrollText', 'Search', 'Settings2', 'Share2', 'Shield', 'ShieldCheck',
-  'Siren', 'Stethoscope', 'StickyNote', 'Store', 'Syringe', 'Tag', 'ThumbsDown',
-  'ThumbsUp', 'Tractor', 'User', 'UserCircle', 'UserMinus', 'Users', 'Users2',
-  'Wallet', 'X', 'Zap',
+  'Coins', 'CreditCard', 'Crown', 'Download', 'Eye',
+  'EyeOff', 'FileCheck2', 'FileClock', 'FileText', 'Gavel',
+  'Globe', 'Globe2', 'GraduationCap', 'Hammer', 'HandCoins',
+  'HandHeart', 'Hash', 'Heart', 'HeartCrack', 'HeartHandshake',
+  'HeartPulse', 'HelpCircle', 'Home', 'IdCard', 'Landmark',
+  'LayoutGrid', 'LifeBuoy', 'LogOut', 'Mail', 'Map',
+  'MapPin', 'MapPinned', 'Megaphone', 'MessageCircle', 'Phone',
+  'PiggyBank', 'Plane', 'QrCode', 'Receipt', 'RefreshCw',
+  'Rocket', 'RotateCcw', 'Route', 'School', 'ScrollText',
+  'Search', 'Settings2', 'Share2', 'Shield', 'ShieldCheck',
+  'Siren', 'Stethoscope', 'StickyNote', 'Store', 'Syringe',
+  'Tag', 'ThumbsDown', 'ThumbsUp', 'Tractor', 'User',
+  'UserCircle', 'UserMinus', 'Users', 'Users2', 'Wallet',
+  'X', 'Zap',
 ];
 
-const EXPECTED_NAME_COUNT = 89; // 86 (B2a) + 3 (B8a: CreditCard, Globe, LogOut)
+const EXPECTED_NAME_COUNT = 92; // 86 (B2a) + 3 (B8a: CreditCard, Globe, LogOut)
+                                //          + 3 (B12: BookX, RotateCcw, Crown — F4's
+                                //            B-3, which routing made visible)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small helpers
