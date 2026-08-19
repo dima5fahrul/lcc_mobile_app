@@ -55,7 +55,7 @@ dependencies:
   # form must reach the attachment list**. `FileType.custom` is a hard filter
   # with no escape hatch and would introduce a rejection the web does not have,
   # on the one page where doing so is most tempting.
-  file_picker: ^8.1.7
+  file_picker: ^10.0.0
 
   # Code-gen annotations
   freezed_annotation: ^3.1.0
