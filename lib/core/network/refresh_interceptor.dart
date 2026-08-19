@@ -104,6 +104,38 @@ class RefreshInterceptor extends Interceptor {
       options.headers['Authorization'] = 'Bearer $newToken';
       options.extra['retryAttempt'] = 1;
 
+      // **A multipart body must be cloned before it can be replayed**
+      // (`B8b-3`, fixed 2026-08-19).
+      //
+      // `options.data` for an upload is a Dio `FormData`, and the first send
+      // *finalizes* it. Re-sending the same instance throws, from Dio's own
+      // `form_data.dart:164-172`:
+      //
+      //   'The FormData has already been finalized. This typically means you
+      //    are using the same FormData in repeated requests.'
+      //
+      // Dio wraps that `StateError` as a `DioException`, so the `catch` below
+      // swallowed it into `handler.next(e)` and the citizen saw a Dart type
+      // dump instead of a recovered upload. The whole 401-recovery control
+      // therefore did not exist for uploads — the request the app makes that
+      // takes *longest*, and so the one most likely to straddle a token expiry.
+      //
+      // `clone()` is the remedy the package ships for exactly this
+      // (`form_data.dart:210`, *"Convenience method to clone finalized FormData
+      // when retrying requests"*). It is safe for every upload this app makes:
+      // `MultipartFile.clone()` rebuilds from `_dataBuilder`
+      // (`multipart_file.dart:197-205`) rather than from a consumed stream, and
+      // this tree's only multipart body is built with `MultipartFile.fromBytes`
+      // (`application_remote_datasource.dart:294`), whose bytes are in memory
+      // and need no second read of the file.
+      //
+      // Non-multipart bodies are untouched: a JSON map or a string is not
+      // stateful and re-sending it was always fine.
+      final Object? data = options.data;
+      if (data is FormData) {
+        options.data = data.clone();
+      }
+
       final response = await _dio.fetch(options);
       handler.resolve(response);
     } on DioException catch (e) {

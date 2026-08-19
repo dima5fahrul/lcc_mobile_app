@@ -763,4 +763,135 @@ void main() {
           reason: 'and must not sign the citizen out');
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // B8b-3 — a 401 during a MULTIPART upload must be replayable
+  // ───────────────────────────────────────────────────────────────────────────
+  //
+  // Added 2026-08-19 with the fix. `GOR-245-b8-account-profile/
+  // security-review-b8b.md` § 5.1 rated this MAJOR and named the gap in this
+  // very file: 23 cases proving the 401 control works, **not one of them
+  // multipart**. Every case above sends a JSON body, which is not stateful, so
+  // the suite could not see that the control did not exist for uploads.
+  //
+  // An upload is the longest request this app makes, so it is the one most
+  // likely to straddle a token expiry — and five certificate forms plus B8b's
+  // avatar all send one.
+  group('B8b-3 — multipart replay', () {
+    /// A `FormData` shaped like the one `application_remote_datasource.dart:293`
+    /// builds: one `MultipartFile.fromBytes` plus the string fields beside it.
+    FormData attachmentBody() => FormData.fromMap(<String, dynamic>{
+          'slot': 'household_book',
+          'kind': 'document',
+          'file': MultipartFile.fromBytes(
+            <int>[1, 2, 3, 4],
+            filename: 'household.png',
+          ),
+        });
+
+    test('a 401 on an upload is recovered — the body survives the replay',
+        () async {
+      final ({Dio dio, RecordingHttpAdapter adapter}) w = wire(
+        (RequestOptions options, int _) {
+          if (options.path == ApiEndpoint.authRefresh) {
+            return jsonResponse(refreshEnvelope());
+          }
+          if (options.headers['Authorization'] == 'Bearer access-old') {
+            return jsonResponse(
+              failEnvelope(code: ApiCode.unauthorized, message: 'expired'),
+              statusCode: 401,
+            );
+          }
+          return jsonResponse(okEnvelope(<String, dynamic>{'id': 'att-1'}));
+        },
+      );
+
+      final Response<dynamic> response = await w.dio.post<dynamic>(
+        '/applications/case-1/attachments',
+        data: attachmentBody(),
+      );
+
+      // The capability, not the wiring: the upload SUCCEEDED after the refresh.
+      // Before the fix this threw `StateError: The FormData has already been
+      // finalized`, wrapped as a DioException and swallowed into handler.next.
+      expect(response.statusCode, 200);
+      expect(
+        w.adapter.requests.map((RequestOptions r) => r.path).toList(),
+        <String>[
+          '/applications/case-1/attachments',
+          ApiEndpoint.authRefresh,
+          '/applications/case-1/attachments',
+        ],
+        reason: 'one refresh, then one replay of the upload',
+      );
+      expect(
+        w.adapter.requests.last.headers['Authorization'],
+        'Bearer access-new',
+      );
+
+      // The replayed body is a DIFFERENT FormData instance — that is the fix —
+      // carrying the same parts. A replay that reused the finalized original
+      // is what threw.
+      final Object? replayed = w.adapter.requests.last.data;
+      expect(replayed, isA<FormData>());
+      final FormData form = replayed! as FormData;
+      expect(form.files, hasLength(1));
+      expect(form.files.first.value.filename, 'household.png');
+      expect(
+        form.fields.map((MapEntry<String, String> f) => f.key).toList(),
+        containsAll(<String>['slot', 'kind']),
+      );
+    });
+
+    test('THE CAPABILITY CONTROL — re-sending a finalized FormData really does '
+        'throw, so the test above is not vacuous', () async {
+      // Without this, the case above passes on any Dio whose FormData stopped
+      // being stateful, and the guard would be evidence for nothing. This
+      // reproduces the pre-fix behaviour directly against the package.
+      final FormData original = attachmentBody();
+      await original.finalize().drain<void>();
+
+      expect(
+        () => original.finalize(),
+        throwsA(
+          isA<StateError>().having(
+            (StateError e) => e.message,
+            'message',
+            contains('already been finalized'),
+          ),
+        ),
+        reason: 'if this ever stops throwing, the fix and its test are moot '
+            'and both should be revisited rather than left as decoration',
+      );
+
+      // And the remedy the fix relies on: a clone finalizes independently.
+      final FormData clone = attachmentBody().clone();
+      await clone.finalize().drain<void>();
+      expect(clone.files, hasLength(1));
+    });
+
+    test('a non-multipart body is untouched by the clone branch', () async {
+      final ({Dio dio, RecordingHttpAdapter adapter}) w = wire(
+        (RequestOptions options, int _) {
+          if (options.path == ApiEndpoint.authRefresh) {
+            return jsonResponse(refreshEnvelope());
+          }
+          if (options.headers['Authorization'] == 'Bearer access-old') {
+            return jsonResponse(failEnvelope(), statusCode: 401);
+          }
+          return jsonResponse(okEnvelope(null));
+        },
+      );
+
+      await w.dio.patch<dynamic>(
+        '/me/profile',
+        data: <String, dynamic>{'full_name': 'Somchai'},
+      );
+
+      // The JSON map arrives at the replay unchanged and un-cloned.
+      final Object? replayed = w.adapter.requests.last.data;
+      expect(replayed, isA<Map<String, dynamic>>());
+      expect((replayed! as Map<String, dynamic>)['full_name'], 'Somchai');
+    });
+  });
 }
