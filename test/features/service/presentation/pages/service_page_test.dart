@@ -387,14 +387,37 @@ void main() {
       final (:FakeServiceRepository repository, :ServiceBloc bloc) = build();
       repository.nextServices = recordedServicesIn('civil');
       bloc.add(const ServiceStarted());
-      await pumpServicePage(tester, bloc);
+      // **An EMPTY injected registry — 2026-08-19, and injected rather than
+      // inherited for the reason the sibling test below already does it.**
+      //
+      // This read `ServiceAvailability.forApp`, the real registry, and its
+      // premise was the second sentence of the comment below: *"this build
+      // mounts no such route"*. True until B12, false after it — B12 mounts all
+      // six, so the tap now resolves a destination, calls
+      // `GoRouter.of(context).go(...)`, and throws in a rig that has no router.
+      // The test was behaving exactly as designed; its subject had moved.
+      //
+      // C-4's subject is *a service with **no client route** is a no-op*, which
+      // is a statement about the registry, not about what this build happens to
+      // mount. Injecting an empty one states it directly and cannot be
+      // falsified by any later batch mounting a route — which is precisely what
+      // just happened to the inherited version.
+      await pumpServicePage(
+        tester,
+        bloc,
+        page: const ServicePage(
+          availability: ServiceAvailability(registeredRoutes: <String>{}),
+        ),
+      );
       await settleCatalogue(tester);
       bloc.add(const ServiceCategorySelected('civil'));
       await settleCatalogue(tester);
 
       // `resident` DOES carry `route_path: /service/resident-certificate`, and
-      // it is still a no-op, because this build mounts no such route. That is
-      // the whole of C-3: the API's `route_path` is not the authority.
+      // it is still a no-op, because **this registry** mounts no such route.
+      // That is the whole of C-3: the API's `route_path` is not the authority —
+      // the client route registry is. B12 changed what the app's registry
+      // answers and changed nothing about that rule.
       expect(
         recordedServicesIn('civil').first.routePath,
         '/service/resident-certificate',

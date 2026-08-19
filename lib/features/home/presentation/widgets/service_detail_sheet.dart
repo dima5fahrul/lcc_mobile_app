@@ -21,14 +21,16 @@
 /// `route_path` supplies the *name* of a destination and the client route
 /// registry decides whether it exists.
 ///
-/// **C-4**: `AppNameRoutes` mounts none of the six certificate paths yet, so
-/// `destinationFor` returns null for every service and Apply Now is a **silent
-/// no-op** — the sheet closes and nothing else happens. That is the source's
-/// own behaviour (`HomePage.tsx:908-912`: `const tab = selectedService?.tab;
-/// setSelectedService(null); if (tab) onTabChange(tab);` — note the absent
-/// `else`). It is not a bug and it is not `comingSoon`: SSD § 13.3's
-/// visibly-disabled-card recommendation is FU-7, a user decision plus an ADR,
-/// and B2 must not quietly implement it.
+/// **C-4**: after B12, `AppNameRoutes` mounts all six certificate paths, so
+/// `destinationFor` answers a destination for the six catalogue rows that carry
+/// a `route_path` and **null for the other 37** — for which Apply Now stays a
+/// **silent no-op**, the sheet closing and nothing else happening. That is the
+/// source's own behaviour (`HomePage.tsx:908-912`: `const tab =
+/// selectedService?.tab; setSelectedService(null); if (tab) onTabChange(tab);`
+/// — note the absent `else`). It is not a bug and it is not `comingSoon`:
+/// SSD § 13.3's visibly-disabled-card recommendation is FU-7, a user decision
+/// plus an ADR, and no batch may quietly implement it. B12 neither improves nor
+/// worsens FU-7's case: the 37 behave after it exactly as they did before.
 ///
 /// ## Fees and documents come from the row, not from a seed table
 ///

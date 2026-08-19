@@ -130,7 +130,16 @@ import 'package:lcc_mobile_app/features/application/data/datasources/application
 import 'package:lcc_mobile_app/features/application/data/repositories/application_repository_impl.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
+// B12 — the three feature compositions this harness resolves through the
+// assembled app's route builders. Production's own `init()`s, called rather
+// than hand-mirrored: each re-registers the ROOT `ApiClient`, which was
+// registered above over the stubbed transport, so the wire stays stubbed and
+// the graph stays production's.
+import 'package:lcc_mobile_app/features/certificates/di/certificates_feature_injection.dart';
+import 'package:lcc_mobile_app/features/family_book/di/family_book_feature_injection.dart';
 import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
+import 'package:lcc_mobile_app/features/reference/di/reference_feature_injection.dart';
+import 'package:lcc_mobile_app/features/reference/di/reference_injection.dart';
 import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
 import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
@@ -144,6 +153,10 @@ import 'package:lcc_mobile_app/features/wallet/domain/usecases/list_pending_bill
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/pay_application.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/wallet_usecases.dart';
 import 'package:lcc_mobile_app/features/wallet/presentation/bloc/wallet_bloc.dart';
+
+// B12 — the recorded oracle, so `stubCertificateEndpoints` answers `/services`
+// with the same 43 rows `recordedServices()` parses. One recording, two readers.
+import '../fidelity/oracle.dart';
 import 'package:lcc_mobile_app/main.dart';
 
 import 'core_test_helper.dart';
@@ -682,10 +695,104 @@ Future<AppHarness> bootHarness({
     ),
   );
 
+  // ── Reference + certificates + family book (B12) ──────────────────────────
+  //
+  // REQUIRED for exactly the reason the wallet, application, account, chat and
+  // notification blocks above record — and this is the **eleventh** occurrence
+  // of that same shape. B12 mounts six certificate `GoRoute`s whose builders
+  // resolve `certificatesInjection<*FormCubit>(param1: …)` and
+  // `familyBookInjection<FamilyBookCubit>(param1: …)`, so every assembled test
+  // that navigates to one of the six now resolves them while building the
+  // route. Without this block they fail at the pump with
+  // `Bad state: GetIt: Object/factory with type ResidentFormCubit is not
+  // registered` — a lookup error that names the container and not the cause.
+  //
+  // **B12's specs.md § 3.1 row 12 grants this file**, unlike the five batches
+  // before it, which each had to record a scope deviation to touch it. What the
+  // row *describes* is `stubCertificateEndpoints` plus a family-book stub; it
+  // did not anticipate the DI mirror, because § 2.1a measured only whether the
+  // harness **stubbed** `GET /me/family-book` and not whether it **registered**
+  // the containers. It does neither. Reported in the hand-back as a measured
+  // difference from the spec rather than slipped in.
+  //
+  // ## Why this block calls the production `init()`s instead of hand-mirroring
+  //
+  // Every block above builds its repository by hand because it must inject the
+  // stubbed `Dio`. These four cannot drift that way: each of their datasource
+  // injections re-registers the ROOT container's `ApiClient`
+  // (`familyBookInjection..registerLazySingleton<ApiClient>(() =>
+  // injection<ApiClient>())`, and the same in `ReferenceDatasourceInjection`),
+  // and `injection<ApiClient>` was registered above over the stubbed transport.
+  // So calling production's own composition keeps the transport stubbed **and**
+  // removes any possibility of the harness proving a wiring production does not
+  // have — which is the failure the hand-mirrors above each warn about in their
+  // own words.
+  //
+  // ## Ordering is load-bearing and is production's own
+  //
+  // `dependency_injection.dart` runs `ServiceFeatureInjection.init()` (`:162`)
+  // before `FamilyBookFeatureInjection.init()` (`:402`), because
+  // `family_book_bloc_injection.dart:24-25` closes over `serviceInjection` for
+  // the review step's fee. The service block above has already run, so that
+  // ordering holds here too. `CertificatesBlocInjection` closes over
+  // `referenceInjection`, `applicationInjection`, `walletInjection` and
+  // `serviceInjection` — all inside its factory closures, so they need only be
+  // registered by the time a route resolves a cubit, not by the time this line
+  // runs.
+  await ReferenceFeatureInjection.init();
+  await CertificatesFeatureInjection.init();
+  await FamilyBookFeatureInjection.init();
+
+  // The four write use cases the five certificate cubits resolve out of
+  // `applicationInjection`, over the SAME repository the four read use cases
+  // above use. Production registers all eight in one
+  // `ApplicationUsecaseInjection` (`:28-85`); the block above mirrored only the
+  // four B7a/B7b needed, because nothing resolved the others until now.
+  applicationInjection.registerLazySingleton<CreateApplication>(
+    () => CreateApplication(repository: applicationRepository),
+  );
+  applicationInjection.registerLazySingleton<UpdateApplication>(
+    () => UpdateApplication(repository: applicationRepository),
+  );
+  applicationInjection.registerLazySingleton<AddAttachment>(
+    () => AddAttachment(repository: applicationRepository),
+  );
+  applicationInjection.registerLazySingleton<SubmitApplication>(
+    () => SubmitApplication(repository: applicationRepository),
+  );
+
+  // `GetServices` **by type**. The service block above registers `ServiceBloc`
+  // with a `GetServices` constructed inline, which is not resolvable — and the
+  // certificate cubits' `loadService` / `loadQuote` ports, plus
+  // `familyBookFeeReader`, all resolve `serviceInjection<GetServices>()`.
+  // Production registers it in `ServiceUsecaseInjection:19`.
+  serviceInjection.registerLazySingleton<GetServices>(
+    () => GetServices(repository: serviceRepository),
+  );
+
+  // Resident, Birth and Death read `/payment-methods` through
+  // `walletInjection<GetPaymentMethods>()`, and all five certificate cubits
+  // take `walletInjection<PayApplication>()` as their pay port — B6b's
+  // published cross-batch surface, whose own doc names F1, F2, F3 and B7 as its
+  // consumers. Same repository instance the `WalletBloc` above builds over.
+  walletInjection.registerLazySingleton<GetPaymentMethods>(
+    () => GetPaymentMethods(repository: walletRepository),
+  );
+  walletInjection.registerLazySingleton<PayApplication>(
+    () => PayApplication(repository: walletRepository),
+  );
+
   stubHomeEndpoints(adapter);
   stubContentEndpoints(adapter);
   stubAccountEndpoints(adapter);
   stubWalletEndpoints(adapter);
+
+  // NOTE: `stubCertificateEndpoints` is deliberately **not** called here. It
+  // re-stubs `GET /services` with the recorded 43-row catalogue, and
+  // `stubHomeEndpoints` answers that route with an empty list on purpose so
+  // assembled tests that never asked for catalogue content do not get 43
+  // services in `find.text`. A test that needs the six routes calls it itself,
+  // after `bootHarness`, where the later registration wins.
 
   return AppHarness(
     store: store,
@@ -902,6 +1009,120 @@ void stubAccountEndpoints(DioAdapter adapter) {
   );
 }
 
+/// Answers every read the six B12 certificate routes fire **on mount** — B12.
+///
+/// **Not politeness — a precondition**, for the reason [stubHomeEndpoints]'
+/// doc gives and more sharply here: `http_mock_adapter` throws on a route it was
+/// not told about, and the throw surfaces inside `pumpAndSettle` as an
+/// unrelated-looking failure. Without this every criterion in B12 § 7.3 would
+/// die inside the pump for a reason that has nothing to do with routing.
+///
+/// ## Called by the test, never by [bootHarness], and that is deliberate
+///
+/// This re-stubs `GET /services` with the **recorded 43-row catalogue**, while
+/// [stubHomeEndpoints] answers the same route with an empty list on purpose so
+/// that assembled tests which never asked for catalogue content do not get 43
+/// services in `find.text`. `DioAdapter` lets a later registration win, so a
+/// test that wants the catalogue calls this **after** `bootHarness` and gets it;
+/// every other test is unaffected. Calling it from `bootHarness` would flip that
+/// default for the whole suite.
+///
+/// ## The catalogue is the recorded one, not a synthetic row
+///
+/// Two criteria depend on it being real data. `B12-AC-17` asserts the rendered
+/// fee is that page's own recorded `fee_lak` (`marriage` 100 000, `divorce`
+/// 10 000), and `B12-AC-30` measures `destinationFor` over all 43 rows — six
+/// with a `route_path`, 37 without. A one-row fixture would make the first
+/// vacuous and the second impossible.
+///
+/// ## `GET /me/family-book` answers **404**, and that is the empty state
+///
+/// Measured 2026-08-13 against the one available staging account:
+/// `404 {"success":false,"message":"family book not found","code":"NOT_FOUND"}`
+/// (`manifest-authenticated.md`:229). `FamilyBookViewState.showsError` excludes
+/// `NotFoundFailure`, so a 404 routes past the error card into
+/// *"No household on file"* — `FamilyBookPage.tsx:326`, slot 47's render, and
+/// the only branch of this endpoint any reference in this repository exercises.
+/// It is also the only branch `B12-AC-17` can assert: `F4-NV-2` leaves the
+/// populated household **permanently NOT EVALUATED** without a seeded staging
+/// account, so a criterion asserting a rendered household could only be closed
+/// against invented data.
+///
+/// ## No existing stub function is edited
+///
+/// `/payment-methods` (Resident, Birth and Death read it; Marriage and Divorce
+/// deliberately do not, `F3-AC-65`) is already answered by
+/// [stubWalletEndpoints], and `familyBookInjection.reset()` in [resetHarness]
+/// stays exactly as F4 left it. Registration order between two stubs of the same
+/// route is the failure [stubAccountEndpoints]' doc warns about, and `/services`
+/// above is the one place this function deliberately takes that override.
+void stubCertificateEndpoints(DioAdapter adapter) {
+  void ok(String path, Object data) {
+    adapter.onGet(
+      path,
+      (dynamic server) => server.reply(200, <String, dynamic>{
+        'success': true,
+        'message': 'ok',
+        'data': data,
+      }),
+    );
+  }
+
+  // The recorded catalogue, parsed by nobody here — the raw rows go on the wire
+  // and the production `ServiceModel` parses them, which is what makes
+  // `B12-AC-17`'s fee a measurement of the real pipeline rather than of a
+  // literal a test wrote down.
+  ok(ApiEndpoint.services, loadApi('services'));
+
+  // The catalogue page reads BOTH in one `Future.wait`
+  // (`service_bloc.dart:117-119`), and `stubHomeEndpoints` answers only
+  // `/services` — Home needs no categories. Without this, `/service` renders
+  // its error state and `B12-AC-31`'s tap has no card to tap. The recorded
+  // eight, so the six certificate rows land in the category the source puts
+  // them in rather than in an invented one.
+  ok(ApiEndpoint.serviceCategories, loadApi('service-categories'));
+
+  // Every `lookup_key` the five certificate cubits request on mount, measured
+  // from their own `load()` bodies: Resident's two (`:382-383`), Birth's ten
+  // (`BirthRefList.values`), Death's eight (`DeathRefList.values`), Marriage's
+  // four (`:406-409`) and Divorce's two. Empty lists, because no B12 criterion
+  // asserts a dropdown's contents — F1/F2/F3's own tests do that with their own
+  // fakes, and giving these real options would put a hundred strings into
+  // `find.text` for a suite about routing.
+  for (final String type in <String>[
+    'nationality',
+    'certificate-purpose',
+    'ethnicity',
+    'ethnic-group',
+    'religion',
+    'education-level',
+    'marital-status',
+    'relation',
+    'blood-type',
+    'delivery-mode',
+    'birth-type',
+    'cause-of-death',
+    'divorce-type',
+  ]) {
+    ok(ApiEndpoint.referenceList(type), const <dynamic>[]);
+  }
+
+  // Resident, Marriage and Divorce call `loadProvinces()` on mount. A plain
+  // array, not paged (`api_endpoint.dart:335`).
+  ok(ApiEndpoint.locationProvinces, const <dynamic>[]);
+
+  // The 404 above. `server.reply` with a non-2xx is how the other suites drive
+  // a failure branch, and the body is the recorded one verbatim.
+  adapter.onGet(
+    ApiEndpoint.meFamilyBook,
+    (dynamic server) => server.reply(404, <String, dynamic>{
+      'success': false,
+      'message': 'family book not found',
+      'code': 'NOT_FOUND',
+    }),
+  );
+}
+
 /// Empties all ten GetIt containers. Without this the second test in a file
 /// hits `already registered inside GetIt` — the same non-idempotency that
 /// makes the frozen `*FeatureInjection.init()` unusable here.
@@ -941,6 +1162,17 @@ Future<void> resetHarness() async {
   // `features/certificates/` registers a BLoC and nothing else, so there is no
   // second container to bring down the way `features/application/` needs.
   await certificatesInjection.reset();
+  // B12. ELEVENTH occurrence of the same omission, and the first found by
+  // *registering* into a container the harness had never populated rather than
+  // by a test failing: `referenceInjection` was absent from this file entirely
+  // — no registration, and therefore no teardown either, so the gap was
+  // invisible while nothing resolved it. B12's route builders are the first
+  // code to resolve `referenceInjection<GetLookupOptions>` through the
+  // assembled app, and without this line the second test in any file fails with
+  // `Type ApiClient is already registered inside GetIt` — pointing at the
+  // container rather than at the omission, the same misleading shape the defect
+  // has worn every time.
+  await referenceInjection.reset();
   await familyBookInjection.reset();
   // F4's. TENTH occurrence of the same omission, and the first predicted by
   // the container's own doc before it happened

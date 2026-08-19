@@ -387,10 +387,21 @@ void main() {
     });
 
     test('B5-AC-21 — app_routes gains no GoRoute and no protected path', () {
+      // **`$kB5Base..$kB5Tip`, not `HEAD` — 2026-08-19.** Fourth instance of
+      // the same correction in this file, and the one that took a real batch
+      // down with it: read against the working tree, this failed the moment
+      // **B12** mounted the six certificate routes and added them to
+      // `_protectedPaths`. B12 is granted `app_routes.dart` by its own § 3.1
+      // row 1; B5 is not, and B5 did not touch it.
+      //
+      // `B5-AC-21`'s subject is *B5 adds no route*, which is a property of
+      // B5's diff. Measuring the checkout answered "has anyone added a route
+      // since?" — a different question, and one whose correct answer after B12
+      // is *yes, lawfully*.
       final ProcessResult diff = Process.runSync('git', <String>[
         'diff',
         '-U0',
-        'HEAD',
+        '$kB5Base..$kB5Tip',
         '--',
         'lib/utils/routes/app_routes.dart',
       ]);

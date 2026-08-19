@@ -4,11 +4,22 @@
 /// tab has a real path so the bottom nav can render as real anchors and deep
 /// links resolve without a server-side rewrite.
 ///
-/// P0-3 surface only — the certificate sub-routes
-/// (`/service/resident-certificate`, `/service/birth-declaration`, ...) are
-/// batched into the next P0 stage and deliberately omitted here. When those
-/// land they will be added as `GoRoute` children under `AppRoutes.service`,
-/// not as separate top-level constants.
+/// **B12 mounts the six certificate sub-routes** (`/service/resident-certificate`,
+/// `/service/birth-declaration`, `/service/death-declaration`,
+/// `/service/marriage-certificate`, `/service/divorce-certificate`,
+/// `/service/family-book`). They are declared below as **separate top-level
+/// constants** and mounted by [AppRoutes] as **top-level `GoRoute`s outside the
+/// `ShellRoute`** — not as children of `AppRoutes.service`, which is what an
+/// earlier revision of this paragraph predicted.
+///
+/// That prediction was measured wrong (`specs.md` § 2.2 Finding D): none of the
+/// six certificate tabs is in the source's `MAIN_TABS` (`Layout.tsx:46-52`), so
+/// `isSubPage` is true for all six (`:300`) and the source renders each with the
+/// bottom nav translated off screen and the chat launcher suppressed
+/// (`:385-386`). A `GoRoute` child of `AppRoutes.service` inherits `AppShell`,
+/// which would put a brand bar, a five-destination bottom nav and a chat FAB on
+/// every frame of a seven-step form the source renders full-frame. B12 § 6.3
+/// RULING 2 overturns it; `B12-AC-19` and `B12-AC-20` are what keep it overturned.
 ///
 /// Mirrors the flutter-boilerplate `app_name_routes.dart` layout: a single
 /// class of `static const String` path constants consumed by both the
@@ -47,6 +58,40 @@ class AppNameRoutes {
   /// is worse than an absent one.
   static const String newsDetail = '/news/:slug';
 
+  // ── Certificate sub-routes (B12, port of `TAB_TO_PATH`'s last six) ──────
+  //
+  // Byte-identical to `lcc-app/src/app/routes.ts:21-26`, **in that file's
+  // order**, so the two lists diff line for line. Declared as full literals
+  // rather than as `'$service/resident-certificate'` compositions: the string
+  // is a frozen wire-visible path (`GOR-245` § 4.2) and a composition hides a
+  // typo in the segment behind a constant that still reads correctly.
+  //
+  // **The constant name is the TAB ID in lowerCamelCase, not the page class
+  // name** — `birthDeclaration`, not `birthCertificate`, because
+  // `ServiceAvailability.destinationFor` composes `/service/${tabOf(route_path)}`
+  // and compares by membership against [registered]. A name that drifts from
+  // the tab id produces a mounted route no catalogue row can ever reach, and
+  // nothing fails: the tap stays a silent no-op, which is indistinguishable
+  // from C-4's intended behaviour for the 37 unrouted rows.
+
+  /// `routes.ts:21`. F1's page (`ResidentCertificatePage`).
+  static const String residentCertificate = '/service/resident-certificate';
+
+  /// `routes.ts:22`. F2's (`BirthDeclarationPage`).
+  static const String birthDeclaration = '/service/birth-declaration';
+
+  /// `routes.ts:23`. F2's (`DeathDeclarationPage`).
+  static const String deathDeclaration = '/service/death-declaration';
+
+  /// `routes.ts:24`. F3's (`MarriageCertificatePage`).
+  static const String marriageCertificate = '/service/marriage-certificate';
+
+  /// `routes.ts:25`. F3's (`DivorceCertificatePage`).
+  static const String divorceCertificate = '/service/divorce-certificate';
+
+  /// `routes.ts:26`. F4's (`FamilyBookPage`).
+  static const String familyBook = '/service/family-book';
+
   // ── Debug-only route (boilerplate parity) ───────────────────────────────
   /// Only mounted in debug builds — see the `if (kDebugMode)` guard in
   /// [AppRoutes]. Backed by the debug HTTP inspector screen.
@@ -66,10 +111,25 @@ class AppNameRoutes {
   /// it, and excluding it would make this set mean "release routes", which is
   /// a second, subtler thing to keep in step.
   ///
-  /// The six `/service/*` certificate paths are **absent on purpose**. They are
-  /// F1's, and their absence is exactly what makes every catalogue tap a no-op
-  /// today (C-4). Adding one here is the single change that turns its service
-  /// live.
+  /// **B12 added the six `/service/*` certificate paths**, and that is the
+  /// largest citizen-visible change in that batch — made here, in a `const Set`,
+  /// with no edit to `ServiceAvailability` at all (B12 § 6.7, RULING 5).
+  ///
+  /// Before B12 this set held nine paths, none of them a certificate route, so
+  /// `destinationFor` answered null for all 43 catalogue rows and **every tap
+  /// was a no-op**. After B12 the six rows that carry a `route_path` navigate
+  /// and the other 37 still do not — which is C-4 unchanged, not a new
+  /// asymmetry: `ServicePage.tsx:502-505` is `onClick={() => { if (s.tab)
+  /// onTabChange(s.tab); }}`, note the absent `else`. No row in the catalogue
+  /// now names a destination this build fails to mount.
+  ///
+  /// **Membership and the constant are two independent edits, and both are
+  /// required.** A constant with no membership mounts a route the catalogue
+  /// cannot see; a membership with no route makes `destinationFor` promise a
+  /// destination that fails to match. `B12-AC-37` is the control that proves
+  /// they are independent — it removes [familyBook] from this set while leaving
+  /// its `GoRoute` mounted, and records that the route stays reachable by URL
+  /// while the catalogue goes blind to it.
   static const Set<String> registered = <String>{
     home,
     signin,
@@ -80,5 +140,12 @@ class AppNameRoutes {
     help,
     news,
     debug,
+    // B12 — the six, in `routes.ts:21-26` order.
+    residentCertificate,
+    birthDeclaration,
+    deathDeclaration,
+    marriageCertificate,
+    divorceCertificate,
+    familyBook,
   };
 }
