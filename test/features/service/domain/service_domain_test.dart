@@ -24,10 +24,16 @@ import '../../../helpers/service_test_helper.dart';
 
 void main() {
   group('AppNameRoutes.registered — the client route registry (C-2)', () {
-    test('holds every path constant the class declares', () {
+    test('B12-AC-14 holds every path constant the class declares — fifteen', () {
       // A registry that silently misses a route makes `ServiceAvailability`
       // answer "no" for a page that exists. Enumerated against the constants
       // rather than against a hardcoded count.
+      //
+      // **B12 took this from nine members to fifteen.** The enumeration is
+      // rewritten, not relaxed: `hasLength(15)` would pass against six wrong
+      // strings, which is the exact failure `:28-30`'s reasoning exists to
+      // prevent, and the six new members are the whole of B12's data-shaped
+      // change.
       expect(AppNameRoutes.registered, <String>{
         AppNameRoutes.home,
         AppNameRoutes.signin,
@@ -38,12 +44,28 @@ void main() {
         AppNameRoutes.help,
         AppNameRoutes.news,
         AppNameRoutes.debug,
+        AppNameRoutes.residentCertificate,
+        AppNameRoutes.birthDeclaration,
+        AppNameRoutes.deathDeclaration,
+        AppNameRoutes.marriageCertificate,
+        AppNameRoutes.divorceCertificate,
+        AppNameRoutes.familyBook,
       });
     });
 
-    test('mounts NONE of the six certificate sub-routes yet', () {
-      // This is the fact that makes every catalogue tap a no-op today. When F1
-      // changes it, it changes here first.
+    test('B12 mounts ALL SIX certificate sub-routes', () {
+      // The inverse of what this test asserted before B12, and deliberately the
+      // **same loop over the same six tab ids** rather than a deleted test: the
+      // fact it pins — which certificate destinations this build can reach — is
+      // the fact that makes every catalogue tap either work or no-op, and it
+      // has simply changed value. Before B12 none of the six was a member and
+      // every one of the 43 rows was a dead tap.
+      //
+      // Composed here (`'${AppNameRoutes.service}/$tab'`) on purpose, because
+      // this is exactly the composition `ServiceAvailability.destinationFor`
+      // performs from a catalogue row's `route_path`. `B12-AC-12` asserts the
+      // constants as literals against the source; this asserts that the
+      // registry answers the composition the predicate will actually hand it.
       for (final String tab in <String>[
         'resident-certificate',
         'birth-declaration',
@@ -53,7 +75,7 @@ void main() {
         'family-book',
       ]) {
         expect(AppNameRoutes.registered,
-            isNot(contains('${AppNameRoutes.service}/$tab')));
+            contains('${AppNameRoutes.service}/$tab'));
       }
     });
   });
@@ -78,8 +100,20 @@ void main() {
 
     setUp(() => catalogue = recordedServices());
 
-    test('C-4 TODAY: all 43 are unavailable, including the 6 WITH a route_path',
-        () {
+    test(
+        'B12-AC-30 after B12: exactly the 6 WITH a route_path resolve, and the '
+        '37 without do not', () {
+      // Before B12 this test asserted all 43 were unavailable. That was C-4's
+      // state while the registry mounted no certificate path; B12 mounted all
+      // six, so the assertion is **rewritten to the new value of the same
+      // fact** — which rows the catalogue can send a citizen to — rather than
+      // deleted or weakened to a subset.
+      //
+      // Stated as a **set equality** rather than as a count, because that is
+      // the invariant a later catalogue change would break first: the rows with
+      // a non-empty `route_path` and the rows that resolve are now the same
+      // set. A 44th row arriving with a `route_path` this build does not mount
+      // fails here, which is the whole point of C-3.
       const ServiceAvailability availability = ServiceAvailability.forApp;
 
       final Iterable<Service> withRoute =
@@ -87,9 +121,39 @@ void main() {
       expect(withRoute, hasLength(6),
           reason: 'measured: 6 of 43 carry a route_path');
 
+      final Set<String> haveRoutePath = catalogue
+          .where((Service s) => s.routePath.isNotEmpty)
+          .map((Service s) => s.code)
+          .toSet();
+      final Set<String> resolve = catalogue
+          .where((Service s) => availability.destinationFor(s) != null)
+          .map((Service s) => s.code)
+          .toSet();
+
+      expect(resolve, haveRoutePath);
+      expect(
+        resolve,
+        <String>{
+          'resident',
+          'birth',
+          'death',
+          'marriage',
+          'divorce',
+          'family-book',
+        },
+      );
+
+      // Per row, and each destination is the row's OWN `route_path` — not just
+      // "something non-null". A predicate that returned the same path for every
+      // row would pass the set equality above.
       for (final Service s in catalogue) {
-        expect(availability.isAvailable(s), isFalse, reason: s.code);
-        expect(availability.destinationFor(s), isNull, reason: s.code);
+        if (s.routePath.isEmpty) {
+          expect(availability.isAvailable(s), isFalse, reason: s.code);
+          expect(availability.destinationFor(s), isNull, reason: s.code);
+        } else {
+          expect(availability.isAvailable(s), isTrue, reason: s.code);
+          expect(availability.destinationFor(s), s.routePath, reason: s.code);
+        }
       }
     });
 

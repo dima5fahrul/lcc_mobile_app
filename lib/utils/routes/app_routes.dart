@@ -6,8 +6,10 @@
 ///
 /// ## What was ported
 ///
-/// - `PROTECTED_TABS` → [AppRoutes._protectedPaths] (`/history`, `/account`
-///   for P0-3; the certificate sub-routes land in the next P0 stage).
+/// - `PROTECTED_TABS` → [AppRoutes._protectedPaths] — **all eight members**:
+///   `/history`, `/account`, and B12's six certificate sub-routes. The source's
+///   `PROTECTED_TABS` (`App.tsx:29-38`) holds exactly those eight tabs, so the
+///   two sets are the same set. `/service` is deliberately **not** among them.
 /// - `handleTabChange` + `requireAuth` → the `redirect` callback: a protected
 ///   path visited while unauthenticated redirects to
 ///   `/signin?from=<intended>`, carrying the intended location as a query
@@ -43,11 +45,17 @@
 /// The five main tabs (`/`, `/service`, `/history`, `/wallet`, `/account`) are
 /// children of a [ShellRoute] that wraps them in `AppShell` — brand bar,
 /// language toggle, five-destination bottom nav. Every other route (`/signin`,
-/// `/help`, `/news`, `/debug`) is mounted *outside* the shell and therefore
-/// renders full-frame with no bottom bar. That structural split is the port of
-/// the React `MAIN_TABS` + `translate-y-full` trick: membership in the shell
-/// replaces the visibility flag, so a new sub-route cannot forget to hide the
-/// bar. See `lib/presentation/shell/app_shell.dart` for the full rationale.
+/// `/help`, `/news`, `/debug`, and **B12's six certificate sub-routes**) is
+/// mounted *outside* the shell and therefore renders full-frame with no bottom
+/// bar. That structural split is the port of the React `MAIN_TABS` +
+/// `translate-y-full` trick: membership in the shell replaces the visibility
+/// flag, so a new sub-route cannot forget to hide the bar. See
+/// `lib/presentation/shell/app_shell.dart` for the full rationale.
+///
+/// The five main tabs are exactly `MAIN_TABS` (`Layout.tsx:46-52`), and the six
+/// certificate tabs are exactly the ones it omits — so `isSubPage` (`:300`) and
+/// "is not a child of the shell" are the same predicate, computed once by the
+/// table's shape rather than by a flag any route could forget to set.
 ///
 /// `/signin` now serves the real `AuthPage` (defect F-3 closed). `/help` and
 /// `/news` still serve [_PlaceholderPage]; they are later batches.
@@ -115,10 +123,34 @@ import '../../features/application/domain/entities/application_detail.dart';
 import '../../features/auth/di/auth_injection.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/pages/auth_page.dart';
+// B12 — one container, six pages, five cubits. This is the only file in the
+// tree allowed to name all five certificate page directories at once:
+// `certificate_page_isolation_guard_test.dart` forbids the edge only *between*
+// files under `features/certificates/presentation/`, and route composition is
+// what this file is for.
+import '../../features/certificates/di/certificates_injection.dart';
+import '../../features/certificates/presentation/birth/birth_certificate_page.dart';
+import '../../features/certificates/presentation/birth/birth_form_cubit.dart';
+import '../../features/certificates/presentation/death/death_certificate_page.dart';
+import '../../features/certificates/presentation/death/death_form_cubit.dart';
+import '../../features/certificates/presentation/divorce/divorce_certificate_page.dart';
+import '../../features/certificates/presentation/divorce/divorce_form_cubit.dart';
+import '../../features/certificates/presentation/marriage/marriage_certificate_page.dart';
+import '../../features/certificates/presentation/marriage/marriage_form_cubit.dart';
+import '../../features/certificates/presentation/resident/resident_certificate_page.dart';
+import '../../features/certificates/presentation/resident/resident_form_cubit.dart';
 import '../../features/chat/di/chat_injection.dart';
 import '../../features/chat/presentation/bloc/chat_bloc.dart';
 import '../../features/chat/presentation/widgets/chat_launcher.dart';
 import '../../features/documents/domain/entities/issued_certificate.dart';
+// B12 — F4's page, its cubit, and the two chrome widgets RULING 6's hold frame
+// reuses so the boot window renders the page's own loading state rather than
+// something invented for it.
+import '../../features/family_book/di/family_book_injection.dart';
+import '../../features/family_book/presentation/bloc/family_book_cubit.dart';
+import '../../features/family_book/presentation/pages/family_book_page.dart';
+import '../../features/family_book/presentation/widgets/family_book_chrome.dart';
+import '../../features/family_book/presentation/widgets/family_book_states.dart';
 import '../../features/help/di/help_injection.dart';
 import '../../features/help/presentation/bloc/help_bloc.dart';
 import '../../features/help/presentation/pages/help_page.dart';
@@ -127,6 +159,11 @@ import '../../features/history/presentation/bloc/history_bloc.dart';
 import '../../features/history/presentation/bloc/history_detail_bloc.dart';
 import '../../features/history/presentation/pages/history_page.dart';
 import '../../features/home/di/home_injection.dart';
+// B12 — the app's shared money formatter, the one `wallet_formatting.dart`,
+// `application_formatting.dart` and `family_book_derivations.dart` all import.
+// Marriage and Divorce take it as a parameter so their pages carry no
+// formatting policy; this is where it is bound to the build's locale.
+import '../../features/home/domain/home_formatting.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/widgets/lao_id_card.dart';
@@ -158,12 +195,32 @@ class AppRoutes {
 
   // ── Protected paths (port of `PROTECTED_TABS`) ──────────────────────────
   /// Paths that require an authenticated session. Port of the React
-  /// `PROTECTED_TABS` Set. For P0-3 only `history` and `account` are wired;
-  /// the certificate sub-routes (`resident-certificate`, `birth-declaration`,
-  /// ...) land in the next P0 stage and will be added here then.
+  /// `PROTECTED_TABS` Set (`App.tsx:29-38`), which holds **eight** tabs:
+  /// `history`, `account` and all six certificate tabs. B12 added the six.
+  ///
+  /// ## `/service` is NOT here, and that is load-bearing
+  ///
+  /// The predicate below is `location == p || location.startsWith('$p/')`. The
+  /// second branch means adding `/service` would gate the whole catalogue **and
+  /// all six certificate children in one line** — turning the one
+  /// certificate-adjacent surface with a real Tier 3 baseline (slot `02-service`)
+  /// into a redirect, and doing it invisibly, because every criterion about the
+  /// six would still pass while a signed-out citizen lost the catalogue.
+  /// `/service` is absent from `PROTECTED_TABS` in the source for the same
+  /// reason. `B12-AC-23` is the negative control that fails if it ever appears.
+  ///
+  /// The six are matched on the `==` branch, not the `startsWith` one: each is a
+  /// full literal path, so no prefix reasoning is involved in gating them.
   static const Set<String> _protectedPaths = <String>{
     AppNameRoutes.history,
     AppNameRoutes.account,
+    // B12 — the six, in `routes.ts:21-26` order.
+    AppNameRoutes.residentCertificate,
+    AppNameRoutes.birthDeclaration,
+    AppNameRoutes.deathDeclaration,
+    AppNameRoutes.marriageCertificate,
+    AppNameRoutes.divorceCertificate,
+    AppNameRoutes.familyBook,
   };
 
   // ── Query-param key for the post-sign-in destination ────────────────────
@@ -710,6 +767,323 @@ class AppRoutes {
         ),
       ],
     ),
+    // ══ B12 — the six certificate sub-routes ═══════════════════════════════
+    //
+    // Six landed pages that no citizen could open. F1's Resident, F2's Birth
+    // and Death, F3's Marriage and Divorce, F4's FamilyBook: all green under
+    // their own widget tests, none reachable, because `app_routes.dart`
+    // appeared in no batch's scope table and F4's `blocked.md` B-1 declined to
+    // take it on the correct ground that *"a route table edit changes what the
+    // shipped app does."* This block is that edit.
+    //
+    // ── Why all six are TOP-LEVEL and not children of `/service` ────────────
+    //
+    // Two written commitments in this tree said the opposite —
+    // `app_name_routes.dart`'s library doc and `service_page.dart:129-131` —
+    // and both were measured wrong (B12 § 2.2 Finding D). `MAIN_TABS` is
+    // `{home, service, history, wallet, account}` (`Layout.tsx:46-52`);
+    // `isSubPage = !MAIN_TABS.has(activeTab)` (`:300`); a sub-page renders the
+    // bottom nav with `translate-y-full` and suppresses `<CustomerServiceChat/>`
+    // (`:385-386`). None of the six certificate tabs is in `MAIN_TABS`, so the
+    // source renders all six full-frame. A `GoRoute` child of
+    // `AppNameRoutes.service` — itself a `ShellRoute` child — would inherit
+    // `AppShell` and put a brand bar, a bottom nav and a chat FAB on every
+    // frame of a seven-step form. These six join `/signin`, `/help` and `/news`
+    // in the structure `:572-577` above already relies on.
+    //
+    // **A top-level `/service/x` really does match**, and it is not an accident
+    // of ordering. go_router 16.3.0's `_matchByNavigatorKeyForGoRoute`
+    // (`match.dart:207-281`) prefix-matches `/service` against
+    // `/service/resident-certificate`, finds the matched location shorter than
+    // the URI, descends into `route.routes` — empty for `/service` — and
+    // returns `_empty` at `:275-278`: *"If not finding a sub route match, it is
+    // considered not matched for this route even if this route match part of
+    // the `remainingLocation`."* Matching then continues to these six.
+    // Declaration order is therefore a readability choice, and the order below
+    // is `routes.ts:21-26`'s so the two lists diff line for line.
+    //
+    // `parentNavigatorKey` was the considered alternative — it would keep the
+    // path hierarchy and still escape the shell — and it is rejected because
+    // `_buildRoutes()` is static with no access to the router's `navigatorKey`,
+    // which is computed per-router inside [build] (`:218-219`). Threading it
+    // here would break the very property `app_routes_test.dart`'s "two live
+    // routers" case exists to protect, to buy a guarantee top-level routes give
+    // for free.
+    //
+    // ── The lifetime contract, and why `create:` is not optional here ───────
+    //
+    // None of the six pages closes the cubit it is handed: Resident, Birth and
+    // Death use `BlocConsumer(bloc: widget.cubit)`, Marriage and Divorce use
+    // `BlocProvider.value` (which by contract does not close), and FamilyBook
+    // uses `BlocBuilder(bloc: widget.cubit)`. **So this table is the only place
+    // a `close()` can happen, and it must**: each cubit holds one citizen's
+    // answers, a created draft `case id` and an `uploaded` slot set — the three
+    // things `certificates_bloc_injection.dart:6-13` says a survivor would hand
+    // to the next citizen. Every registration involved is a
+    // `registerFactoryParam`, so `create:` yields a fresh instance per visit and
+    // the provider closes it on the way out: exactly one construction and
+    // exactly one `close()` per visit (`B12-AC-27`).
+    //
+    // The `Builder` beneath each provider exists only to read the instance back
+    // for the page's `cubit:` argument. Resolving into a local and passing it to
+    // both `create:` and the page would construct outside the provider's
+    // ownership and break that contract.
+    //
+    // ── G-L5 is why any of this is here at all ─────────────────────────────
+    //
+    // `ssd.md`:853 — *"Route builders and `main.dart` may resolve from a
+    // locator. No widget may."* Every one of the six pages carries the same
+    // doc: *"Resolved by the route builder, never by a widget."* This is the
+    // first code in the programme to perform that resolution — the DI container
+    // has never been resolved in production
+    // (`certificates_feature_injection.dart:21-22`), so a GetIt ordering fault
+    // would surface here and nowhere earlier.
+
+    // `/service/resident-certificate` — F1.
+    //
+    // **No `..load()`**: `resident_certificate_page.dart:100` calls it from
+    // `initState`. Adding one here would fire every mount request twice.
+    GoRoute(
+      path: AppNameRoutes.residentCertificate,
+      name: AppNameRoutes.residentCertificate,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocProvider<ResidentFormCubit>(
+        create: (_) => certificatesInjection<ResidentFormCubit>(
+          param1: _langOf(context),
+        ),
+        child: Builder(
+          builder: (BuildContext inner) => ResidentCertificatePage(
+            cubit: inner.read<ResidentFormCubit>(),
+            onBack: () => inner.go(AppNameRoutes.home),
+          ),
+        ),
+      ),
+    ),
+
+    // `/service/birth-declaration` — F2.
+    //
+    // **`param2` is the `legalBasisText` reader, and the namespace is `birth`.**
+    // Getting it wrong is invisible in English: `en.birth.legalBasisText` and
+    // `en.death.legalBasisText` are byte-identical and the **Lao strings are
+    // not** (B12 § 2.1 item 8, F2's Finding B). A builder that passed `death`
+    // here would ship a payload correct in English and wrong in Lao, so
+    // `B12-AC-25` is written in Lao only and `B12-AC-36` records that the
+    // English form of the same assertion passes against the defect.
+    //
+    // A **closure**, not a resolved `String`: the value is read at submit
+    // (`birth_form_cubit.dart:667`), and `useT("birth")` is current at submit.
+    // `context:` is bound because G-L8 fails the build on a bare `.tr()` and
+    // the allowlist that would exempt one is shrink-only (`B10-AC-11`). The
+    // captured context is this builder's, which lives exactly as long as the
+    // provider that owns the cubit, so the closure and the cubit end together.
+    //
+    // It cannot be omitted: `param2` is typed non-nullable, so GetIt rejects a
+    // resolve that omits it with an `ArgumentError` before the factory body
+    // runs (`certificates_bloc_injection.dart:429-443`, `F2-AC-25`) — a
+    // forgotten `param2` fails loudly at first navigation, not silently.
+    GoRoute(
+      path: AppNameRoutes.birthDeclaration,
+      name: AppNameRoutes.birthDeclaration,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocProvider<BirthFormCubit>(
+        create: (_) => certificatesInjection<BirthFormCubit>(
+          param1: _langOf(context),
+          param2: () => 'birth.legalBasisText'.tr(context: context),
+        ),
+        child: Builder(
+          builder: (BuildContext inner) => BirthDeclarationPage(
+            cubit: inner.read<BirthFormCubit>(),
+            onBack: () => inner.go(AppNameRoutes.home),
+          ),
+        ),
+      ),
+    ),
+
+    // `/service/death-declaration` — F2. The `death` namespace, and see the
+    // Birth block above for why the two are not interchangeable.
+    GoRoute(
+      path: AppNameRoutes.deathDeclaration,
+      name: AppNameRoutes.deathDeclaration,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocProvider<DeathFormCubit>(
+        create: (_) => certificatesInjection<DeathFormCubit>(
+          param1: _langOf(context),
+          param2: () => 'death.legalBasisText'.tr(context: context),
+        ),
+        child: Builder(
+          builder: (BuildContext inner) => DeathDeclarationPage(
+            cubit: inner.read<DeathFormCubit>(),
+            onBack: () => inner.go(AppNameRoutes.home),
+          ),
+        ),
+      ),
+    ),
+
+    // `/service/marriage-certificate` — F3.
+    //
+    // ── `..load()` HERE, and this is the batch's real defect ────────────────
+    //
+    // `MarriageCertificatePage` and `DivorceCertificatePage` are
+    // `StatelessWidget`s. Their cubits' `load()` methods exist, are documented
+    // *"Called once when the page mounts"* (`marriage_form_cubit.dart:370-374`),
+    // and **had no caller in `lib/` at all** — only tests invoked them
+    // (B12 § 2.2 Finding E). A builder that resolved the cubit and handed it
+    // straight to the page would render a marriage form with no nationality
+    // list, no ethnicity list, no province list and no fee; and because
+    // `_loadRef` folds a failure into an EMPTY list with `loading: false`
+    // (`:391-393`), the page shows **no error either**. Reachable, green,
+    // silent and useless — which is exactly what `B12-AC-15` alone would pass
+    // against, and why `B12-AC-17` asserts the rendered fee instead.
+    //
+    // This is the same seam `..add(const HomeStarted())` and
+    // `..add(const ServiceStarted())` above use, for the reason `:430-434`
+    // gives: it keeps the page a pure function of its BLoC. The alternative —
+    // making the two pages stateful — edits F3's page files, which B12 § 4.1
+    // forbids. The asymmetry with Resident/Birth/Death/FamilyBook is a defect
+    // B12 **inherits and declines to normalise**, because normalising it means
+    // editing four other batches' page files to make a comment read better
+    // (`FU-B12-3`).
+    //
+    // `formatLak` is the app's shared money formatter
+    // (`features/home/domain/home_formatting.dart` — the same one wallet,
+    // application and family_book import), bound to this build's locale. The
+    // page takes it as a parameter so it carries no formatting policy of its
+    // own; passing a local lambda here would be a second policy.
+    GoRoute(
+      path: AppNameRoutes.marriageCertificate,
+      name: AppNameRoutes.marriageCertificate,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocProvider<MarriageFormCubit>(
+        create: (_) => certificatesInjection<MarriageFormCubit>(
+          param1: _langOf(context),
+        )..load(),
+        child: Builder(
+          builder: (BuildContext inner) => MarriageCertificatePage(
+            cubit: inner.read<MarriageFormCubit>(),
+            onBack: () => inner.go(AppNameRoutes.home),
+            formatLak: (int? amount) => formatLak(
+              amount,
+              Localizations.localeOf(inner).languageCode,
+            ),
+          ),
+        ),
+      ),
+    ),
+
+    // `/service/divorce-certificate` — F3. Finding E's other half; see the
+    // Marriage block above for the whole argument.
+    GoRoute(
+      path: AppNameRoutes.divorceCertificate,
+      name: AppNameRoutes.divorceCertificate,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocProvider<DivorceFormCubit>(
+        create: (_) => certificatesInjection<DivorceFormCubit>(
+          param1: _langOf(context),
+        )..load(),
+        child: Builder(
+          builder: (BuildContext inner) => DivorceCertificatePage(
+            cubit: inner.read<DivorceFormCubit>(),
+            onBack: () => inner.go(AppNameRoutes.home),
+            formatLak: (int? amount) => formatLak(
+              amount,
+              Localizations.localeOf(inner).languageCode,
+            ),
+          ),
+        ),
+      ),
+    ),
+
+    // `/service/family-book` — F4, and the one route in this table whose
+    // builder makes a decision none of the other five has to make.
+    //
+    // ── RULING 6 — construct nothing until the session resolves ─────────────
+    //
+    // `FamilyBookCubit` is the **only cubit in the tree that takes an auth flag
+    // at construction** (`family_book_bloc_injection.dart:49-50`,
+    // `registerFactoryParam<FamilyBookCubit, bool, void>`), and
+    // `FamilyBookViewState.initial` sets `loading: authenticated` — the port of
+    // `hooks.ts:46`'s *"`loading` initialises to `enabled`, not `true`"*. So the
+    // bool passed here does not merely tune a fetch: **it decides which of the
+    // page's eight states the citizen lands in.**
+    //
+    // Both obvious answers ship a defect in the boot-hold window, where
+    // `_redirect` deliberately returns null (`:274-277`) and the page is built
+    // anyway:
+    //
+    // * `param1: true`, on the ground that the route is protected — `load()`
+    //   fires with no token yet and a citizen with a valid session gets an
+    //   error state.
+    // * a single non-reactive `ctx.read<SessionBloc>()` at build time — the read
+    //   returns `false`, the cubit is constructed signed-out, and **it stays
+    //   that way**. When the session resolves, `refreshListenable` re-runs
+    //   `_redirect`, the citizen is now authenticated, no redirect fires, and
+    //   the already-mounted page keeps its stale `false`. A citizen with a
+    //   valid token sees the signed-out family book until they navigate away.
+    //
+    // So: while the status is `initial` or `loading`, this route constructs
+    // **nothing** and renders the page's own loading chrome; on resolution it
+    // constructs once, with the resolved value. The frame below is not a new
+    // widget — it is `FamilyBookFrame` with the same four children
+    // `family_book_page.dart:85-97` renders for `showsLoading`, so an
+    // authenticated citizen sees one continuous loading state across the
+    // transition rather than a flash of anything else.
+    //
+    // `buildWhen` on `status` alone is deliberate: the gate is a function of the
+    // status and of nothing else, and a profile arriving later must not be able
+    // to rebuild this subtree in a way that could be mistaken for a
+    // reconstruction. `B12-AC-39` clause 3 drives the transition inside the
+    // test; `B12-AC-40` runs both wrong answers as controls and records that
+    // each leaves AC-15, AC-16 and AC-18 green — which is the evidence that this
+    // ruling governs something no reachability criterion can see.
+    //
+    // **Scope**: `/history` and `/account` are also protected and also built
+    // during the hold, but their BLoCs take no auth flag, so their fetch timing
+    // is a pre-existing programme question and not B12's (`FU-B12-4`). This
+    // ruling is confined to the one route whose *constructor* takes the flag.
+    //
+    // **No `..load()`**: `family_book_page.dart:68-72` calls it from
+    // `initState`. This is the Resident/Birth/Death column, not Marriage's —
+    // and the interaction with RULING 6 is why the hold matters at all: because
+    // the *page* fetches on mount, constructing it with a stale
+    // `authenticated: false` does not merely delay a fetch, it fires the wrong
+    // one.
+    GoRoute(
+      path: AppNameRoutes.familyBook,
+      name: AppNameRoutes.familyBook,
+      builder: (BuildContext context, GoRouterState state) =>
+          BlocBuilder<SessionBloc, SessionState>(
+        buildWhen: (SessionState a, SessionState b) => a.status != b.status,
+        builder: (BuildContext sessionContext, SessionState session) {
+          if (session.status == SessionStatus.initial ||
+              session.status == SessionStatus.loading) {
+            return FamilyBookFrame(
+              onBack: () => sessionContext.go(AppNameRoutes.home),
+              // `{book && <StepIndicator …>}` — there is no book yet.
+              showStepIndicator: false,
+              step: 1,
+              children: const <Widget>[
+                FamilyBookLoadingLine(),
+                FamilyBookSkeletonCard(),
+                FamilyBookSkeletonCard(),
+                FamilyBookSkeletonCard(),
+              ],
+            );
+          }
+          return BlocProvider<FamilyBookCubit>(
+            create: (_) => familyBookInjection<FamilyBookCubit>(
+              param1: session.status == SessionStatus.authenticated,
+            ),
+            child: Builder(
+              builder: (BuildContext inner) => FamilyBookPage(
+                cubit: inner.read<FamilyBookCubit>(),
+                onBack: () => inner.go(AppNameRoutes.home),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+
     if (kDebugMode)
       GoRoute(
         path: AppNameRoutes.debug,
@@ -717,6 +1091,31 @@ class AppRoutes {
         builder: (_, __) => const _PlaceholderPage(title: 'Debug'),
       ),
   ];
+
+  // ── B12 — the `Lang` the five certificate cubits are constructed with ─────
+  /// **The page's own expression, not `Lang.fromCode`.**
+  ///
+  /// All five certificate pages compute
+  /// `Localizations.localeOf(context).languageCode == 'lo' ? Lang.lo : Lang.en`
+  /// in their own `build`, and the cubit's `lang` is `final` with no setter. A
+  /// disagreement between the two is **silent**: the page renders one language
+  /// and the cubit writes the other into `form_data`.
+  ///
+  /// `Lang.fromCode` is *not* interchangeable — it falls back to [Lang.lo]
+  /// (`i18n.dart:59-68`) where the pages fall back to [Lang.en]. Under the app's
+  /// two supported locales (`main.dart:135`) the two agree everywhere, so
+  /// nothing is broken today and `B12-AC-24` cannot discriminate between them;
+  /// it discriminates against a hardcoded constant and an inverted mapping,
+  /// which are the failures actually available here. The divergence is
+  /// **`FU-B12-2`** and a third locale makes it live.
+  ///
+  /// `/service/family-book` does **not** use this: `FamilyBookCubit`'s `param1`
+  /// is a `bool authenticated`, and its language arrives at submit through
+  /// `requestCopy(Lang)`.
+  static Lang _langOf(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'lo'
+          ? Lang.lo
+          : Lang.en;
 }
 
 // ── Refresh adapter: Bloc stream → Listenable ──────────────────────────────

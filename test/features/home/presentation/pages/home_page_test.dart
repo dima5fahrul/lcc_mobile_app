@@ -317,12 +317,24 @@ void main() {
       expect(ServiceAvailability.forApp, isA<ServiceAvailability>());
     });
 
-    test('C-4: every recorded service is a no-op today', () {
-      // `AppNameRoutes` mounts none of the six certificate paths — they are
-      // F1's — so `destinationFor` returns null for all 43 and every tap is a
-      // silent no-op, exactly as `HomePage.tsx:908-912` behaves (note the
-      // absent `else`).
-      for (final Service s in recordedServices()) {
+    test('C-4 after B12: the 37 rows WITHOUT a route_path are still no-ops', () {
+      // Before B12 this asserted all 43 were no-ops, because `AppNameRoutes`
+      // mounted none of the six certificate paths. B12 mounted all six, so the
+      // assertion is **rewritten to the surviving branch of the same rule**
+      // rather than deleted: C-4 now governs the 37 rows with no `route_path`,
+      // and it governs them exactly as before — the card renders, Apply Now
+      // closes the sheet, and nothing else happens
+      // (`HomePage.tsx:908-912`, note the absent `else`).
+      //
+      // This is the control that keeps AC-30 and AC-31 honest. Without it, a
+      // build that navigated on *every* tap would satisfy both.
+      final List<Service> unrouted = recordedServices()
+          .where((Service s) => s.routePath.isEmpty)
+          .toList(growable: false);
+
+      expect(unrouted, hasLength(37),
+          reason: '43 recorded rows, 6 with a route_path');
+      for (final Service s in unrouted) {
         expect(
           ServiceAvailability.forApp.destinationFor(s),
           isNull,
@@ -332,15 +344,27 @@ void main() {
     });
 
     test('C-3: Home gates on the registry, never on route_path', () {
-      // Six of 43 carry a `route_path`; reading it as "tappable" would promise
-      // five pages that do not exist.
+      // Six of 43 carry a `route_path`, and after B12 this build mounts a page
+      // for all six — so all six resolve. **The rewrite is the value, not the
+      // rule**: the answer still comes from `AppNameRoutes.registered` and
+      // never from the `route_path` field itself, which is what C-3 forbids.
+      //
+      // The falsification of C-3 lives in `service_domain_test.dart`'s
+      // "the answer flips on the CLIENT registry" case, which holds the same
+      // rows against a registry mounting only one of them and watches five go
+      // dark. Here the point is narrower and still worth pinning: reading
+      // `route_path` as "tappable" happens to agree with the registry today,
+      // and would stop agreeing the moment the API added a seventh.
       final List<Service> withRoutePath = recordedServices()
           .where((Service s) => s.routePath.isNotEmpty)
           .toList(growable: false);
 
       expect(withRoutePath, hasLength(6));
       for (final Service s in withRoutePath) {
-        expect(ServiceAvailability.forApp.isAvailable(s), isFalse);
+        expect(ServiceAvailability.forApp.isAvailable(s), isTrue,
+            reason: s.code);
+        expect(ServiceAvailability.forApp.destinationFor(s), s.routePath,
+            reason: '${s.code} must resolve to its OWN route_path');
       }
     });
 
@@ -380,21 +404,56 @@ void main() {
       expect(find.text('Free'), findsWidgets);
     });
 
-    testWidgets('Apply Now closes the sheet and navigates nowhere (C-4)',
-        (WidgetTester tester) async {
+    testWidgets(
+        'Apply Now on a row with NO route_path closes the sheet and navigates '
+        'nowhere (C-4)', (WidgetTester tester) async {
+      // ── Rewritten by B12, and the subject had to move ────────────────────
+      //
+      // This tapped `Residence Certificate` before B12, when `AppNameRoutes`
+      // mounted no certificate path and every one of the 43 rows was a dead
+      // tap. B12 mounts all six, and **Home's six quick-action cards are
+      // exactly those six** (`recordedPhase1Services()` — codes `resident`,
+      // `birth`, `death`, `marriage`, `divorce`, `family-book`), so no unrouted
+      // row is on the default grid at all: `resident` now navigates, and this
+      // rig has a plain `MaterialApp` with no router to navigate in.
+      //
+      // The **rule is unchanged and is not weakened** — C-4 still governs every
+      // row with no `route_path`, and there are 37 of them. What changed is
+      // which row demonstrates it, so the test reaches one through the search
+      // path. `passport` is the same row `B12-AC-32` uses as its control.
+      //
+      // The other half — Apply Now on a row that DOES resolve actually
+      // navigating — is `B12-AC-31` in `test/utils/routes/certificate_routes_test.dart`,
+      // driven end to end through the real router against `/service`. That is a
+      // stronger instrument than this rig could be, which is why the half is
+      // there rather than duplicated here.
+      final Service passport = recordedCatalogue()
+          .firstWhere((Service s) => s.code == 'passport');
+      expect(passport.routePath, isEmpty,
+          reason: 'the control is only a control if the row really has no '
+              'destination for this build to mount');
+
+      repository.search =
+          Right<Failure, List<Service>>(<Service>[passport]);
+
       final HomeBloc b = build()..add(const HomeStarted());
       await pumpHomePage(tester, b);
       await settleHome(tester);
 
-      await tester.tap(find.text('Residence Certificate').first);
+      await tester.enterText(find.byType(TextField), 'passport');
+      await settleHome(tester);
+      expect(find.byType(HomeServiceCard), findsOneWidget);
+
+      await tester.tap(find.text('Passport').first);
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Apply Now'));
       await tester.pumpAndSettle();
 
       // The sheet is gone and the page is still Home. No exception, no route
-      // change, no "coming soon" — the source's dead tap, ported.
+      // change, no "coming soon" — the source's dead tap, ported
+      // (`HomePage.tsx:908-912`, note the absent `else`).
       expect(find.text('Processing time'), findsNothing);
-      expect(find.byType(HomeServiceCard), findsNWidgets(6));
+      expect(find.byType(HomeServiceCard), findsOneWidget);
     });
   });
 

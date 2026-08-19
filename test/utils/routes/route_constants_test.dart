@@ -33,6 +33,32 @@ void main() {
     expect(AppNameRoutes.debug, '/debug');
   });
 
+  test('B12-AC-12 the six certificate paths are the source\'s, byte for byte',
+      () {
+    // `lcc-app/src/app/routes.ts:21-26`, in that file's order.
+    //
+    // Asserted as **literals**, not as `'${AppNameRoutes.service}/…'`
+    // compositions. A composition would pass against a constant whose segment
+    // had drifted from the source's tab id, and drift here is silent:
+    // `ServiceAvailability.destinationFor` composes
+    // `/service/${tabOf(route_path)}` and compares by membership, so a
+    // mis-spelled segment produces a mounted route no catalogue row can ever
+    // reach — and the tap stays a no-op, indistinguishable from C-4's intended
+    // behaviour for the 37 unrouted rows.
+    expect(
+      AppNameRoutes.residentCertificate,
+      '/service/resident-certificate',
+    );
+    expect(AppNameRoutes.birthDeclaration, '/service/birth-declaration');
+    expect(AppNameRoutes.deathDeclaration, '/service/death-declaration');
+    expect(
+      AppNameRoutes.marriageCertificate,
+      '/service/marriage-certificate',
+    );
+    expect(AppNameRoutes.divorceCertificate, '/service/divorce-certificate');
+    expect(AppNameRoutes.familyBook, '/service/family-book');
+  });
+
   test('N-4 — no `RouteNames` reference survives in lib/ (B2-AC-37)', () {
     expect(
       File('lib/utils/routes/route_names.dart').existsSync(),

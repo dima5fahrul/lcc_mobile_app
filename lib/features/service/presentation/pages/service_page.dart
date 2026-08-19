@@ -122,13 +122,28 @@ class _ServicePageState extends State<ServicePage> {
   /// `onClick={() => { if (s.tab) onTabChange(s.tab); }}` — C-4. A service with
   /// no client destination is tapped and nothing happens, exactly as on the
   /// web.
+  ///
+  /// **B12 changed what this method does without changing a line of it.** The
+  /// early return used to fire for all 43 rows, because `AppNameRoutes` mounted
+  /// none of the six certificate paths; it now fires for the 37 without a
+  /// `route_path` and the other six navigate. That is the whole of B12's
+  /// citizen-visible effect on this page, and it arrived through
+  /// `AppNameRoutes.registered` — the authority `ServiceAvailability` consults —
+  /// rather than through any edit here. `B12-AC-31` proves the chain end to end
+  /// by tapping a real card; `B12-AC-32` proves the 37-row branch still returns.
   void _openService(Service service) {
     final String? destination = widget.availability.destinationFor(service);
     if (destination == null) return;
     // `go`, not `push`: `onTabChange` in the source *replaces* the active tab
-    // rather than stacking a screen, and the certificate routes will be shell
-    // children of `/service` (see `AppNameRoutes`' own note), so a push would
-    // leave the bottom bar highlighting the wrong destination.
+    // rather than stacking a screen (`App.tsx:126-132`), so a push would leave a
+    // catalogue frame under a form the source renders as a replacement.
+    //
+    // An earlier revision of this comment gave a second reason — that the
+    // certificate routes would be shell children of `/service`, so a push would
+    // leave the bottom bar highlighting the wrong destination. **That reason was
+    // wrong** (B12 § 2.2 Finding D): the six mount OUTSIDE the shell and render
+    // no bottom bar at all, so there is no bar to mis-highlight. The decision
+    // stands on the source's own replace semantics alone.
     GoRouter.of(context).go(destination);
   }
 

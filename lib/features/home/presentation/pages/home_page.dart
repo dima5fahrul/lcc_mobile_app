@@ -334,10 +334,48 @@ class _HomeBody extends StatelessWidget {
   }
 
   /// `TAB_TO_PATH` (`routes.ts:12-26`), restricted to the tabs this build
-  /// mounts. An unmounted tab (the six certificate routes) falls back to
-  /// history rather than navigating nowhere — the same C-3 reasoning
-  /// `ServiceAvailability` applies: the client route registry is the authority
-  /// on what exists.
+  /// mounts. An unmounted tab falls back to history rather than navigating
+  /// nowhere — the same C-3 reasoning `ServiceAvailability` applies: the client
+  /// route registry is the authority on what exists.
+  ///
+  /// ## B12 — the six certificate tabs, resolved through the registry
+  ///
+  /// Before B12 this switch had seven branches against the source's **fourteen
+  /// tabs**, and the six certificate tabs plus `auth` all fell through to
+  /// `/history`. That was correct while the six were unmounted; the moment B12
+  /// mounted them it became a **second, drifting copy of `TAB_TO_PATH`**
+  /// answering `/history` for a destination that now exists — on the surface a
+  /// citizen reaches from Home's action banner, driven by the API's
+  /// `summary.next_action.tab`, which is the app's most prominent single call
+  /// to action.
+  ///
+  /// The `/service/*` family is therefore resolved by **consulting
+  /// `AppNameRoutes.registered`** rather than by six more literal branches. That
+  /// is deliberate and it is C-2: six branches would be a second authority on
+  /// what this build mounts, and the first thing that drifts when a seventh
+  /// certificate route lands is the copy nobody remembered was here. One
+  /// authority means an unmounted `/service/x` still falls back correctly with
+  /// no edit to this file at all.
+  ///
+  /// `auth` maps to `/signin` because `routes.ts:20` does. It is the eighth of
+  /// the fourteen and it was falling through to `/history` for the same reason
+  /// the six were.
+  ///
+  /// ## The fallback stays, and it is now unreachable from `TAB_TO_PATH`
+  ///
+  /// After B12 all fourteen of the source's tabs map, so nothing in
+  /// `TAB_TO_PATH` reaches the default. **It stays anyway.**
+  /// `HomePage.tsx:409` is `summary.data?.next_action?.tab ?? "history"`: the
+  /// default exists for a tab the *API* names that the *source* does not map,
+  /// which is a live possibility on a field no oracle in this repository has
+  /// ever recorded — `docs/fidelity-baseline/2026-08-13/oracle/api/` holds ten
+  /// anonymous content endpoints and no `/me/summary`. Deleting a default
+  /// because today's inputs never reach it is how a `switch` starts throwing in
+  /// production.
+  ///
+  /// `B12-AC-33` asserts the property over all fourteen tab ids as a
+  /// **pure-function test**. No end-to-end banner criterion is written, because
+  /// with no authenticated oracle it could only be closed against invented data.
   static String _pathForTab(String tab) => switch (tab) {
         'history' => AppNameRoutes.history,
         'account' => AppNameRoutes.account,
@@ -346,7 +384,11 @@ class _HomeBody extends StatelessWidget {
         'help' => AppNameRoutes.help,
         'news' => AppNameRoutes.news,
         'home' => AppNameRoutes.home,
-        _ => AppNameRoutes.history,
+        'auth' => AppNameRoutes.signin,
+        _ => AppNameRoutes.registered
+                .contains('${AppNameRoutes.service}/$tab')
+            ? '${AppNameRoutes.service}/$tab'
+            : AppNameRoutes.history,
       };
 
   // ── 4. Services ────────────────────────────────────────────────────────────
