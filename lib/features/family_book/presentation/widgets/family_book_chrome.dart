@@ -77,30 +77,71 @@ class FamilyBookFrame extends StatelessWidget {
       spaced.add(children[i]);
     }
 
-    return ColoredBox(
-      // `bg-[#F0F2F8]` — `:245`.
-      color: AppColors.surface,
-      child: Column(
-        children: <Widget>[
-          _Header(onBack: onBack),
-          if (showStepIndicator) FamilyBookStepIndicator(step: step),
-          Expanded(
-            child: SingleChildScrollView(
-              // `px-4 py-6 … pb-28` — `:265`.
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.gap16,
-                AppSpacing.gap24,
-                AppSpacing.gap16,
-                112,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: spaced,
+    // ── GOR-267 — this was a bare `ColoredBox`, and it is a render root ──────
+    //
+    // `/service/family-book` is mounted OUTSIDE the `ShellRoute`, correctly:
+    // `Layout.tsx:300`'s `isSubPage = !MAIN_TABS.has(activeTab)` is true for
+    // every certificate tab (`MAIN_TABS` at `:46-52` is
+    // `{home, service, history, wallet, account}`), so `:388` slides the bottom
+    // nav off with `translate-y-full` and `:385` suppresses the chat FAB. **The
+    // source renders all six full-frame** and B12 reproduced that deliberately.
+    //
+    // But nothing then supplied a `Material` ancestor. Every `Text` below
+    // inherited `WidgetsApp`'s `_errorTextStyle` — 48px red monospace with a
+    // **yellow double underline**, whose own `debugLabel` reads *"fallback
+    // style; consider putting your text in a Material"* — in release builds as
+    // well as debug, and the content drew under the status bar for want of a
+    // `SafeArea`. One omission, two symptoms. This page and F1's Resident were
+    // the only two of the six affected; birth, death, marriage and divorce
+    // already carry a top-level `Scaffold` (e.g.
+    // `marriage_certificate_page.dart:114`), as do `/signin`, `/help`, `/news`
+    // and `/news/:id`.
+    //
+    // **The chrome belongs HERE and not in `family_book_page.dart`.**
+    // `app_routes.dart:1050-1084` renders a `FamilyBookFrame` *directly* in the
+    // `SessionStatus.initial | loading` branch (`:1059`), before
+    // `FamilyBookPage` is constructed at all, so siting it on the page would
+    // leave that render root broken for as long as the session is resolving.
+    // `test/features/certificates/material_ancestor_test.dart`'s T-2 pins that
+    // branch.
+    //
+    // **And it is not a `ShellRoute` re-parent.** Moving the route inside the
+    // shell would add a brand bar, a bottom nav and a chat FAB to a form the
+    // source shows without them — an `ssd.md` § 11.2 L-10 regression.
+    //
+    // `backgroundColor` carries the `bg-[#F0F2F8]` (`:245`) the `ColoredBox`
+    // used to; `SafeArea` matches what the six correct siblings do. `body:` and
+    // `backgroundColor:` only — an `appBar` or a `bottomNavigationBar` here
+    // would add chrome the source hides.
+    //
+    // Every widget test over this page passed before this change, because the
+    // harness supplies the `MaterialApp`/`Scaffold` the running app does not —
+    // the suite was asserting against its own harness.
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: Column(
+          children: <Widget>[
+            _Header(onBack: onBack),
+            if (showStepIndicator) FamilyBookStepIndicator(step: step),
+            Expanded(
+              child: SingleChildScrollView(
+                // `px-4 py-6 … pb-28` — `:265`.
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.gap16,
+                  AppSpacing.gap24,
+                  AppSpacing.gap16,
+                  112,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: spaced,
+                ),
               ),
             ),
-          ),
-          if (cta != null) cta!,
-        ],
+            if (cta != null) cta!,
+          ],
+        ),
       ),
     );
   }

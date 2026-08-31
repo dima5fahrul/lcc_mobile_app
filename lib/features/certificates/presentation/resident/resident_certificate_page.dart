@@ -106,6 +106,69 @@ class _ResidentCertificatePageState extends State<ResidentCertificatePage> {
         ? Lang.lo
         : Lang.en;
 
+    // ── GOR-267 — the missing `Material` ancestor and top inset ─────────────
+    //
+    // `/service/resident-certificate` is mounted OUTSIDE the `ShellRoute`, and
+    // that is correct: `Layout.tsx:300`'s
+    // `isSubPage = !MAIN_TABS.has(activeTab)` is true for every certificate tab
+    // (`MAIN_TABS` at `:46-52` is `{home, service, history, wallet, account}`),
+    // so `:388` slides the bottom nav off with `translate-y-full` and `:385`
+    // suppresses the chat FAB. **The source renders all six full-frame**, and
+    // B12 reproduced that deliberately.
+    //
+    // What was missing is page chrome. Nothing above this widget supplied a
+    // `Material` — not the route builder, not `MaterialApp.router` — so every
+    // `Text` on this page inherited `WidgetsApp`'s `_errorTextStyle`: 48px red
+    // monospace with a **yellow double underline**, whose own `debugLabel`
+    // reads *"fallback style; consider putting your text in a Material"*. It is
+    // not debug-only; it shipped that way in release too. Nothing supplied a
+    // `SafeArea` either, so the header drew under the status bar — one omission
+    // with two symptoms, not two faults.
+    //
+    // **And in an assert-enabled build it was worse than cosmetic.**
+    // `debugCheckHasMaterial` makes `TextField`, `DropdownButton` and `InkWell`
+    // *throw instead of build* with no `Material` above them, so the fifteen
+    // `ResidentInputField` call sites across steps 2-6
+    // (`resident_fields.dart:168`), the nationality/purpose
+    // `ReferenceSelectView` dropdowns (`reference_select_view.dart:211`) and the
+    // payment step's bank selector, card fields and method tile could not
+    // render at all: a citizen met a hard `FlutterError` on advancing to step 2.
+    //
+    // The chrome sits **above** the `BlocConsumer` deliberately. All four
+    // branches below it — `_ServiceLoading`, `_ServiceError`, `_SuccessCard`
+    // and `_wizard` — are render roots of this page, and a `Scaffold` placed
+    // inside one of them would fix a quarter of the route.
+    //
+    // This makes the page follow the idiom its six correct full-frame siblings
+    // already follow (e.g. `marriage_certificate_page.dart:114`); it is **not**
+    // a re-parent into the shell, which would add chrome the source hides and
+    // be an `ssd.md` § 11.2 L-10 regression. `body:` and `backgroundColor:`
+    // only, for the same reason.
+    //
+    // `_wizard`'s own `ColoredBox(color: AppColors.surface)` (`:176` below) is
+    // now redundant against `backgroundColor` and is **kept deliberately**: it
+    // paints the identical colour, so removing it would change no pixel while
+    // enlarging the diff on a Sev 2 bugfix. The three branches that had no
+    // background of their own now composite over `AppColors.surface` — intended,
+    // and it is what the four sibling pages already do.
+    //
+    // Every widget test over this page passed before this change, because the
+    // harness supplies the `MaterialApp`/`Scaffold` the running app does not —
+    // the suite was asserting against its own harness.
+    // `test/features/certificates/material_ancestor_test.dart` is the assertion
+    // that would have caught it: it mounts through the real route builder with
+    // no test-supplied `Scaffold`, over all six routes, with the four
+    // already-correct pages as its control.
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: SafeArea(child: _body(context, lang)),
+    );
+  }
+
+  /// The page's four branches. Extracted from [build] by GOR-267 so the page
+  /// chrome can sit above the `BlocConsumer` rather than inside one branch of
+  /// it.
+  Widget _body(BuildContext context, Lang lang) {
     return BlocConsumer<ResidentFormCubit, ResidentFormViewState>(
       bloc: widget.cubit,
       // `scrollToFirstError()` is a side effect of two transitions (`:557`,

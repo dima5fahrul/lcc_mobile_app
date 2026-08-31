@@ -56,153 +56,176 @@ class FamilyBookSuccess extends StatelessWidget {
     // `text(submitted.status_label, lang) || t("statusSubmitted")` — `:362`.
     final String statusText = text(submitted.statusLabel, lang);
 
-    return SingleChildScrollView(
-      // `p-6`
-      padding: const EdgeInsets.all(AppSpacing.gap24),
-      child: Center(
-        child: ConstrainedBox(
-          // `max-w-sm`
-          constraints: const BoxConstraints(maxWidth: 384),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Container(
-                // `w-24 h-24 rounded-full shadow-xl`
-                width: 96,
-                height: 96,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  // `linear-gradient(135deg, #344EAD 0%, #1a2d7a 100%)`
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: <Color>[
-                      AppColors.primary,
-                      AppColors.brandGradientEnd,
-                    ],
-                  ),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: AppColors.cardShadowMedium,
-                      blurRadius: 25,
-                      offset: Offset(0, 20),
-                    ),
-                  ],
-                ),
-                child: const LucideIcon(
-                  // `w-12 h-12 text-white strokeWidth={3}`
-                  name: 'Check',
-                  size: 48,
-                  color: AppColors.white,
-                ),
-              ),
-              // `gap-5`
-              const SizedBox(height: AppSpacing.gap20),
-              Text(
-                _t(context, 'successTitle'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: AppTypography.size18,
-                  fontWeight: AppTypography.semiBold,
-                  color: AppColors.gray900,
-                ),
-              ),
-              // `mb-2`
-              const SizedBox(height: AppSpacing.gap8),
-              Text(
-                _t(context, 'successBody'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: AppTypography.size14,
-                  height: AppTypography.lineRelaxed,
-                  color: AppColors.muted,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.gap20),
-              _Card(
-                rows: <_Row>[
-                  _Row(
-                    label: _t(context, 'successHead'),
-                    // `{book.head_name || "—"}` — `:357`.
-                    value: orDash(book.headName),
-                  ),
-                  _Row(
-                    label: _t(context, 'familyBookNo'),
-                    // `{submitted.reference_no || book.household_no}` — `:358`.
-                    // **No dash on this one**: the fallback is the household
-                    // number, and if that is empty too the row renders empty
-                    // (`F4-AC-72`).
-                    value: submitted.referenceNo.isNotEmpty
-                        ? submitted.referenceNo
-                        : book.householdNo,
-                  ),
-                  _Row(
-                    label: _t(context, 'successMembers'),
-                    value: '$kFamilyBookNamespace.peopleSummary'.tr(
-                      context: context,
-                      namedArgs: <String, String>{
-                        'total': '${totalMembersOf(book)}',
-                        'men': '${menCountOf(book)}',
-                        'women': '${womenCountOf(book)}',
-                      },
-                    ),
-                  ),
-                  _Row(
-                    label: _t(context, 'statusLabel'),
-                    value: statusText.isNotEmpty
-                        ? statusText
-                        : _t(context, 'statusSubmitted'),
-                    isStatus: true,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.gap20),
-              Semantics(
-                button: true,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onBack,
-                  child: Container(
-                    width: double.infinity,
-                    // `py-4 rounded-2xl shadow-lg`
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.gap16,
-                    ),
+    // ── GOR-267 — the one family-book path that bypasses the frame ───────────
+    //
+    // The success state is reached from `family_book_page.dart:141` *instead
+    // of* `FamilyBookFrame`, never inside it, so it needs its own page chrome
+    // for exactly the reason the frame does — see `family_book_chrome.dart`'s
+    // `FamilyBookFrame.build` for the full note. Without it every `Text` below
+    // renders in `WidgetsApp._errorTextStyle`, the yellow-double-underlined
+    // fallback, in release as well as debug, and the content draws under the
+    // status bar.
+    //
+    // There is no nesting conflict with the frame's `Scaffold`: the two are
+    // alternatives, never ancestors of one another.
+    //
+    // This branch is unreachable in practice — `showsSuccess` needs a non-null
+    // `book` *and* a `submitted`, and `GET /me/family-book` answers 404 on
+    // every account this programme has — which is why
+    // `test/features/certificates/material_ancestor_test.dart`'s T-3 mounts it
+    // explicitly rather than driving to it.
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          // `p-6`
+          padding: const EdgeInsets.all(AppSpacing.gap24),
+          child: Center(
+            child: ConstrainedBox(
+              // `max-w-sm`
+              constraints: const BoxConstraints(maxWidth: 384),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    // `w-24 h-24 rounded-full shadow-xl`
+                    width: 96,
+                    height: 96,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radius2xl),
-                      boxShadow: const <BoxShadow>[
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      // `linear-gradient(135deg, #344EAD 0%, #1a2d7a 100%)`
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          AppColors.primary,
+                          AppColors.brandGradientEnd,
+                        ],
+                      ),
+                      boxShadow: <BoxShadow>[
                         BoxShadow(
                           color: AppColors.cardShadowMedium,
-                          blurRadius: 15,
-                          offset: Offset(0, 10),
+                          blurRadius: 25,
+                          offset: Offset(0, 20),
                         ),
                       ],
                     ),
-                    child: Text(
-                      _t(context, 'backToHome'),
-                      style: const TextStyle(
-                        fontSize: AppTypography.size14,
-                        fontWeight: AppTypography.semiBold,
-                        color: AppColors.white,
+                    child: const LucideIcon(
+                      // `w-12 h-12 text-white strokeWidth={3}`
+                      name: 'Check',
+                      size: 48,
+                      color: AppColors.white,
+                    ),
+                  ),
+                  // `gap-5`
+                  const SizedBox(height: AppSpacing.gap20),
+                  Text(
+                    _t(context, 'successTitle'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: AppTypography.size18,
+                      fontWeight: AppTypography.semiBold,
+                      color: AppColors.gray900,
+                    ),
+                  ),
+                  // `mb-2`
+                  const SizedBox(height: AppSpacing.gap8),
+                  Text(
+                    _t(context, 'successBody'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: AppTypography.size14,
+                      height: AppTypography.lineRelaxed,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.gap20),
+                  _Card(
+                    rows: <_Row>[
+                      _Row(
+                        label: _t(context, 'successHead'),
+                        // `{book.head_name || "—"}` — `:357`.
+                        value: orDash(book.headName),
+                      ),
+                      _Row(
+                        label: _t(context, 'familyBookNo'),
+                        // `{submitted.reference_no || book.household_no}` —
+                        // `:358`. **No dash on this one**: the fallback is the
+                        // household number, and if that is empty too the row
+                        // renders empty (`F4-AC-72`).
+                        value: submitted.referenceNo.isNotEmpty
+                            ? submitted.referenceNo
+                            : book.householdNo,
+                      ),
+                      _Row(
+                        label: _t(context, 'successMembers'),
+                        value: '$kFamilyBookNamespace.peopleSummary'.tr(
+                          context: context,
+                          namedArgs: <String, String>{
+                            'total': '${totalMembersOf(book)}',
+                            'men': '${menCountOf(book)}',
+                            'women': '${womenCountOf(book)}',
+                          },
+                        ),
+                      ),
+                      _Row(
+                        label: _t(context, 'statusLabel'),
+                        value: statusText.isNotEmpty
+                            ? statusText
+                            : _t(context, 'statusSubmitted'),
+                        isStatus: true,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.gap20),
+                  Semantics(
+                    button: true,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onBack,
+                      child: Container(
+                        width: double.infinity,
+                        // `py-4 rounded-2xl shadow-lg`
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.gap16,
+                        ),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radius2xl),
+                          boxShadow: const <BoxShadow>[
+                            BoxShadow(
+                              color: AppColors.cardShadowMedium,
+                              blurRadius: 15,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          _t(context, 'backToHome'),
+                          style: const TextStyle(
+                            fontSize: AppTypography.size14,
+                            fontWeight: AppTypography.semiBold,
+                            color: AppColors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: AppSpacing.gap20),
+                  Text(
+                    _t(context, 'trackHint'),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: AppTypography.size12,
+                      color: AppColors.gray400Inline,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.gap20),
-              Text(
-                _t(context, 'trackHint'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: AppTypography.size12,
-                  color: AppColors.gray400Inline,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
