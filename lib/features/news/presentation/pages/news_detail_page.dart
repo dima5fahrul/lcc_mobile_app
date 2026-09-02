@@ -84,9 +84,17 @@ class _DetailBody extends StatelessWidget {
 
   final NewsDetailState state;
 
-  /// `onBack` — `App.tsx` wires it to `navigateTo("news")`. `context.go`, not
-  /// `pop`, because a deep link opened straight at `/news/<slug>` has nothing
-  /// to pop to.
+  /// `onBack` — `App.tsx`:184 wires it to `navigateTo("news")`, which assigns
+  /// `window.location.hash` and therefore *pushes* a history entry rather than
+  /// popping one. `context.go` reproduces that; `context.pop()` would not.
+  ///
+  /// It is **not** the case that a deep link here has nothing to pop to. This
+  /// route is a **child** of `/news`, so its match list carries the parent and
+  /// its navigator holds two pages — warm *and* on a cold start opened straight
+  /// at `/news/<slug>`. Android Back pops to `/news` through the navigator
+  /// without reaching this method at all (GOR-269 `qa-report.md` § 2.7:
+  /// `matches=2`, `pages=[2]->[1]`, `popRouteReply=true`, no
+  /// `SystemNavigator.pop`).
   void _back(BuildContext context) => context.go(AppNameRoutes.news);
 
   @override
