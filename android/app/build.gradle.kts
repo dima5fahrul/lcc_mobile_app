@@ -10,7 +10,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.lcc_mobile_app"
+    namespace = "com.linkit360.lcc"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,8 +20,12 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.lcc_mobile_app"
+        // GOR-268 / ADR-0014 § 4: the programme-owned identifier, replacing the
+        // Flutter template placeholder. This value, the module id on line 13, the
+        // Kotlin `package` line and that file's directory are ONE coupled set —
+        // changing any strict subset builds, merges, installs, and then throws
+        // ClassNotFoundException on first tap. See specs.md § 3.2.1 (five facts).
+        applicationId = "com.linkit360.lcc"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

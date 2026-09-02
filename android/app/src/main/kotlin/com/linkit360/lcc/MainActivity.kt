@@ -1,4 +1,4 @@
-package com.example.lcc_mobile_app
+package com.linkit360.lcc
 
 import io.flutter.embedding.android.FlutterActivity
 
