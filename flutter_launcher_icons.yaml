@@ -1,0 +1,60 @@
+# GOR-268 — launcher icon generation.
+#
+# Regenerate with:
+#   flutter pub run flutter_launcher_icons
+#
+# This file lives at the repository root rather than inside `pubspec.yaml` on
+# purpose (specs.md B-8, security-review.md § 5.4): the guard at
+# test/features/account/architecture/avatar_picker_scope_test.dart:163 is a RAW
+# WHOLE-FILE substring match for `image_picker` over pubspec.yaml, so any comment
+# in that file explaining icon configuration is one unlucky word away from
+# failing an unrelated test. A standalone file has no such constraint.
+#
+# The generator version is exact-pinned in pubspec.yaml's dev_dependencies
+# (flutter_launcher_icons: 0.14.4) and locked in pubspec.lock. Config + pin +
+# lock + the committed `assets/logo.png` are what make regeneration reproduce the
+# committed icon set byte-for-byte (AC-18 / T-10).
+
+flutter_launcher_icons:
+  # The single source of truth for the mark (D-3, impact-analysis.md § 9.1).
+  # Committed as a build input and deliberately NOT declared under
+  # `flutter: assets:` — declaring it would add 286,294 B to every APK for an
+  # asset lib/** reads zero times (IMP-8). test/assets/asset_manifest_test.dart
+  # asserts it stays out of the bundle (AC-17).
+  image_path: "assets/logo.png"
+
+  # D-2 scope: Android and iOS only. web / windows / macos are ABSENT by
+  # decision, not by oversight — their unchanged placeholder state is recorded
+  # in docs/features/GOR-268-launcher-icon-and-app-rename/decisions.md § 2.2
+  # (AC-6). Linux has no icon carrier in the Flutter template at all.
+  android: true
+  ios: true
+
+  # D-5 = Outcome A: NO adaptive icon.
+  #
+  # `adaptive_icon_foreground`, `adaptive_icon_background` AND
+  # `adaptive_icon_monochrome` are all deliberately absent, and all three
+  # absences are load-bearing. flutter_launcher_icons 0.14.4 emits
+  # mipmap-anydpi-v26/ic_launcher.xml on EITHER of two independent triggers:
+  # `adaptive_icon_foreground` and `adaptive_icon_background` both set, OR
+  # `adaptive_icon_monochrome` set on its own — createMipmapXmlFile returns
+  # early only when both conditions are false (android.dart:179-181), and
+  # config.dart:186-188 satisfies the second from the monochrome key alone.
+  #
+  # The forbidden outcome — a full-bleed adaptive foreground, which clips 22.14%
+  # of this mark (impact-analysis.md § 4.3) — does require
+  # `adaptive_icon_foreground`, so it stays unreachable from this configuration
+  # rather than merely unchosen. `adaptive_icon_monochrome` alone would not
+  # reach it either, but it emits an <adaptive-icon> whose <monochrome> layer
+  # has no <foreground> and no <background> (android.dart:206-214), which
+  # Android 8+ will read. What forbids an adaptive icon here is the absence of
+  # all three keys, nothing else — adding any ONE of them reopens D-5, so
+  # re-decide it rather than assuming this configuration rules it out.
+  # Reasoning and the generator finding behind the choice: decisions.md § 3.
+
+  # TC-2 / VR-9: Apple rejects an App Store icon carrying alpha (ITMS-90717).
+  # The source is RGBA but 100.00% opaque (impact-analysis.md § 4.1), so the
+  # strip is information-lossless and the matte colour below is never composited
+  # against anything — it is not a brand choice.
+  remove_alpha_ios: true
+  background_color_ios: "#ffffff"

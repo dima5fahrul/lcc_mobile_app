@@ -77,6 +77,23 @@ dev_dependencies:
   mocktail: ^1.0.4
   http_mock_adapter: ^0.6.1
 
+  # Launcher-icon generation and the platform-rename CLI (GOR-268).
+  #
+  # BUILD-TIME ONLY, and dev-only on purpose: neither may reach the release
+  # closure (specs.md B-7, the chucker_flutter precedent B11-AC-29/-30/-31).
+  #
+  # EXACT-PINNED, not caret-ranged, on two independent grounds: security-review.md
+  # § V-G requires it, and AC-18 requires re-running generation from the committed
+  # source to reproduce the committed icon set — a caret range silently produces a
+  # different icon set from the same input six months from now.
+  #
+  # `rename` is declared but deliberately NOT USED: measured against this tree it
+  # changes applicationId without the namespace/Kotlin-package/file-move coupling
+  # (IMP-1), and collapses the three iOS `.RunnerTests` bundle ids onto the app's.
+  # See decisions.md § 1.2 for the evidence. Every rename edit here is by hand.
+  flutter_launcher_icons: 0.14.4
+  rename: 3.1.0
+
 flutter:
   uses-material-design: true
   assets:

@@ -183,4 +183,48 @@ void main() {
       }
     });
   });
+
+  group('GOR-268-AC-17 the launcher-icon source is a BUILD INPUT, not a bundled '
+      'asset', () {
+    // impact-analysis.md § 9.4 (D-3's enforcing guard). `assets/logo.png` is
+    // committed so a fresh clone can regenerate the icon set (AC-9) — there is
+    // no CI and no artifact store, so the repository is the only distribution
+    // mechanism this project has. It is deliberately NOT declared under
+    // `flutter: assets:`.
+    //
+    // Neither existing assertion in this file covers that. The set-equality
+    // test above filters on `assets/images/`, and the byte ceiling sums a
+    // hardcoded list of 26 paths — so DECLARING `assets/logo.png` is
+    // guard-safe today and silently adds 286,294 B to every APK and AAB for an
+    // asset `lib/**` reads zero times (IMP-8). Without this test the D-3
+    // ruling rests on a future contributor's discipline rather than on a guard.
+    //
+    // Purely additive: it modifies and weakens no existing assertion.
+
+    test('the asset manifest does not contain assets/logo.png', () async {
+      final AssetManifest manifest =
+          await AssetManifest.loadFromAssetBundle(rootBundle);
+
+      expect(manifest.listAssets(), isNot(contains('assets/logo.png')),
+          reason: 'GOR-268-AC-17 / IMP-8: assets/logo.png is the launcher-icon '
+              'SOURCE (impact-analysis.md § 9.4). Declaring it in pubspec.yaml '
+              'adds 286,294 B to every build for an asset nothing reads at '
+              'runtime. Regenerate icons from it with '
+              '`flutter pub run flutter_launcher_icons`; do not bundle it.');
+    });
+
+    test('no logo.png reaches the bundle under any path', () async {
+      final AssetManifest manifest =
+          await AssetManifest.loadFromAssetBundle(rootBundle);
+
+      final Iterable<String> strays = manifest
+          .listAssets()
+          .where((String key) => key.endsWith('/logo.png'));
+
+      expect(strays, isEmpty,
+          reason: 'GOR-268-AC-17: the same 286 KB regression arrives whether '
+              'assets/logo.png is declared where it sits or copied under a '
+              'declared root such as assets/images/. Found: $strays');
+    });
+  });
 }
