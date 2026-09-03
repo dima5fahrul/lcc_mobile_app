@@ -31,9 +31,19 @@ import '../../../helpers/session_test_helper.dart';
 /// than imported: they are private to that file's `main()` scope, and a
 /// cross-test import for two one-liners would couple this file's compilation
 /// to a suite it has nothing else to do with.
+///
+/// **GOR-269 — this now really is that copy.** It previously read
+/// `MaterialApp.routerConfig!`, which the cited original never did. That
+/// divergence stopped working when GOR-269 replaced `routerConfig:` with the
+/// four-field expansion `MaterialApp.router` requires in order to accept a
+/// `backButtonDispatcher:` at all (`fix-plan.md` `FC-5`, `GOR-269-AC-31`):
+/// `routerConfig` is null under that wiring, and the `!` threw in eight tests
+/// here. Restored to `app_flow_test.dart`'s form, which reaches the same single
+/// router through the tree and is unaffected by how it was handed to
+/// `MaterialApp`. **No assertion in this file changed** — only the two lines
+/// that fetch the router.
 GoRouter routerOf(WidgetTester tester) =>
-    (tester.widget<MaterialApp>(find.byType(MaterialApp)).routerConfig!
-        as GoRouter);
+    GoRouter.of(tester.element(find.byType(Scaffold).first));
 
 String locationOf(WidgetTester tester) =>
     routerOf(tester).state.uri.toString();

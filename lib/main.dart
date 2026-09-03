@@ -76,6 +76,33 @@
 /// still built once in `initState` and `SessionStarted` is still dispatched
 /// there, unchanged.
 ///
+/// ## GOR-269 — hardware Back, and why the wiring below looks redundant
+///
+/// [_routedApp] hands `MaterialApp.router` four fields where it used to hand
+/// one. That is not a refactor and it is not preference: `GoRouter` 16.3.0
+/// hard-initialises its own `RootBackButtonDispatcher` in its constructor
+/// initialiser list and takes none as a parameter, while `WidgetsApp.router`
+/// asserts *"If the routerConfig is provided, all the other router delegates
+/// must not be provided"*. `routerConfig:` and `backButtonDispatcher:` are
+/// therefore mutually exclusive, and the only pinned-version-valid way to
+/// install a custom dispatcher is to read the other three `RouterConfig`
+/// members off the same `GoRouter` and pass all four
+/// (`fix-plan.md` `FC-5`). Restoring `routerConfig:` and adding the dispatcher
+/// beside it trips the assertion on the first frame.
+///
+/// **This is the whole of the fix's wiring.** GOR-269 changed no route's mount
+/// point, no `navigatorKey`, and none of the 36 `context.go()` call sites — so
+/// rolling it back is reverting this one composition (`fix-plan.md` § 13.5),
+/// which is the nearest thing this project has to a kill switch given
+/// `ADR-0002` leaves no store, no CI/CD and no remote config to flip a flag
+/// through.
+///
+/// The boot phases below are **not** covered by it, and that is a stated limit
+/// rather than an oversight: [_bootApp] mounts a plain `MaterialApp` with no
+/// `Router`, so no dispatcher is installed and Back during the splash or
+/// onboarding still exits. Recorded as `OQ-10` for triage, out of scope here
+/// because it was never reproduced (`fix-plan.md` § 4.1).
+///
 /// **The session gate is ported exactly.** `App.tsx`:200 holds the splash while
 /// `bootPhase === "loading" || session.loading`. Here the phase advances only
 /// when the timer has elapsed **and** `SessionBloc.state.status` has left
@@ -111,6 +138,7 @@ import 'presentation/boot/splash_screens.dart';
 import 'presentation/theme/app_colors.dart';
 import 'presentation/theme/app_spacing.dart';
 import 'presentation/theme/app_theme.dart';
+import 'utils/routes/app_back_policy.dart';
 import 'utils/routes/app_routes.dart';
 
 Future<void> main() async {
@@ -187,6 +215,14 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final GoRouter _router;
 
+  /// GOR-269's back policy and the dispatcher that installs it.
+  ///
+  /// Built here rather than in `build` for the same reason [_router] is: the
+  /// policy owns the citizen's journey for the life of the app, and one rebuilt
+  /// per frame would forget where they had been on every frame.
+  late final AppBackPolicy _backPolicy;
+  late final AppBackButtonDispatcher _backDispatcher;
+
   /// Starts at [BootPhase.app] when there is no storage to gate on.
   late BootPhase _phase =
       widget.bootStorage == null ? BootPhase.app : BootPhase.loading;
@@ -204,6 +240,15 @@ class _AppState extends State<App> {
     // Built once and held for the widget's life: a `GoRouter` rebuilt on every
     // `build` would reset the navigation stack on each frame.
     _router = AppRoutes.build(widget.sessionBloc);
+
+    // GOR-269. Constructed here, before the router has parsed anything, so the
+    // policy's listener is attached in time to observe the very first resolved
+    // location — cold deep link included. See `AppBackPolicy`'s constructor.
+    _backPolicy = AppBackPolicy(
+      router: _router,
+      sessionBloc: widget.sessionBloc,
+    );
+    _backDispatcher = AppBackButtonDispatcher(_backPolicy);
 
     if (widget.bootStorage != null) {
       // `|| session.loading` — the second half of the gate. Subscribed rather
@@ -223,6 +268,10 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     _sessionSub?.cancel();
+    // Releases the router-delegate listener and the session subscription the
+    // policy holds. The router itself is not disposed here — it never was, and
+    // GOR-269 does not change that.
+    _backPolicy.dispose();
     super.dispose();
   }
 
@@ -263,7 +312,14 @@ class _AppState extends State<App> {
       localizationsDelegates: context.localizationDelegates,
       supportedLocales: context.supportedLocales,
       locale: context.locale,
-      routerConfig: _router,
+      // GOR-269 / `FC-5`. The four-field expansion, not `routerConfig:` — see
+      // the library doc. All three router members are read off the one
+      // `GoRouter` built in `initState`, so this is the same router it always
+      // was, handed over in the only shape that can also carry a dispatcher.
+      routeInformationProvider: _router.routeInformationProvider,
+      routeInformationParser: _router.routeInformationParser,
+      routerDelegate: _router.routerDelegate,
+      backButtonDispatcher: _backDispatcher,
     );
   }
 

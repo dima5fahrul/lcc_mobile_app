@@ -270,6 +270,22 @@ class AppRoutes {
   /// re-evaluates the moment `loading → authenticated` (boot) or
   /// `authenticated → unauthenticated` (sign-out) lands. Call once from
   /// `main.dart` (P0-5) with the app-wide `SessionBloc` singleton.
+  ///
+  /// ## Hardware Back is answered elsewhere (GOR-269)
+  ///
+  /// Nothing in this table handles the Android Back button, and that is not an
+  /// omission to be corrected route by route. Back is answered once, for every
+  /// route this build mounts and every route added after it, by
+  /// `AppBackPolicy` in `app_back_policy.dart` — installed at a single
+  /// composition point in `main.dart` and reached only after every navigator
+  /// has declined to pop. **Adding a per-route back handler here re-creates the
+  /// thirteen-handler anti-pattern `root-cause.md` § 9.2 rejects**; the policy
+  /// already covers the route you are about to add.
+  ///
+  /// The `redirect` below is also the back policy's authorization backstop: it
+  /// is destination-based, so it runs on the policy's own navigations exactly
+  /// as it runs on a `context.go()` from a page (`security-review.md` § 2.1,
+  /// `SR-1`).
   static GoRouter build(SessionBloc sessionBloc) {
     return GoRouter(
       navigatorKey:
