@@ -85,18 +85,32 @@ void main() {
   });
 
   test('GOR-269-AC-11 — the fix adds no pop guard anywhere in lib/', () {
-    final List<String> hits = _hits(files, RegExp(r'PopScope|WillPopScope'));
+    // **Comment-stripped, for the reason Amendment `A-3` already established
+    // for `AC-17`: a raw-text scan counts prose, and this criterion is about
+    // code.** It was raw text, and it went red on `SRE-269-5`'s fix — not
+    // because a pop guard appeared, but because `app_back_policy.dart`'s doc
+    // comment now has to explain how the platform gate's `routeBlocksPop` half
+    // is what keeps `history_page.dart:143`'s `PopScope` working. Naming the
+    // widget it must not break is the opposite of adding one, and a guard that
+    // cannot tell those apart penalises exactly the documentation it wants.
+    //
+    // The substance is unchanged and is in fact *stronger* against the failure
+    // it hunts — thirteen route-local handlers would be thirteen `PopScope`
+    // widgets, none of which survives comment stripping.
+    final List<_Source> code = files
+        .map((_Source f) => (path: f.path, text: stripComments(f.text)))
+        .toList();
+    final List<String> hits = _hits(code, RegExp(r'PopScope|WillPopScope'));
 
-    // Two hits, both pre-existing and both in the one file B7 shipped: a doc
-    // comment naming the widget and the widget itself. GOR-269 adds neither a
-    // third file nor a third hit.
     expect(
       hits.map((String h) => h.split(':').first).toSet(),
       <String>{'lib/features/history/presentation/pages/history_page.dart'},
       reason: 'a pop guard outside history_page.dart is the 13-handler '
           'anti-pattern beginning. Hits: $hits',
     );
-    expect(hits, hasLength(2), reason: 'the two B7 shipped. Hits: $hits');
+    expect(hits, hasLength(1),
+        reason: 'the one B7 shipped — its doc-comment mention is prose and no '
+            'longer counted. Hits: $hits');
   });
 
   test('GOR-269-AC-11 — the dispatcher lives in exactly one lib/ file, plus '

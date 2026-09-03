@@ -46,6 +46,8 @@
 ///   is the whole of the framework's surface, but not the whole of every OEM's.
 library;
 
+import 'dart:ui' show AppLifecycleState;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -79,12 +81,33 @@ class BackPress {
 /// `LiveText.isLiveTextInputAvailable` and `Clipboard.hasStrings`) with shapes
 /// their callers can decode, so intercepting the channel does not itself change
 /// how the app behaves.
-List<String> interceptPlatformChannel(WidgetTester tester) {
+///
+/// ## [frameworkHandlesBack] — the *outbound* half, and why it is separate
+///
+/// Every other signal this file exposes describes what the app does **after**
+/// Android has decided to deliver a Back press into Flutter. Passing a list
+/// here also records the argument of every
+/// `SystemNavigator.setFrameworkHandlesBack` call, which is the app deciding
+/// whether Android delivers that press **at all** (`SRE-269-5`). It is an
+/// optional out-parameter rather than a second interceptor because only one
+/// mock handler can be installed on `SystemChannels.platform` at a time, and a
+/// test that wanted both signals would otherwise have to choose.
+///
+/// Nothing is recorded here unless the app is at a lifecycle state that permits
+/// the call — see [resumeApp], without which this list stays empty on a route
+/// where the running app would have emitted.
+List<String> interceptPlatformChannel(
+  WidgetTester tester, {
+  List<bool>? frameworkHandlesBack,
+}) {
   final List<String> calls = <String>[];
   tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
     SystemChannels.platform,
     (MethodCall call) async {
       calls.add(call.method);
+      if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+        frameworkHandlesBack?.add(call.arguments as bool);
+      }
       return switch (call.method) {
         'Clipboard.hasStrings' => <String, dynamic>{'value': false},
         'LiveText.isLiveTextInputAvailable' => false,
@@ -97,6 +120,31 @@ List<String> interceptPlatformChannel(WidgetTester tester) {
         .setMockMethodCallHandler(SystemChannels.platform, null),
   );
   return calls;
+}
+
+/// Drives the app to [AppLifecycleState.resumed] — the state a real Android app
+/// is in whenever a citizen can press anything.
+///
+/// **A widget test leaves the lifecycle `null`**, and `null` is not a neutral
+/// default here: `WidgetsApp._defaultOnNavigationNotification` returns early on
+/// it (`widgets/app.dart:1443-1447`) and never reaches
+/// `SystemNavigator.setFrameworkHandlesBack`. So the entire outbound
+/// platform-gate conversation is silent in an unresumed test, which is why 3599
+/// green tests coexisted with `SRE-269-5` and why any test asserting on
+/// [interceptPlatformChannel]'s `frameworkHandlesBack` list must call this
+/// first or measure nothing.
+///
+/// Driven over `flutter/lifecycle` with the same reasoning [pressBack] uses for
+/// `flutter/navigation`: the embedder sends exactly this message
+/// (`ServicesBinding._handleLifecycleMessage`, `services/binding.dart:60`,
+/// `:302-310`), so there is no test-only entry point involved.
+Future<void> resumeApp(WidgetTester tester) async {
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    SystemChannels.lifecycle.name,
+    const StringCodec().encodeMessage(AppLifecycleState.resumed.toString()),
+    (ByteData? _) {},
+  );
+  await tester.pumpAndSettle();
 }
 
 /// Presses Android hardware Back the way the platform does.

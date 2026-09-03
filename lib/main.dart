@@ -78,7 +78,7 @@
 ///
 /// ## GOR-269 — hardware Back, and why the wiring below looks redundant
 ///
-/// [_routedApp] hands `MaterialApp.router` four fields where it used to hand
+/// [_routedApp] hands `MaterialApp.router` five fields where it used to hand
 /// one. That is not a refactor and it is not preference: `GoRouter` 16.3.0
 /// hard-initialises its own `RootBackButtonDispatcher` in its constructor
 /// initialiser list and takes none as a parameter, while `WidgetsApp.router`
@@ -89,6 +89,14 @@
 /// members off the same `GoRouter` and pass all four
 /// (`fix-plan.md` `FC-5`). Restoring `routerConfig:` and adding the dispatcher
 /// beside it trips the assertion on the first frame.
+///
+/// The fifth is `onNavigationNotification`, and it is not part of that
+/// constraint — it is `SRE-269-5`'s fix. `backButtonDispatcher:` decides what
+/// happens when Android delivers a Back press; `onNavigationNotification:`
+/// decides whether Android delivers it at all. On `targetSdk 36` the delivered
+/// fix passed 3599 tests and still exited the app on a physical device, because
+/// only the first of those two was wired. Both are the policy's, both are
+/// installed here, and neither is sufficient alone.
 ///
 /// **This is the whole of the fix's wiring.** GOR-269 changed no route's mount
 /// point, no `navigatorKey`, and none of the 36 `context.go()` call sites — so
@@ -320,6 +328,15 @@ class _AppState extends State<App> {
       routeInformationParser: _router.routeInformationParser,
       routerDelegate: _router.routerDelegate,
       backButtonDispatcher: _backDispatcher,
+      // GOR-269 / `SRE-269-5`. The dispatcher above only runs once Android has
+      // decided to deliver the press into Flutter, and on `targetSdk 36`
+      // Android asks the app first. `WidgetsApp`'s default answer is
+      // `Navigator.canPop()`, which is false on every stack-replacing
+      // `context.go()` route — so the app was declining Back on exactly the
+      // routes the dispatcher exists to serve, and the fix never reached the
+      // device. This override widens that answer with the policy's own
+      // `hasPredecessor`. See `app_back_policy.dart`'s library doc.
+      onNavigationNotification: _backPolicy.onNavigationNotification,
     );
   }
 

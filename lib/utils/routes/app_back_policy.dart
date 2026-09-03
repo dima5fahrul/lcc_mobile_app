@@ -43,11 +43,72 @@
 /// pop?" by hand to avoid breaking both of the above. Same outcome when
 /// correct, strictly more ways to be wrong. `fix-plan.md` § 8.2 rejected it.
 ///
-/// Predictive back (Android 14+) needs no second mechanism: `flutter/backgesture`
-/// arrives on its own channel, but `WidgetsBinding._handleCommitBackGesture`
-/// falls through to the same `handlePopRoute()` when no observer claims the
-/// gesture, so anything installed at the observer level covers both channels
-/// (`qa-report.md` § 2.8, `OQ-7` closed).
+/// Predictive back (Android 14+) needs no second mechanism *on the inbound
+/// side*: `flutter/backgesture` arrives on its own channel, but
+/// `WidgetsBinding._handleCommitBackGesture` falls through to the same
+/// `handlePopRoute()` when no observer claims the gesture, so anything
+/// installed at the observer level covers both channels (`qa-report.md` § 2.8).
+///
+/// ## The gate above both channels — `SRE-269-5`, and why the mechanism above
+/// is not sufficient on its own
+///
+/// Everything described so far runs only once Android has decided to deliver
+/// the press into Flutter, and **on API 33+ the app itself makes that
+/// decision**, ahead of time, through a call this policy originally did not
+/// participate in. Three links, from the pinned framework source:
+///
+/// 1. `NavigatorState._handleHistoryChanged` dispatches
+///    `NavigationNotification(canHandlePop: navigatorCanPop || routeBlocksPop)`
+///    — `widgets/navigator.dart:3743-3753`.
+/// 2. `WidgetsApp._defaultOnNavigationNotification`, the default for
+///    `WidgetsApp.onNavigationNotification`, calls
+///    `SystemNavigator.setFrameworkHandlesBack(notification.canHandlePop)`
+///    — `widgets/app.dart:1442-1456`.
+/// 3. `WidgetsBinding.handlePopRoute`'s own dartdoc — `widgets/binding.dart`:
+///    *"Flutter enables or disables this feature ahead of time, before a back
+///    gesture occurs, and back gestures that trigger predictive back are
+///    handled entirely by the system and do not trigger this method here in the
+///    framework."*
+///
+/// `navigatorCanPop` is exactly what this defect is: every navigation is a
+/// `context.go()` that replaces the stack, so each full-frame route's navigator
+/// holds one page and `canPop()` is false. So on `targetSdk 36`, with the
+/// dispatcher above installed and working, the app was still telling Android
+/// *"I do not handle Back"* on all thirteen routes the policy covers — and
+/// Android, correctly, stopped delivering the press. The dispatcher was right
+/// and unreachable. `SRE-269-5` measured this in-tree; the operator then
+/// reproduced it on a physical Android 13+ device.
+///
+/// [AppBackPolicy.onNavigationNotification] closes it, and `main.dart` installs
+/// it on the same `MaterialApp.router` as the dispatcher. Three properties are
+/// deliberate:
+///
+/// * **It widens the framework's answer, never replaces it.** The value sent is
+///   `notification.canHandlePop || hasPredecessor`. `canHandlePop` carries both
+///   `navigatorCanPop` (which is what keeps `/news/:slug` popping — `AC-19`,
+///   `AC-22`) and `routeBlocksPop` (which is what keeps `history_page.dart`'s
+///   `PopScope` intercepting — `B7-AC-75`). Replacing it would break both.
+/// * **It is the app's only writer.** Overriding `onNavigationNotification`
+///   removes `_defaultOnNavigationNotification` from the tree entirely, so
+///   there is no second party writing the same engine flag and therefore no
+///   last-writer-wins race. Calling `SystemNavigator.setFrameworkHandlesBack`
+///   directly from this class *alongside* the default was the obvious
+///   alternative and is exactly that race: the notification is dispatched in a
+///   post-frame callback (`navigator.dart:3756-3768`) and would land after the
+///   policy's own write, overwriting it with `false` on every navigation.
+/// * **It lowers the flag as readily as it raises it.** A one-entry journey
+///   sends `false`, which is what leaves `/` exiting (`AC-18`) and what stops
+///   `fix-plan.md` § 13.4 trigger 1 — an app that cannot be closed — from being
+///   reachable through the predictive-back path.
+///
+/// The rejected alternative worth naming, because it is cheaper and someone
+/// will propose it: `android:enableOnBackInvokedCallback="false"` in the
+/// manifest. It forces the legacy `onBackPressed` path, which is the path the
+/// whole suite already drives, and it would have made the delivered fix behave
+/// as measured — but it opts the app out of predictive back permanently, is a
+/// deprecation dead-end Android is steering away from, and fixes nothing about
+/// the signal itself: the app would still be telling the platform something
+/// untrue, and would break again the moment the opt-out stops being honoured.
 ///
 /// ## What this file deliberately does not do
 ///
@@ -82,6 +143,7 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
@@ -182,6 +244,62 @@ class AppBackPolicy {
   @visibleForTesting
   bool get hasPredecessor => _stack.hasPredecessor;
 
+  /// The framework's own half of the platform gate, as of the last
+  /// [NavigationNotification] this policy saw.
+  ///
+  /// Cached rather than re-derived because it is not derivable from here:
+  /// `canHandlePop` is `navigatorCanPop || routeBlocksPop`
+  /// (`widgets/navigator.dart:3743-3753`), and both halves are private
+  /// `NavigatorState` business. `routeBlocksPop` in particular is how a
+  /// `PopScope` with `canPop: false` — `history_page.dart:143` — announces
+  /// itself, and nothing this class can reach reports it.
+  ///
+  /// Starts `false`, which is what a stack-replacing app's navigator reports
+  /// anyway, and is corrected by the first notification.
+  bool _navigatorCanHandlePop = false;
+
+  /// Tells Android whether Flutter will handle the next Back press.
+  ///
+  /// The **only** writer of `SystemNavigator.setFrameworkHandlesBack` in this
+  /// app — see the library doc's `SRE-269-5` section for why a second writer is
+  /// a race rather than belt-and-braces.
+  ///
+  /// The lifecycle guard is `_defaultOnNavigationNotification`'s, reproduced
+  /// rather than inherited because overriding `onNavigationNotification`
+  /// removes the default from the tree: *"Avoid updating the engine when the
+  /// app isn't ready"* (`widgets/app.dart:1443-1447`). Read live off the
+  /// binding instead of mirrored into a field, which is the same value
+  /// `WidgetsApp` caches (`scheduler/binding.dart:395`) and one fewer thing to
+  /// keep in sync. A widget test leaves it `null`, so this is silent in tests
+  /// that do not resume the app — which is exactly why `SRE-269-5` survived
+  /// 3599 of them, and why `back_probe.dart`'s `resumeApp` exists.
+  void _syncFrameworkHandlesBack() {
+    switch (WidgetsBinding.instance.lifecycleState) {
+      case null:
+      case AppLifecycleState.detached:
+        return;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.resumed:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        SystemNavigator.setFrameworkHandlesBack(
+          _navigatorCanHandlePop || _stack.hasPredecessor,
+        );
+    }
+  }
+
+  /// `WidgetsApp.onNavigationNotification` — supplied by `main.dart` to the
+  /// same `MaterialApp.router` that takes [AppBackButtonDispatcher].
+  ///
+  /// Returns true to stop the notification bubbling, exactly as
+  /// `_defaultOnNavigationNotification` does; nothing above `MaterialApp` in
+  /// this app listens for one.
+  bool onNavigationNotification(NavigationNotification notification) {
+    _navigatorCanHandlePop = notification.canHandlePop;
+    _syncFrameworkHandlesBack();
+    return true;
+  }
+
   /// Opens the retreat window. Called by the dispatcher before it delegates.
   void _beginBack() => _backDepth++;
 
@@ -237,6 +355,26 @@ class AppBackPolicy {
     } else {
       _stack.record(location);
     }
+
+    // **No `_syncFrameworkHandlesBack()` here, and that is a decision rather
+    // than an omission.** Announcing the gate from this method as well was
+    // written, measured, and removed: every event that reaches here also
+    // changes a `Navigator`'s history, so it also produces the
+    // `NavigationNotification` that [onNavigationNotification] already answers.
+    // A mutation run confirmed it — deleting the call left all five rows of
+    // `test/app/framework_handles_back_test.dart` green, which is the
+    // definition of a line no test can defend. It was also strictly worse than
+    // redundant: this runs on the router delegate's notification, i.e. *before*
+    // the frame that mutates the navigator, so it would have written using the
+    // previous route's [_navigatorCanHandlePop] and been transiently wrong on
+    // every navigation away from `/news/:slug`.
+    //
+    // The dependency this leaves is worth stating plainly for whoever changes
+    // the route table next: **the gate refreshes on `Navigator` history
+    // changes.** That is the framework's own cadence for the same signal, and
+    // every navigation this app performs is a stack-replacing `go()` that
+    // trips it. A future route reached by a navigation that resolves to the
+    // *same* page — and therefore no history change — would not re-announce.
   }
 
   /// `I-6` — the journey does not survive a session.
@@ -308,6 +446,22 @@ class AppBackPolicy {
     if (state.status == SessionStatus.unauthenticated && _sessionLive) {
       _sessionLive = false;
       _stack.clear();
+      // The one place the journey changes with **no** navigator history change
+      // to carry the news, and therefore the one place the gate does not
+      // re-announce itself — see the note in [_onRouterChanged] for why every
+      // other call site was removed as redundant and this one was not.
+      //
+      // **Stated rather than implied: no test covers this line.** Its effect is
+      // confined to the window between the sign-out landing and `_redirect`
+      // navigating to `/signin`, and both states exit the app on Back — a stale
+      // `true` means the framework is asked, declines (the journey is empty),
+      // and `handlePopRoute` falls through to `SystemNavigator.pop()`, which is
+      // `AC-28`'s outcome either way. So there is no behaviour to assert on
+      // today. It is kept because `hasPredecessor` and the navigator's own
+      // `canHandlePop` genuinely decouple here and nowhere else, and a signal
+      // that is knowably stale about a session that has just ended is not
+      // something to leave in place on a national-identity app.
+      _syncFrameworkHandlesBack();
     }
   }
 }

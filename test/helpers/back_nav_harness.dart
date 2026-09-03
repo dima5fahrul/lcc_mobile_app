@@ -76,11 +76,19 @@ Future<void> goTo(WidgetTester tester, String path) async {
 ///
 /// `_AppState.initState` builds the router, constructs the policy against it,
 /// wraps that in [AppBackButtonDispatcher], and `build` hands
-/// `MaterialApp.router` the four-field expansion below `EasyLocalization`
-/// (`main.dart:242-251`, `:317-323`). This reproduces exactly that, with
-/// nothing in `lib/` stubbed or modified to achieve it — which is what lets a
-/// test assert against [AppBackPolicy.journey] without measuring a different
-/// app from the one `pumpAssembledApp` pumps.
+/// `MaterialApp.router` the four-field expansion **plus
+/// `onNavigationNotification`** below `EasyLocalization`. This reproduces
+/// exactly that, with nothing in `lib/` stubbed or modified to achieve it —
+/// which is what lets a test assert against [AppBackPolicy.journey] without
+/// measuring a different app from the one `pumpAssembledApp` pumps.
+///
+/// **That "exactly" is a liability as much as a convenience, and `SRE-269-5` is
+/// what it cost.** A copy of a composition cannot prove anything about the
+/// composition it copies; it can only drift from it. `onNavigationNotification`
+/// is here so this rig does not measure a *different* app, but the rig is not
+/// where that wiring is proven — `test/app/framework_handles_back_test.dart`
+/// asserts it against the real `App` from `lib/main.dart`, through
+/// `pumpAssembledApp`, for exactly that reason.
 ///
 /// [policySession] is the bloc the **policy** observes; the router always
 /// watches `harness.sessionBloc`. It defaults to the same instance, which is
@@ -122,6 +130,7 @@ Future<({GoRouter router, AppBackPolicy policy})> pumpMainComposition(
             routeInformationParser: router.routeInformationParser,
             routerDelegate: router.routerDelegate,
             backButtonDispatcher: dispatcher,
+            onNavigationNotification: policy.onNavigationNotification,
           ),
         ),
       ),
