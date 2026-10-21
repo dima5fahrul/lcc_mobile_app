@@ -98,6 +98,40 @@ class MarriageSpouseSection extends StatelessWidget {
           required: true,
           serverError: serverErrors['spouses.name'],
         ),
+        // Forms v2 — the optional Latin split names and the optional place
+        // of birth. All OPTIONAL: no `required`, absent keys when left blank.
+        const SizedBox(height: AppSpacing.gap12),
+        CertificateInputField(
+          label: 'forms.surnameLabel'.tr(context: context),
+          value: value.surname,
+          placeholder: 'forms.surnamePlaceholder'.tr(context: context),
+          onChanged: (String v) => onChanged(value.copyWith(surname: v)),
+        ),
+        const SizedBox(height: AppSpacing.gap12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(
+              child: CertificateInputField(
+                label: 'forms.givenNameLabel'.tr(context: context),
+                value: value.givenName,
+                placeholder: 'forms.givenNamePlaceholder'.tr(context: context),
+                onChanged: (String v) => onChanged(value.copyWith(givenName: v)),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.gap12),
+            Expanded(
+              child: CertificateInputField(
+                label: 'forms.placeOfBirthLabel'.tr(context: context),
+                value: value.placeOfBirth,
+                placeholder:
+                    'forms.placeOfBirthPlaceholder'.tr(context: context),
+                onChanged: (String v) =>
+                    onChanged(value.copyWith(placeOfBirth: v)),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.gap12),
         // `:484-501` — `grid grid-cols-2 gap-3`: date of birth and gender.
         Row(

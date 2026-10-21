@@ -168,6 +168,8 @@ const Map<String, int> kDeathFieldStep = <String, int>{
 class DeathDeceasedInfo {
   const DeathDeceasedInfo({
     this.fullName = '',
+    this.surname = '',
+    this.givenName = '',
     this.fingerprint = '',
     this.gender = '',
     this.dob = '',
@@ -195,6 +197,12 @@ class DeathDeceasedInfo {
   });
 
   final String fullName;
+
+  /// Forms v2 — the optional Latin split names, passport/ID style. OPTIONAL:
+  /// absent keys when empty (`deceased.deceased_surname` /
+  /// `deceased.deceased_given_name`).
+  final String surname;
+  final String givenName;
   final String fingerprint;
   final String gender;
   final String dob;
@@ -228,6 +236,8 @@ class DeathDeceasedInfo {
 
   DeathDeceasedInfo copyWith({
     String? fullName,
+    String? surname,
+    String? givenName,
     String? fingerprint,
     String? gender,
     String? dob,
@@ -255,6 +265,8 @@ class DeathDeceasedInfo {
   }) =>
       DeathDeceasedInfo(
         fullName: fullName ?? this.fullName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
         fingerprint: fingerprint ?? this.fingerprint,
         gender: gender ?? this.gender,
         dob: dob ?? this.dob,

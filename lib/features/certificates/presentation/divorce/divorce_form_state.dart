@@ -94,6 +94,9 @@ enum DivorceMediationMode { none, existing, newRecord }
 class DivorceSpouseInfo {
   const DivorceSpouseInfo({
     this.fullName = '',
+    this.surname = '',
+    this.givenName = '',
+    this.placeOfBirth = '',
     this.dob = '',
     this.nationality = '',
     this.idOrPassport = '',
@@ -103,6 +106,14 @@ class DivorceSpouseInfo {
   });
 
   final String fullName;
+
+  /// Forms v2 — the optional Latin split names and the optional place of
+  /// birth, passport/ID style. OPTIONAL: absent keys when empty
+  /// (`spouses.{husband,wife}.surname` / `.given_name` / `.place_of_birth`),
+  /// emitted inside the spouse's own nested object.
+  final String surname;
+  final String givenName;
+  final String placeOfBirth;
   final String dob;
   final String nationality;
   final String idOrPassport;
@@ -117,6 +128,9 @@ class DivorceSpouseInfo {
 
   DivorceSpouseInfo copyWith({
     String? fullName,
+    String? surname,
+    String? givenName,
+    String? placeOfBirth,
     String? dob,
     String? nationality,
     String? idOrPassport,
@@ -126,6 +140,9 @@ class DivorceSpouseInfo {
   }) =>
       DivorceSpouseInfo(
         fullName: fullName ?? this.fullName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
+        placeOfBirth: placeOfBirth ?? this.placeOfBirth,
         dob: dob ?? this.dob,
         nationality: nationality ?? this.nationality,
         idOrPassport: idOrPassport ?? this.idOrPassport,
@@ -230,18 +247,54 @@ class DivorceCourt {
       );
 }
 
+/// Forms v2 — the four `basis.custody_with` enum values, in the guide's
+/// order. A state-level literal next to the page's other wire literals
+/// (`kDivorceTypeVoluntary` and friends); the payload emits the value
+/// verbatim.
+const List<String> kDivorceCustodyWithValues = <String>[
+  'husband',
+  'wife',
+  'shared',
+  'not-applicable',
+];
+
 /// `:639` — the children block, gated on [DivorceFormData.hasChildren].
 class DivorceChildren {
-  const DivorceChildren({this.list = '', this.custody = ''});
+  const DivorceChildren({
+    this.list = '',
+    this.custody = '',
+    this.minorCount = 0,
+    this.custodyWith = '',
+  });
 
   final String list;
   final String custody;
 
+  /// Forms v2 — the optional `basis.children_minor_count`. A **bare JSON
+  /// number** on the wire (Marriage's `creates_betrothal_record` is the same
+  /// precedent), emitted only when greater than zero. Not gated on
+  /// [DivorceFormData.hasChildren] any more than the existing two are — the
+  /// payload gate decides, the state just holds.
+  final int minorCount;
+
+  /// Forms v2 — the optional `basis.custody_with`, one of the guide's four
+  /// enum values (`husband` / `wife` / `shared` / `not-applicable`), emitted
+  /// only when non-empty.
+  final String custodyWith;
+
   static const DivorceChildren blank = DivorceChildren();
 
-  DivorceChildren copyWith({String? list, String? custody}) => DivorceChildren(
+  DivorceChildren copyWith({
+    String? list,
+    String? custody,
+    int? minorCount,
+    String? custodyWith,
+  }) =>
+      DivorceChildren(
         list: list ?? this.list,
         custody: custody ?? this.custody,
+        minorCount: minorCount ?? this.minorCount,
+        custodyWith: custodyWith ?? this.custodyWith,
       );
 }
 

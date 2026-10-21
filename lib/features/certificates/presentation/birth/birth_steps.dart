@@ -273,6 +273,39 @@ class BirthStep2 extends StatelessWidget {
           required: true,
           path: 'child.child_name',
         ),
+        // Forms v2 — the optional Latin split names. Both OPTIONAL: no
+        // `required`, absent keys when left blank.
+        BirthInputField(
+          label: birthT(context, 'surnameLabel'),
+          value: c.surname,
+          placeholder: birthT(context, 'surnamePlaceholder'),
+          onChanged: (String v) => cubit.patchChild(
+              (BirthChildInfo x) => x.copyWith(surname: v),
+              path: 'child.child_surname'),
+          path: 'child.child_surname',
+        ),
+        _pair(
+          BirthInputField(
+            label: birthT(context, 'givenNameLabel'),
+            value: c.givenName,
+            placeholder: birthT(context, 'givenNamePlaceholder'),
+            onChanged: (String v) => cubit.patchChild(
+                (BirthChildInfo x) => x.copyWith(givenName: v),
+                path: 'child.child_given_name'),
+            path: 'child.child_given_name',
+          ),
+          // Forms v2 — optional time of birth, `HH:MM`, free text like
+          // Death's time-of-death input.
+          BirthInputField(
+            label: birthT(context, 'timeOfBirthLabel'),
+            value: c.timeOfBirth,
+            placeholder: birthT(context, 'timeOfBirthPlaceholder'),
+            onChanged: (String v) => cubit.patchChild(
+                (BirthChildInfo x) => x.copyWith(timeOfBirth: v),
+                path: 'child.child_time_of_birth'),
+            path: 'child.child_time_of_birth',
+          ),
+        ),
         _pair(
           BirthSelectField(
             label: birthT(context, 'genderLabel'),

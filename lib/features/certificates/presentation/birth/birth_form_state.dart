@@ -202,8 +202,11 @@ const Map<String, int> kBirthFieldStep = <String, int>{
 class BirthChildInfo {
   const BirthChildInfo({
     this.fullName = '',
+    this.surname = '',
+    this.givenName = '',
     this.gender = '',
     this.dob = '',
+    this.timeOfBirth = '',
     this.weight = '',
     this.height = '',
     this.fingerprint = '',
@@ -228,8 +231,17 @@ class BirthChildInfo {
   });
 
   final String fullName;
+
+  /// Forms v2 — the optional Latin split names, passport/ID style. OPTIONAL:
+  /// absent keys when empty (`child.child_surname` / `child.child_given_name`).
+  final String surname;
+  final String givenName;
   final String gender;
   final String dob;
+
+  /// Forms v2 — optional time of birth, `HH:MM` (`child.child_time_of_birth`).
+  /// A free-text input like Death's `timeOfDeath`; no transform is applied.
+  final String timeOfBirth;
   final String weight;
   final String height;
   final String fingerprint;
@@ -260,8 +272,11 @@ class BirthChildInfo {
 
   BirthChildInfo copyWith({
     String? fullName,
+    String? surname,
+    String? givenName,
     String? gender,
     String? dob,
+    String? timeOfBirth,
     String? weight,
     String? height,
     String? fingerprint,
@@ -286,8 +301,11 @@ class BirthChildInfo {
   }) =>
       BirthChildInfo(
         fullName: fullName ?? this.fullName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
         gender: gender ?? this.gender,
         dob: dob ?? this.dob,
+        timeOfBirth: timeOfBirth ?? this.timeOfBirth,
         weight: weight ?? this.weight,
         height: height ?? this.height,
         fingerprint: fingerprint ?? this.fingerprint,
@@ -331,6 +349,8 @@ class BirthChildInfo {
 class BirthParentInfo {
   const BirthParentInfo({
     this.fullName = '',
+    this.surname = '',
+    this.givenName = '',
     this.fingerprint = '',
     this.dob = '',
     this.ethnicity = '',
@@ -348,6 +368,12 @@ class BirthParentInfo {
   });
 
   final String fullName;
+
+  /// Forms v2 — the optional Latin split names. Emitted only under the
+  /// person's own prefix (`parents.mother.*` / `parents.father.*`), never at
+  /// the bare `parents` mirror — the guide names no such key there.
+  final String surname;
+  final String givenName;
   final String fingerprint;
   final String dob;
   final String ethnicity;
@@ -365,6 +391,8 @@ class BirthParentInfo {
 
   BirthParentInfo copyWith({
     String? fullName,
+    String? surname,
+    String? givenName,
     String? fingerprint,
     String? dob,
     String? ethnicity,
@@ -382,6 +410,8 @@ class BirthParentInfo {
   }) =>
       BirthParentInfo(
         fullName: fullName ?? this.fullName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
         fingerprint: fingerprint ?? this.fingerprint,
         dob: dob ?? this.dob,
         ethnicity: ethnicity ?? this.ethnicity,

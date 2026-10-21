@@ -160,8 +160,19 @@ Map<String, Object?> buildBirthFormData(
     'header.legal_basis': legalBasisText,
 
     'child.child_name': child.fullName,
+
+    // Forms v2 — the optional Latin split names. **Absent key when empty,
+    // never `""`**: every oracle and the golden logs predate these keys and
+    // populate none of them, so emitting them unconditionally would move
+    // bytes on all twenty documents for no input.
+    if (child.surname.isNotEmpty) 'child.child_surname': child.surname,
+    if (child.givenName.isNotEmpty) 'child.child_given_name': child.givenName,
+
     'child.child_gender': child.gender,
     'child.child_dob': child.dob,
+    // Forms v2 — optional time of birth, `HH:MM`, passed through verbatim.
+    if (child.timeOfBirth.isNotEmpty)
+      'child.child_time_of_birth': child.timeOfBirth,
     'child.child_weight_kg': child.weight,
     'child.child_height_cm': child.height,
     'child.child_fingerprint': child.fingerprint,
@@ -185,11 +196,24 @@ Map<String, Object?> buildBirthFormData(
     //
     // TWO invocations, deliberately. See the library docstring and `F2-AC-45`.
     ...birthParentData(form.mother, 'parents'),
+    // Forms v2 — the optional Latin split names go under the PERSON's own
+    // prefix only (`parents.mother.*`, `parents.father.*`). The bare
+    // `parents` mirror is the schema's mandatory set and the guide names no
+    // split key there, so it stays exactly thirteen keys (`F2-AC-20`).
+    if (form.mother.surname.isNotEmpty)
+      'parents.mother.surname': form.mother.surname,
+    if (form.mother.givenName.isNotEmpty)
+      'parents.mother.given_name': form.mother.givenName,
     ...birthParentData(form.mother, 'parents.mother'),
     if (form.fatherUnknown)
       'parents.father.status': kBirthFatherUnknownStatus
-    else
+    else ...<String, Object?>{
       ...birthParentData(form.father, 'parents.father'),
+      if (form.father.surname.isNotEmpty)
+        'parents.father.surname': form.father.surname,
+      if (form.father.givenName.isNotEmpty)
+        'parents.father.given_name': form.father.givenName,
+    },
 
     'informant.informant_name': informant.fullName,
     'informant.informant_fingerprint': informant.fingerprint,

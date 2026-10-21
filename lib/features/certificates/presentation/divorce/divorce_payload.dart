@@ -43,6 +43,16 @@ import 'divorce_form_state.dart';
 Map<String, Object?> divorceSpousePayload(DivorceSpouseInfo s) {
   return <String, Object?>{
     'name': s.fullName.trim(),
+
+    // Forms v2 — the optional Latin split names and the optional place of
+    // birth. **Absent key when empty, never `""`**: the Tier 0 oracles, the
+    // F0-AC-82 spouse-shape guard and the golden logs predate these keys and
+    // populate none of them, so emitting them unconditionally would move
+    // bytes on all eight documents for no input.
+    if (s.surname.isNotEmpty) 'surname': s.surname,
+    if (s.givenName.isNotEmpty) 'given_name': s.givenName,
+    if (s.placeOfBirth.isNotEmpty) 'place_of_birth': s.placeOfBirth,
+
     'dob': s.dob,
     'nationality': s.nationality,
     'id_number': s.idOrPassport.trim(),
@@ -140,6 +150,17 @@ Map<String, Object?> buildDivorceFormData(
       'divorce_date': form.basis.dateOfDivorce,
       'registration_place': form.basis.placeOfRegistration.trim(),
       'custody_reference': custody,
+
+      // Forms v2 — the optional children/custody block. `children_minor_count`
+      // is a **bare JSON number** (Marriage's `creates_betrothal_record` is
+      // the precedent) and `custody_with` is one of the guide's four enum
+      // values. Both absent when unset — never `""`, never `0` on the wire
+      // for a form that never answered.
+      if (form.children.minorCount > 0)
+        'children_minor_count': form.children.minorCount,
+      if (form.children.custodyWith.isNotEmpty)
+        'custody_with': form.children.custodyWith,
+
       'court_name': form.court.name,
       'court_decision_date': form.court.decisionDate,
       // Signed in front of the registrar (PRD §9.5) — not captured in the app.

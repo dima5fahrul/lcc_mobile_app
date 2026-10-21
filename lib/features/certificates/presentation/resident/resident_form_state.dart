@@ -90,6 +90,8 @@ class ResidentFormData {
     this.familyBookCover,
     this.familyBookContents,
     this.citizenName = '',
+    this.surname = '',
+    this.givenName = '',
     this.age = '',
     this.occupation = '',
     this.nationality = '',
@@ -122,6 +124,12 @@ class ResidentFormData {
 
   // Applicant identity.
   final String citizenName;
+
+  /// Forms v2 — the Latin split names, passport/ID style. OPTIONAL: the
+  /// payload emits `applicant.surname` / `applicant.given_name` only when
+  /// non-empty, never as `""` (MOBILE-API-E-CERTIFICATES.md § forms v2).
+  final String surname;
+  final String givenName;
   final String age;
   final String occupation;
   final String nationality;
@@ -174,6 +182,8 @@ class ResidentFormData {
     PickedAttachment? familyBookContents,
     bool clearFamilyBookContents = false,
     String? citizenName,
+    String? surname,
+    String? givenName,
     String? age,
     String? occupation,
     String? nationality,
@@ -207,6 +217,8 @@ class ResidentFormData {
             ? null
             : (familyBookContents ?? this.familyBookContents),
         citizenName: citizenName ?? this.citizenName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
         age: age ?? this.age,
         occupation: occupation ?? this.occupation,
         nationality: nationality ?? this.nationality,

@@ -77,6 +77,16 @@ import 'marriage_form_state.dart';
 Map<String, Object?> marriageSpousePayload(MarriageSpouseInfo s) {
   return <String, Object?>{
     'name': s.fullName.trim(),
+
+    // Forms v2 — the optional Latin split names and the optional place of
+    // birth. **Absent key when empty, never `""`**: the Tier 0 oracles, the
+    // F0-AC-82 spouse-shape guard and the golden logs predate these keys and
+    // populate none of them, so emitting them unconditionally would move
+    // bytes on all four documents for no input.
+    if (s.surname.isNotEmpty) 'surname': s.surname,
+    if (s.givenName.isNotEmpty) 'given_name': s.givenName,
+    if (s.placeOfBirth.isNotEmpty) 'place_of_birth': s.placeOfBirth,
+
     'dob': s.dob,
     'gender': s.gender,
     'nationality': s.nationality,

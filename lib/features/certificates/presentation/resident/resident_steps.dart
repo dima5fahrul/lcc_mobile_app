@@ -236,6 +236,30 @@ class ResidentStep2 extends StatelessWidget {
           path: 'applicant.citizen_name',
         ),
         _gap,
+        // Forms v2 — the optional Latin split names, passport/ID style. Both
+        // OPTIONAL: no `required`, and absent keys when left blank.
+        ResidentInputField(
+          label: 'forms.surnameLabel'.tr(context: context),
+          value: state.form.surname,
+          placeholder: 'forms.surnamePlaceholder'.tr(context: context),
+          onChanged: (String v) => cubit.setField(
+            (ResidentFormData f) => f.copyWith(surname: v),
+            path: 'applicant.surname',
+          ),
+          path: 'applicant.surname',
+        ),
+        _gap,
+        ResidentInputField(
+          label: 'forms.givenNameLabel'.tr(context: context),
+          value: state.form.givenName,
+          placeholder: 'forms.givenNamePlaceholder'.tr(context: context),
+          onChanged: (String v) => cubit.setField(
+            (ResidentFormData f) => f.copyWith(givenName: v),
+            path: 'applicant.given_name',
+          ),
+          path: 'applicant.given_name',
+        ),
+        _gap,
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

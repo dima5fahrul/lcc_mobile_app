@@ -24,6 +24,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../presentation/forms/validation/field_error.dart';
+import '../../../../presentation/forms/widgets/option.dart';
 import '../../../../presentation/icons/lucide_icon.dart';
 import '../../../../presentation/payment/draft_payment_section.dart';
 import '../../../../presentation/payment/payment_draft.dart';
@@ -401,6 +402,49 @@ class DivorceStep1 extends StatelessWidget {
                 onChildrenChanged(state.form.children.copyWith(custody: v)),
             required: true,
             serverError: state.serverErrors['mediation.custody_arrangement'],
+          ),
+          // Forms v2 — the optional basis children/custody fields. Both
+          // OPTIONAL: the count goes out as a bare JSON number only when
+          // greater than zero, and the custody holder only when chosen.
+          const SizedBox(height: AppSpacing.gap12),
+          CertificateInputField(
+            label: 'forms.childrenMinorCountLabel'.tr(context: context),
+            value: state.form.children.minorCount > 0
+                ? '${state.form.children.minorCount}'
+                : '',
+            placeholder: 'forms.childrenMinorCountPlaceholder'.tr(
+              context: context,
+            ),
+            inputMode: CertificateInputMode.numeric,
+            onChanged: (String v) {
+              final String digits = v.replaceAll(RegExp(r'\D'), '');
+              onChildrenChanged(
+                state.form.children.copyWith(
+                  minorCount: digits.isEmpty
+                      ? 0
+                      : int.tryParse(digits.length > 2
+                            ? digits.substring(0, 2)
+                            : digits) ??
+                        0,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.gap12),
+          CertificateSelectField(
+            label: 'forms.custodyWithLabel'.tr(context: context),
+            value: state.form.children.custodyWith,
+            options: <Option>[
+              for (final String v in kDivorceCustodyWithValues)
+                Option(
+                  value: v,
+                  label: 'forms.custodyWith_$v'.tr(context: context),
+                ),
+            ],
+            placeholder: 'forms.custodyWithPlaceholder'.tr(context: context),
+            onChanged: (String v) => onChildrenChanged(
+              state.form.children.copyWith(custodyWith: v),
+            ),
           ),
         ],
         const SizedBox(height: AppSpacing.gap12),

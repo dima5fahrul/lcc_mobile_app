@@ -642,6 +642,29 @@ class BirthParentSection extends StatelessWidget {
           required: required,
           path: _at('name'),
         ),
+        // Forms v2 — the optional Latin split names. The paths compose to
+        // `parents.mother.*` for the mother and `parents.father.*` for the
+        // father via `prefix` — exactly the guide's keys. Both OPTIONAL.
+        BirthInputField(
+          label: birthT(context, 'surnameLabel'),
+          value: value.surname,
+          placeholder: birthT(context, 'surnamePlaceholder'),
+          onChanged: (String v) => onChanged(
+            (BirthParentInfo p) => p.copyWith(surname: v),
+            path: _at('surname'),
+          ),
+          path: _at('surname'),
+        ),
+        BirthInputField(
+          label: birthT(context, 'givenNameLabel'),
+          value: value.givenName,
+          placeholder: birthT(context, 'givenNamePlaceholder'),
+          onChanged: (String v) => onChanged(
+            (BirthParentInfo p) => p.copyWith(givenName: v),
+            path: _at('given_name'),
+          ),
+          path: _at('given_name'),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[

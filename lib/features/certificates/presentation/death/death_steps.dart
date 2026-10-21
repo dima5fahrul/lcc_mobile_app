@@ -264,6 +264,26 @@ class DeathStep2 extends StatelessWidget {
           required: true,
           path: 'deceased.deceased_name',
         ),
+        // Forms v2 — the optional Latin split names. Both OPTIONAL: no
+        // `required`, absent keys when left blank.
+        DeathInputField(
+          label: deathT(context, 'surnameLabel'),
+          value: d.surname,
+          placeholder: deathT(context, 'surnamePlaceholder'),
+          onChanged: (String v) => cubit.patchDeceased(
+              (DeathDeceasedInfo x) => x.copyWith(surname: v),
+              path: 'deceased.deceased_surname'),
+          path: 'deceased.deceased_surname',
+        ),
+        DeathInputField(
+          label: deathT(context, 'givenNameLabel'),
+          value: d.givenName,
+          placeholder: deathT(context, 'givenNamePlaceholder'),
+          onChanged: (String v) => cubit.patchDeceased(
+              (DeathDeceasedInfo x) => x.copyWith(givenName: v),
+              path: 'deceased.deceased_given_name'),
+          path: 'deceased.deceased_given_name',
+        ),
         _pair(
           DeathSelectField(
             label: deathT(context, 'gender'),

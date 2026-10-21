@@ -140,6 +140,15 @@ Map<String, Object?> buildDeathFormData(
     'header.legal_basis': legalBasisText,
 
     'deceased.deceased_name': d.fullName,
+
+    // Forms v2 — the optional Latin split names. **Absent key when empty,
+    // never `""`**: every oracle and the golden logs predate these keys and
+    // populate none of them, so emitting them unconditionally would move
+    // bytes on all twenty documents for no input. They sit with the other
+    // deceased identity keys, in the guide's table order.
+    if (d.surname.isNotEmpty) 'deceased.deceased_surname': d.surname,
+    if (d.givenName.isNotEmpty) 'deceased.deceased_given_name': d.givenName,
+
     'deceased.deceased_fingerprint': d.fingerprint,
     'deceased.deceased_gender': d.gender,
     'deceased.deceased_dob': d.dob,

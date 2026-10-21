@@ -76,6 +76,16 @@ Map<String, Object?> buildResidentFormData(
     'certifying_authority.village_chief_name': form.villageChiefName,
     'certifying_authority.certifying_district': form.certifyingJurisdiction,
     'applicant.citizen_name': form.citizenName,
+
+    // Forms v2 — the optional Latin split names. **Absent key when empty,
+    // never `""`**: every oracle, the F0-AC-82 key guard and the golden logs
+    // predate these keys and populate none of them, so emitting them
+    // unconditionally would move bytes on all twenty documents for no input.
+    // They sit with the other applicant identity keys, in the guide's table
+    // order.
+    if (form.surname.isNotEmpty) 'applicant.surname': form.surname,
+    if (form.givenName.isNotEmpty) 'applicant.given_name': form.givenName,
+
     'applicant.age': form.age,
     'applicant.occupation': form.occupation,
     'applicant.nationality': form.nationality,

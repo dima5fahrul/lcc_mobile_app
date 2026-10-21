@@ -123,6 +123,9 @@ enum MarriageBetrothalMode { none, existing, newRecord }
 class MarriageSpouseInfo {
   const MarriageSpouseInfo({
     this.fullName = '',
+    this.surname = '',
+    this.givenName = '',
+    this.placeOfBirth = '',
     this.dob = '',
     this.gender = '',
     this.nationality = '',
@@ -140,6 +143,14 @@ class MarriageSpouseInfo {
   });
 
   final String fullName;
+
+  /// Forms v2 — the optional Latin split names and the optional place of
+  /// birth, passport/ID style. OPTIONAL: absent keys when empty
+  /// (`spouses.spouse_{a,b}.surname` / `.given_name` / `.place_of_birth`),
+  /// emitted inside the spouse's own nested object.
+  final String surname;
+  final String givenName;
+  final String placeOfBirth;
   final String dob;
   final String gender;
 
@@ -164,6 +175,9 @@ class MarriageSpouseInfo {
 
   MarriageSpouseInfo copyWith({
     String? fullName,
+    String? surname,
+    String? givenName,
+    String? placeOfBirth,
     String? dob,
     String? gender,
     String? nationality,
@@ -184,6 +198,9 @@ class MarriageSpouseInfo {
   }) =>
       MarriageSpouseInfo(
         fullName: fullName ?? this.fullName,
+        surname: surname ?? this.surname,
+        givenName: givenName ?? this.givenName,
+        placeOfBirth: placeOfBirth ?? this.placeOfBirth,
         dob: dob ?? this.dob,
         gender: gender ?? this.gender,
         nationality: nationality ?? this.nationality,

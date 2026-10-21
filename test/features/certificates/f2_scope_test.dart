@@ -92,6 +92,31 @@ const Map<String, String> kAppendGrants = <String, String>{
       'en/lo key-set identity',
 };
 
+/// Pre-F2 **values** a later batch's spec-level grant authorises re-labelling.
+///
+/// [kAppendGrants] buys appends; the forms-v2 guide
+/// (`MOBILE-API-E-CERTIFICATES.md`, "Application forms v2") mandates an
+/// operation that is neither: the full-name inputs carry "(Lao script)" so an
+/// applicant can tell the two scripts apart, and the resident label sits in a
+/// namespace that predates F2. The edit is lawful only under a named grant,
+/// recorded here the way B8b's was — with the **new** value pinned, so the
+/// exemption is exercised rather than skipped, and every other key in the
+/// namespace (and every key set in full) is still checked below.
+///
+/// **Adding an entry here to make an unrelated edit pass is the same failure
+/// mode the [kAppendGrants] comment names.** An entry is legitimate only when
+/// the batch's brief names the relabel explicitly and the key-set equality
+/// check keeps the namespace's shape frozen.
+const Map<String, Map<String, String>> kRelabelGrants =
+    <String, Map<String, String>>{
+  'en': <String, String>{
+    'resident.citizenNameLabel': "Citizen's Name (Lao script)",
+  },
+  'lo': <String, String>{
+    'resident.citizenNameLabel': 'ຊື່ ແລະ ນາມສະກຸນ (ລາວ)',
+  },
+};
+
 List<File> _dartFiles(String dir) {
   final Directory d = Directory(dir);
   if (!d.existsSync()) return <File>[];
@@ -576,6 +601,20 @@ void main() {
                       '— that grant permits ADDING to this namespace; nobody '
                       'may change what was already in it.');
             }
+            continue;
+          }
+          // Forms v2's named relabels: the shipped value is asserted
+          // **positively**, so the grant is exercised, not skipped — a relabel
+          // that drifts from the granted string fails here, and so does any
+          // *other* edit to the namespace (the loop below still requires the
+          // remaining keys byte-identical).
+          final String relabelKey = '$ns.citizenNameLabel';
+          if (kRelabelGrants[locale]?[relabelKey] != null) {
+            final Map<String, dynamic> s = shipped[ns] as Map<String, dynamic>;
+            expect(s['citizenNameLabel'],
+                kRelabelGrants[locale]![relabelKey],
+                reason: '$locale: `$relabelKey` differs from the forms-v2 '
+                    'relabel grant — the label is pinned, not free-form');
             continue;
           }
           expect(
