@@ -32,6 +32,7 @@ import 'package:lcc_mobile_app/features/account/di/account_injection.dart';
 import 'package:lcc_mobile_app/features/application/di/application_injection.dart';
 import 'package:lcc_mobile_app/features/certificates/di/certificates_injection.dart';
 import 'package:lcc_mobile_app/features/family_book/di/family_book_injection.dart';
+import 'package:lcc_mobile_app/features/verify/di/verify_injection.dart';
 import 'package:lcc_mobile_app/features/history/di/history_injection.dart';
 import 'package:lcc_mobile_app/features/chat/di/chat_injection.dart';
 import 'package:lcc_mobile_app/features/documents/di/documents_injection.dart';
@@ -137,6 +138,7 @@ void main() {
     await certificatesInjection.reset();
     await documentsInjection.reset();
     await familyBookInjection.reset();
+    await verifyInjection.reset();
     // B5's. TENTH occurrence of the same omission, and the fourth caught by
     // `di_teardown_completeness_test.dart` rather than by an `ApiClient is
     // already registered inside GetIt` cascade. `features/documents/` is

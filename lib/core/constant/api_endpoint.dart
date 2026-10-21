@@ -710,6 +710,38 @@ class ApiEndpoint {
   /// from the server's *current* setting and can differ for older issues.
   static String meCertificateQr(String id) =>
       '/me/certificates/${Uri.encodeComponent(id)}/qr';
+
+  // ── Public verification (anonymous) — e-certificates, Task 3 ───────────────
+  //
+  // The two endpoints of MOBILE-API-E-CERTIFICATES.md (2026-10) § Public
+  // verification endpoints. **Both work without login** — the guide's first
+  // sentence about them — so both are sent with `anonymous: true` (no
+  // `Authorization` header even when a session is held; a stale bearer here
+  // would trigger a refresh round trip a public request never needed).
+  //
+  // **An unknown code or hash is NOT an HTTP error** (§ Errors, edge cases):
+  // it answers 200 with `status: "not-found"` and `valid: false` — a normal
+  // parse and a Right at the repository, never a Failure. The one failure
+  // mode the endpoints do raise is 429 TOO_MANY_REQUESTS (30/min per IP),
+  // whose message the bloc maps ("Please wait a minute").
+  //
+  // Additive only (SSD § 6.5): nothing above changed, `baseUrl` and the
+  // release HTTPS guard are byte-identical.
+
+  /// `GET /verify/{code}` — by QR code or typed code. The segment is
+  /// percent-encoded, per the `newsArticle` / `meNotificationRead`
+  /// convention: the code is user- or QR-supplied, so a stray `/` or space
+  /// in one cannot silently retarget the request. The server percent-decodes
+  /// and normalises it (upper case, dashes, `O`→`0`); the client sends it as
+  /// extracted by `certificateCodeFromScanned`, as typed.
+  static String verifyByCode(String code) =>
+      '/verify/${Uri.encodeComponent(code)}';
+
+  /// `POST /verify/document-hash` — body exactly `{"hash": "<64 lower-case
+  /// hex SHA-256>"}`. The PDF bytes never leave the phone (§ Checking a PDF
+  /// on the device).
+  static const String verifyDocumentHash = '/verify/document-hash';
+
   // ── The household record (F4) ──────────────────────────────────────────────
   //
   // **Two constants, and they are the only two this feature has.** FamilyBook

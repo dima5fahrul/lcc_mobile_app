@@ -256,38 +256,32 @@ void main() {
       );
     });
 
-    test('B5-AC-8 — every `/verify` hit is either B-auth\'s or rendered copy',
-        () {
+    test('B5-AC-8 — /verify hits live ONLY in the verify feature and the '
+        'endpoint file (**rewritten 2026-10-21**)', () {
+      // **Superseded adjudication.** The original criterion — "every `/verify`
+      // hit is either B-auth's `verify-otp` or the rendered footer copy" — was
+      // adjudicated against the web-client fidelity programme (specs.md
+      // § 6.0, Finding A): both `verification.*` endpoints had zero importers
+      // in the shipped app, so porting them had no oracle. The **2026-10 API
+      // guide (MOBILE-API-E-CERTIFICATES.md) supersedes that ruling**: the
+      // backend serves `GET /verify/{code}` and `POST /verify/document-hash`
+      // as real anonymous citizen endpoints (§ Public verification endpoints),
+      // and public verification — scan or type a code, get a result — is the
+      // product requirement. The guard's spirit is kept, not dropped: no
+      // scattering. **New assertion (dated 2026-10-21, the guide supersedes):**
+      // `/verify` hits are allowed ONLY under `lib/features/verify/` (the
+      // feature that owns the calls) and `lib/core/constant/api_endpoint.dart`
+      // (the endpoint constants) — a bounded-prefix assertion that fails
+      // closed: any hit anywhere else must be re-adjudicated, not waved
+      // through.
       final List<String> hits = _grepLib(r'/verify');
-      // Six pre-existing, all `verify-otp` (B-auth's, and they predate B5 by
-      // every batch), plus one B5 adds.
-      //
-      // **`submission_executor.dart` excluded 2026-08-19, and excluded on the
-      // principle this test already states three assertions below.** B4 landed
-      // after B5 measured six, and its executor's library doc names
-      // `/verify/document-hash` in a list of endpoints the programme
-      // **refused** — `steps`-deletion prose, not a call. The final assertion
-      // here already draws that line for `api_endpoint.dart`: *"`DartFile.code`
-      // is comment-stripped, so the paragraph explaining the absence does not
-      // count as a port of it."* `_grepLib` is not comment-stripped, so the
-      // same sentence in a different file was counted where the other was not.
-      //
-      // Excluding the file by name rather than raising 6 to 7: the number is
-      // *files that mention `/verify` in code*, and the executor is not one of
-      // them. A raised literal would have quietly admitted a real port later.
+
       const String kExecutorProse =
           'lib/features/certificates/domain/submission/submission_executor.dart';
-      expect(
-        hits.where((String h) =>
-            !h.startsWith('lib/presentation/documents/') &&
-            !h.startsWith(kExecutorProse)),
-        hasLength(6),
-        reason: 'the criterion says "only authVerifyOtp"; the measured '
-            'pre-existing count is six files, all of them the same auth '
-            'endpoint',
-      );
-      // The exclusion is bounded: the executor must mention it only in a
-      // comment. If `/verify` ever reaches its code, this fails.
+      // The executor's prose exclusion is kept intact and still bounded: it
+      // may name `/verify` in a comment, never in code (`DartFile.code` is
+      // comment-stripped, so the assertion below fires the moment a call
+      // appears).
       expect(
         libFiles
             .where((DartFile f) => f.path.startsWith(kExecutorProse))
@@ -295,33 +289,111 @@ void main() {
         isEmpty,
         reason: 'the executor may name /verify in prose, never in code',
       );
+
+      // The bounded-prefix claim: every remaining hit sits under the verify
+      // feature or the endpoint file. The auth hits (`authVerifyOtp`'s
+      // `/auth/citizen/verify-otp`, six files) and the footer copy
+      // (`lib/presentation/documents/`) PRE-DATE this rewrite and are now
+      // outside the allowed prefixes — they are enumerated as measured
+      // grandfathered sets so the assertion is readable, not implicit, and
+      // each set can only shrink. A NEW hit outside the two prefixes fails.
+      final List<String> grandfathered = hits
+          .where((String h) =>
+              !h.startsWith('lib/features/verify/') &&
+              !h.startsWith('lib/core/constant/api_endpoint.dart') &&
+              // The executor's prose hit, excluded above on its own bounded
+              // assertion — it is not a *file* that mentions `/verify` in
+              // code, and excluding it here keeps this set code-only, exactly
+              // as the original test drew the line.
+              !h.startsWith(kExecutorProse))
+          .toList();
+      // Five auth files — the original criterion's "six verify-otp files"
+      // counted `api_endpoint.dart`'s own `authVerifyOtp` line among them,
+      // and that hit now sits under the allowed endpoint-file prefix above.
+      const int kGrandfatheredAuthFiles = 5;
+      const int kGrandfatheredFooter = 1;
       expect(
-        hits.where((String h) => h.startsWith('lib/presentation/documents/')),
-        hasLength(1),
-        reason: 'the footer literal `document.ts:303` renders on the page. It '
-            'is copy, not an endpoint — no `verification.*` constant exists',
+        grandfathered,
+        hasLength(kGrandfatheredAuthFiles + kGrandfatheredFooter),
+        reason: 'the five auth verify-otp files and the footer copy, measured '
+            'at the rewrite (the sixth original hit was authVerifyOtp itself, '
+            'now under the allowed api_endpoint.dart prefix). If this count '
+            'GREW, a new `/verify` hit landed outside the two allowed '
+            'prefixes — it does not pass on a count, it is re-adjudicated. If '
+            'it SHRANK, tighten these constants rather than keeping a '
+            'permission behind.',
       );
-      // The claim that actually matters: neither dead endpoint was ported as
-      // CODE. `DartFile.code` is comment-stripped, so `api_endpoint.dart`'s own
-      // paragraph explaining the absence does not count as a port of it.
+      // The auth set stays auth's: every non-feature, non-footer hit names
+      // the OTP family, so a stranger cannot hide inside the grandfathered
+      // count.
+      final List<String> strangers = grandfathered
+          .where((String h) =>
+              !h.startsWith('lib/features/auth/') &&
+              !h.startsWith('lib/presentation/documents/'))
+          .toList();
+      expect(strangers, isEmpty,
+          reason: 'every grandfathered hit is the auth verify-otp family or '
+              'the documents footer copy — a hit anywhere else is new and '
+              'fails closed');
+
+      // And the verify feature's own hits are real: the constants are
+      // declared in api_endpoint.dart and consumed under lib/features/verify/
+      // — the non-vacuity half of the bounded claim.
       expect(
-        libFiles.where((DartFile f) => f.code.contains('verification.')),
-        isEmpty,
+        hits.any(
+            (String h) => h.startsWith('lib/core/constant/api_endpoint.dart')),
+        isTrue,
+        reason: 'the two public verification constants exist — a grep suite '
+            'that cannot find what is there is evidence for nothing',
+      );
+      expect(
+        hits.any((String h) => h.startsWith('lib/features/verify/')),
+        isTrue,
+        reason: 'the verify slice consumes them',
       );
     });
 
-    test('B5-AC-9 — no verifyHash and no VerificationResult', () {
-      expect(_grepLib(r'verificationResult|verifyHash'), isEmpty);
+    test('B5-AC-9 — no verifyHash; verificationResult and documentHash '
+        'bounded (**partly rewritten 2026-10-21**)', () {
+      // **`no VerificationResult` is superseded** by the same ruling that
+      // rewrote B5-AC-8 above: the 2026-10 API guide gives the public
+      // verification endpoints live contracts and their answer object IS a
+      // verification result (`§ Public verification endpoints`), so the
+      // verify slice's entity carries that name by the task brief, not by
+      // accident. The guard's spirit is kept, not dropped: `verifyHash` —
+      // the dead web symbol this criterion originally refused — must still
+      // have ZERO hits, and the renamed surface is bounded to the feature
+      // that owns it (fails closed on a hit anywhere else).
+      expect(_grepLib(r'verifyHash'), isEmpty,
+          reason: 'the refused web symbol stays refused — the endpoints are '
+              'reached through the ApiEndpoint constants, not a resurrected '
+              'client method');
+      final List<String> result = _grepLib(r'verificationResult');
+      expect(result, isNotEmpty,
+          reason: 'the answer object exists — the non-vacuity half');
+      expect(
+        result.every((String h) => h.startsWith('lib/features/verify/')),
+        isTrue,
+        reason: 'the verification result entity, its wire mapper and its '
+            'usecases live in the verify slice and nowhere else',
+      );
       // `documentHash` IS present, and must be: specs.md § 5's field table
       // names it and `B5-AC-27` requires all 15 wire fields. The two criteria
       // are mutually exclusive; § 5 wins and the conflict is reported.
+      // **2026-10-21:** the guide's verification answer also carries
+      // `document_hash` (§ Public verification endpoints), so the verify
+      // slice parses it beside the documents slice's two.
       final List<String> hash = _grepLib(r'documentHash');
       expect(hash, isNotEmpty);
       expect(
-        hash.every((String h) => h.startsWith('lib/features/documents/')),
+        hash.every((String h) =>
+            h.startsWith('lib/features/documents/') ||
+            h.startsWith('lib/features/verify/') ||
+            h.startsWith('lib/core/constant/api_endpoint.dart')),
         isTrue,
-        reason: 'it is a parsed wire field on the entity and nothing else — it '
-            'is never rendered and no endpoint reads it',
+        reason: 'a parsed wire field on the two certificate entities, the '
+            'endpoint constant that names it, and nothing else — it is never '
+            'rendered',
       );
     });
 

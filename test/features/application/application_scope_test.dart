@@ -197,6 +197,20 @@ void main() {
       //
       //   851397c → 18 · HEAD → 19 · delta → {meCertificate}
       //
+      // **22 after the 2026-10-21 e-certificates work** — two movements,
+      // both granted by the 2026-10 API guide (MOBILE-API-E-CERTIFICATES.md):
+      // Task 2 landed `meCertificateFile(String id)` and
+      // `meCertificateQr(String id)` (§ Citizen endpoints; that batch did not
+      // touch this guard, so B4-AC-13 was found RED at 21-vs-19 before Task 3
+      // began), and Task 3 landed `verifyByCode(String code)` (§ Public
+      // verification endpoints — the same supersession that rewrote B5-AC-8
+      // in `documents_scope_test.dart`). Verified against the measured member
+      // set, no other delta:
+      //
+      //   851397c → 18 · B5 → 19 · Task 2 → 21 · Task 3 → 22
+      //   deltas → {meCertificate}, {meCertificateFile, meCertificateQr},
+      //            {verifyByCode}
+      //
       // **The literal stays a literal.** The number moved, the instrument did
       // not: a relative check would let *adding* one path and *removing*
       // another cancel out, and a `removeAttachment` path — the thing this
@@ -204,7 +218,7 @@ void main() {
       // it needs two segments interpolated. Raising the number after measuring
       // the delta is the correct maintenance; making it derive itself from the
       // tree is not, and is the defect FU-10 records elsewhere in this suite.
-      expect(endpointMembersOf(endpointSrc), hasLength(19));
+      expect(endpointMembersOf(endpointSrc), hasLength(22));
     });
 
     test('no member is named for either uncalled endpoint', () {
@@ -248,10 +262,11 @@ void main() {
       );
       expect(mutated, isNot(endpointSrc), reason: 'the mutation must apply');
 
-      // Baseline + 1. Both numbers moved together on 2026-08-19 when B5's
-      // `meCertificate` merged in (18→19 baseline, 19→20 here); the property
-      // asserted — *one more member than the tree has* — is unchanged.
-      expect(endpointMembersOf(mutated), hasLength(20));
+      // Baseline + 1. The number has moved with each measured baseline above
+      // (19→20 at B5's merge-back, 20→23 across the 2026-10 e-certificates
+      // work); the property asserted — *one more member than the tree has* —
+      // is unchanged.
+      expect(endpointMembersOf(mutated), hasLength(23));
       expect(
         endpointMembersOf(mutated),
         contains('applicationRemoveAttachment'),
