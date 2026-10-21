@@ -18,7 +18,9 @@ import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_fi
 import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file_download.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
 import 'package:lcc_mobile_app/presentation/documents/document_actions_row.dart';
+import 'package:lcc_mobile_app/presentation/documents/document_viewer.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../features/documents/documents_test_helper.dart';
 import '../../helpers/app_test_harness.dart';
@@ -32,6 +34,19 @@ const String kAbcSha =
 typedef ScriptedFetch = Future<Either<Failure, CertificateFileDownload>>
     Function({required String id, required String layout, bool inline});
 
+/// I-1 — the viewer's conditional QR fetch. Scripted per certificate id.
+class _ScriptedQrFetch {
+  final Map<String, String> answers;
+  final List<String> calls = <String>[];
+
+  _ScriptedQrFetch(this.answers);
+
+  Future<String?> call(String certificateId) async {
+    calls.add(certificateId);
+    return answers[certificateId];
+  }
+}
+
 class _RecordingSinks {
   final List<String> opened = <String>[];
   final List<String> saved = <String>[];
@@ -44,6 +59,11 @@ class _RecordingSinks {
 }
 
 void main() {
+  // The QR cache is process-lifetime by design (the payload is fixed at
+  // issue); tests must start with it empty or the null-answer case would
+  // read a previous test's fetch.
+  setUp(() => kCertificateQrCache.clear());
+
   Future<_RecordingSinks> pumpActions(
     WidgetTester tester, {
     required ScriptedFetch fetch,
@@ -245,6 +265,136 @@ void main() {
       expect(find.text('ກວດສອບຄວາມຖືກຕ້ອງຂອງໄຟລ໌ບໍ່ສຳເລັດ'), findsOneWidget);
     });
   });
+
+  group('I-1 — the viewer QR panel, conditional fetch', () {
+    testWidgets('payload present → no fetch, renders the payload',
+        (WidgetTester tester) async {
+      final _ScriptedQrFetch qr = _ScriptedQrFetch(<String, String>{});
+      await pumpViewerWithQr(
+        tester,
+        certificate: certFixture(qrPayload: 'LCC:CERT-0001'),
+        qrFetch: qr.call,
+      );
+
+      expect(qr.calls, isEmpty,
+          reason: 'the hasQrPayload fast path never hits the endpoint');
+      expect(find.byType(QrImageView), findsOneWidget);
+    });
+
+    testWidgets('payload absent + verifyCode → fetches the endpoint and '
+        'renders its payload', (WidgetTester tester) async {
+      final _ScriptedQrFetch qr =
+          _ScriptedQrFetch(<String, String>{'cert-1': 'LCC:FETCHED'});
+      await pumpViewerWithQr(
+        tester,
+        // The v2 list item carries no qr_payload — the case that motivated I-1.
+        certificate: certFixture(qrPayload: null, verifyCode: 'VC-9'),
+        qrFetch: qr.call,
+      );
+      await tester.pump();
+
+      expect(qr.calls, <String>['cert-1']);
+      expect(find.byType(QrImageView), findsOneWidget);
+      // The strip's payload TEXT still shows the fetched value.
+      expect(find.text('LCC:FETCHED'), findsOneWidget);
+    });
+
+    testWidgets('the fetch is cached per certificate id',
+        (WidgetTester tester) async {
+      final _ScriptedQrFetch qr =
+          _ScriptedQrFetch(<String, String>{'cert-1': 'LCC:FETCHED'});
+      await pumpViewerWithQr(
+        tester,
+        certificate: certFixture(qrPayload: null, verifyCode: 'VC-9'),
+        qrFetch: qr.call,
+      );
+      await tester.pump();
+      final int callsAfterFirst = qr.calls.length;
+
+      // Re-render the same viewer (a second pump of the widget tree) — the
+      // cache must answer without a second call.
+      await pumpViewerWithQr(
+        tester,
+        certificate: certFixture(qrPayload: null, verifyCode: 'VC-9'),
+        qrFetch: qr.call,
+      );
+      await tester.pump();
+
+      expect(qr.calls.length, callsAfterFirst,
+          reason: 'one fetch per certificate id, not one per render');
+      expect(find.byType(QrImageView), findsOneWidget);
+    });
+
+    testWidgets('payload absent + no verifyCode → nothing renders',
+        (WidgetTester tester) async {
+      final _ScriptedQrFetch qr =
+          _ScriptedQrFetch(<String, String>{'cert-1': 'LCC:FETCHED'});
+      await pumpViewerWithQr(
+        tester,
+        certificate: certFixture(qrPayload: null, verifyCode: ''),
+        qrFetch: qr.call,
+      );
+      await tester.pump();
+
+      expect(qr.calls, isEmpty,
+          reason: 'the strip only exists beside a code (`:150` gates it)');
+      expect(find.byType(QrImageView), findsNothing);
+    });
+
+    testWidgets('the endpoint answers null → no QR, no crash',
+        (WidgetTester tester) async {
+      final _ScriptedQrFetch qr = _ScriptedQrFetch(<String, String>{});
+      await pumpViewerWithQr(
+        tester,
+        certificate: certFixture(qrPayload: null, verifyCode: 'VC-9'),
+        qrFetch: qr.call,
+      );
+      await tester.pump();
+
+      expect(qr.calls, <String>['cert-1']);
+      expect(find.byType(QrImageView), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  });
+}
+
+/// I-1 — pumps the viewer exactly as `DocumentActionsRow.View` mounts it
+/// (the seam `document_viewer.dart` exposes to a certificate-bearing caller),
+/// with the QR fetch scripted. This is the panel's test surface: the same
+/// widget `showDocumentViewer` builds, driven through the same parameter the
+/// row hands it.
+Future<void> pumpViewerWithQr(
+  WidgetTester tester, {
+  required IssuedCertificate certificate,
+  required Future<String?> Function(String) qrFetch,
+}) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(390, 844);
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(wrapWithLocalization(
+    startLocale: const Locale('en'),
+    Builder(
+      builder: (BuildContext context) => MaterialApp(
+        theme: AppTheme.light(),
+        localizationsDelegates: context.localizationDelegates,
+        supportedLocales: context.supportedLocales,
+        locale: context.locale,
+        home: Scaffold(
+          body: CertificateQrPanel(
+            certificate: certificate,
+            qrPayload: certificate.qrPayload,
+            fetchQr: qrFetch.call,
+          ),
+        ),
+      ),
+    ),
+  ));
+  // The strip resolves its label through `.tr()`, and easy_localization
+  // loads its bundle asynchronously — frame 1 renders an ErrorWidget until
+  // the delegate answers. A second pump is what makes the assertions see
+  // the real tree (the same reason pumpActions pumps once more).
+  await tester.pump();
 }
 
 Future<void> _tapAndDrain(WidgetTester tester, Finder target) async {

@@ -89,6 +89,9 @@ class DocumentActionsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final Lang lang = Lang.fromCode(context.locale.languageCode);
     final DocSpec spec = docSpecFromApplication(detail, certificate, lang);
+    // A local, so the null check below promotes for the certificate-bearing
+    // viewer call (fields do not promote).
+    final IssuedCertificate? cert = certificate;
 
     // The v2 mount — Task 6: when the certificate carries `files[]`, the
     // server-PDF pair renders beneath the legacy faux-PDF pair. Legacy rows
@@ -103,19 +106,30 @@ class DocumentActionsRow extends StatelessWidget {
           spacing: AppSpacing.gap8,
           runSpacing: AppSpacing.gap8,
           children: <Widget>[
-            // `bg-[#344EAD] text-white font-semibold` — `:381-388`.
+            // `bg-[#344EAD] text-white font-semibold` — `:381-388`. When a
+            // certificate is in scope, the viewer's verification strip is
+            // mounted through `CertificateQrPanel` (I-1): the v2 list item
+            // may carry no `qr_payload`, and the panel conditionally fetches
+            // the endpoint's payload instead of silently rendering nothing.
             _PrimaryButton(
               label: '$_historyNs.viewDocument'.tr(context: context),
               glyph: 'Eye',
-              onTap: () => showDocumentViewer(
-                context,
-                title: _title(lang),
-                spec: spec,
-                downloadName: _downloadName,
-                verifyCode: certificate?.verifyCode,
-                qrPayload: certificate?.qrPayload,
-                saveFile: saveFile,
-              ),
+              onTap: () => cert == null
+                  ? showDocumentViewer(
+                      context,
+                      title: _title(lang),
+                      spec: spec,
+                      downloadName: _downloadName,
+                      saveFile: saveFile,
+                    )
+                  : showDocumentViewerWithCertificateQr(
+                      context,
+                      title: _title(lang),
+                      spec: spec,
+                      downloadName: _downloadName,
+                      certificate: cert,
+                      saveFile: saveFile,
+                    ),
             ),
             // `border border-gray-200 text-gray-700 font-medium` — `:389-395`. The
             // same chrome `history_detail_hero.dart`'s `_SecondaryButton` draws for

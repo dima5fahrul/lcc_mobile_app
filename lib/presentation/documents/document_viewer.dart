@@ -59,7 +59,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../features/documents/domain/certificate_pdf_io.dart';
 import '../../features/documents/domain/entities/doc_spec.dart';
+import '../../features/documents/domain/entities/issued_certificate.dart';
 import '../icons/lucide_icon.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
@@ -123,6 +125,39 @@ Future<void> showDocumentViewer(
           downloadName: downloadName,
           verifyCode: verifyCode,
           qrPayload: qrPayload,
+          onClose: () => Navigator.of(dialogContext).pop(),
+          saveFile: saveFile,
+        ),
+      ),
+    );
+
+/// I-1 — the certificate-bearing mount. Identical dialog chrome, but the
+/// verification strip is the **conditional** [CertificateQrPanel]: when the
+/// wire row carried no `qr_payload`, the panel fetches the QR endpoint's
+/// payload instead of silently rendering nothing. The plain
+/// [showDocumentViewer] stays for the no-certificate caller and every
+/// existing test surface.
+Future<void> showDocumentViewerWithCertificateQr(
+  BuildContext context, {
+  required String title,
+  required DocSpec spec,
+  required String downloadName,
+  required IssuedCertificate certificate,
+  DocumentSaver saveFile = saveDocumentFile,
+}) =>
+    showDialog<void>(
+      context: context,
+      barrierColor: AppColors.black.withValues(alpha: 0.6),
+      builder: (BuildContext dialogContext) => Dialog(
+        insetPadding: EdgeInsets.zero,
+        backgroundColor: AppColors.white,
+        shape: const RoundedRectangleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: _CertificateViewer(
+          title: title,
+          spec: spec,
+          downloadName: downloadName,
+          certificate: certificate,
           onClose: () => Navigator.of(dialogContext).pop(),
           saveFile: saveFile,
         ),
@@ -226,6 +261,80 @@ class DocumentViewer extends StatelessWidget {
             // renders the value beside an icon and nothing else (`B5-AC-88`).
             payload: _hasPayload ? qrPayload : null,
           ),
+      ],
+    );
+  }
+}
+
+/// I-1 — the certificate-bearing viewer: `DocumentViewer`'s own body with
+/// the conditional [CertificateQrPanel] below it. The panel renders nothing
+/// when there is no code and no payload, so the "neither: no footer at all"
+/// behaviour (`B5-AC-84`) is the panel's, not a second gate here.
+class _CertificateViewer extends StatelessWidget {
+  const _CertificateViewer({
+    required this.title,
+    required this.spec,
+    required this.downloadName,
+    required this.certificate,
+    required this.onClose,
+    this.saveFile = saveDocumentFile,
+  });
+
+  final String title;
+  final DocSpec spec;
+  final String downloadName;
+  final IssuedCertificate certificate;
+  final VoidCallback onClose;
+  final DocumentSaver saveFile;
+
+  Future<void> _download() async {
+    final Uint8List bytes = await renderDocumentPdf(spec);
+    await saveFile(fileName: downloadName, bytes: bytes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.max,
+      children: <Widget>[
+        _Header(
+          title: title,
+          downloadLabel: 'common.download'.tr(context: context),
+          closeLabel: 'common.close'.tr(context: context),
+          onDownload: _download,
+          onClose: onClose,
+        ),
+        Expanded(
+          child: ColoredBox(
+            color: AppColors.gray200,
+            child: InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Center(
+                child: FittedBox(
+                  child: SizedBox(
+                    width: kDocImgW,
+                    height: kDocImgH,
+                    child: CustomPaint(
+                      painter: DocumentPagePainter(spec: spec),
+                      child: Semantics(
+                        label: 'document-page',
+                        container: true,
+                        child: const SizedBox.expand(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        CertificateQrPanel(
+          certificate: certificate,
+          // The wire payload, when the row carried one — the fast path that
+          // keeps the common case fetch-free.
+          qrPayload: certificate.qrPayload,
+        ),
       ],
     );
   }
@@ -464,6 +573,119 @@ class _VerificationStrip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// I-1 — the viewer's QR panel, as a **conditional** widget.
+///
+/// ## Why a fetch exists at all
+///
+/// Task 6's first cut drew `certificate.qrPayload` and nothing else. Review
+/// round 1 (I-1) measured the v2 wire: the **list item**'s field
+/// enumeration (`MOBILE-API-E-CERTIFICATES.md` § Citizen endpoints, List)
+/// does not name `qr_payload`, so a list-sourced certificate can carry
+/// `qrPayload == null` forever and the QR silently never renders. The guide's
+/// own checklist says to show the certificate's QR from
+/// `GET /me/certificates/{id}/qr (payload)` — Task 2 registered that use
+/// case for exactly this.
+///
+/// The three-state gate, in order:
+///
+/// 1. `qrPayload` present → render it, **no fetch** (the fast path; the wire
+///    row's payload is the same value the endpoint serves).
+/// 2. absent but `verifyCode` non-empty → one fetch per certificate id
+///    (cached in [kCertificateQrCache]), the endpoint's `payload` rendered.
+/// 3. neither → nothing (the strip only ever existed beside a code).
+///
+/// The fetch default resolves `GetCertificateQr` from the domain file's
+/// production default (`fetchCertificateQrPayload`) for the same G-L5
+/// reason `CertificateFileActions` does; tests inject. A null answer draws
+/// nothing — it never errors.
+///
+/// ## Where it mounts
+///
+/// `DocumentActionsRow.View` passes the whole certificate and this panel
+/// renders the strip's payload branch; `DocumentViewer`'s own `_hasPayload`
+/// branch (text beside the QR mark) stays byte-identical for callers that
+/// hand a payload string directly.
+class CertificateQrPanel extends StatefulWidget {
+  const CertificateQrPanel({
+    super.key,
+    required this.certificate,
+    this.qrPayload,
+    this.fetchQr = fetchCertificateQrPayload,
+  });
+
+  /// The certificate whose QR this is — its id keys the cache, its
+  /// [IssuedCertificate.hasQrPayload] is the fast path.
+  final IssuedCertificate certificate;
+
+  /// The wire payload, when the caller has one on hand.
+  final String? qrPayload;
+
+  final CertificateQrFetcher fetchQr;
+
+  @override
+  State<CertificateQrPanel> createState() => _CertificateQrPanelState();
+}
+
+/// One answer per certificate id, per app run — the payload is "fixed at
+/// issue" (guide § QR), so there is nothing to invalidate. Static: the
+/// cache's lifetime is the process, which a per-visit state object cannot
+/// outlive usefully anyway.
+final Map<String, String> kCertificateQrCache = <String, String>{};
+
+class _CertificateQrPanelState extends State<CertificateQrPanel> {
+  String? _payload;
+
+  @override
+  void initState() {
+    super.initState();
+    final String? wire = widget.qrPayload;
+    if (wire != null && wire.isNotEmpty) {
+      _payload = wire;
+    } else if (widget.certificate.hasVerifyCode) {
+      final String id = widget.certificate.id;
+      final String? cached = kCertificateQrCache[id];
+      if (cached != null) {
+        _payload = cached;
+      } else {
+        _fetch(id);
+      }
+    }
+  }
+
+  Future<void> _fetch(String id) async {
+    String? payload;
+    try {
+      payload = await widget.fetchQr(id);
+    } catch (_) {
+      // The QR is supplementary: a failed fetch draws nothing, it never
+      // takes the viewer down (measured: an unregistered container in a
+      // test tree threw out of initState and crashed the whole dialog).
+      payload = null;
+    }
+    if (!mounted) return;
+    if (payload != null) kCertificateQrCache[id] = payload;
+    setState(() => _payload = payload);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String? payload = _payload;
+    // `:150` gates the WHOLE footer on the code — "no code means no payload
+    // either" (`B5-AC-84`). The fetch above already requires a code; this
+    // gate covers the wire fast path too.
+    if (payload == null || !widget.certificate.hasVerifyCode) {
+      return const SizedBox.shrink();
+    }
+    return _VerificationStrip(
+      label: '$kDocumentsNs.verificationCode'.tr(context: context),
+      code: widget.certificate.verifyCode,
+      // The payload IS non-null here; the strip renders the text beside the
+      // QR mark exactly as the source's `:164-169` does.
+      payload: payload,
     );
   }
 }

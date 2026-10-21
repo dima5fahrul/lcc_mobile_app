@@ -73,5 +73,60 @@ void main() {
       expect(opened, <String>[written.path],
           reason: 'the open half receives exactly the written file');
     });
+
+    test('M-1 — a traversal filename lands inside the temp dir as its '
+        'basename', () async {
+      final Directory dir =
+          await Directory.systemTemp.createTemp('cert_pdf_io_test');
+      addTearDown(() => dir.delete(recursive: true));
+
+      final List<String> opened = <String>[];
+      await openPdfBytes(
+        Uint8List.fromList(<int>[1]),
+        '../../../etc/passwd',
+        tempDir: () async => dir,
+        open: (String path) async => opened.add(path),
+      );
+
+      expect(opened.single, '${dir.path}/passwd',
+          reason: 'the Content-Disposition filename is attacker-influenced '
+              'wire data; every path component is stripped before the join');
+      expect(File('${dir.path}/passwd').existsSync(), isTrue);
+    });
+
+    test('M-1 — a nested filename keeps the basename only', () async {
+      final Directory dir =
+          await Directory.systemTemp.createTemp('cert_pdf_io_test');
+      addTearDown(() => dir.delete(recursive: true));
+
+      final List<String> opened = <String>[];
+      await openPdfBytes(
+        Uint8List.fromList(<int>[1]),
+        'a/b.pdf',
+        tempDir: () async => dir,
+        open: (String path) async => opened.add(path),
+      );
+
+      expect(opened.single, '${dir.path}/b.pdf');
+      expect(Directory('${dir.path}/a').existsSync(), isFalse);
+    });
+
+    test('M-1 — a name that reduces to nothing becomes an inert fallback',
+        () async {
+      final Directory dir =
+          await Directory.systemTemp.createTemp('cert_pdf_io_test');
+      addTearDown(() => dir.delete(recursive: true));
+
+      final List<String> opened = <String>[];
+      await openPdfBytes(
+        Uint8List.fromList(<int>[1]),
+        '..',
+        tempDir: () async => dir,
+        open: (String path) async => opened.add(path),
+      );
+
+      expect(opened.single, startsWith('${dir.path}/'),
+          reason: 'never the directory itself — a fallback name instead');
+    });
   });
 }

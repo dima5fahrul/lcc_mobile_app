@@ -38,6 +38,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/error/failure.dart';
 import '../di/documents_injection.dart';
 import '../domain/entities/certificate_file_download.dart';
+import '../domain/entities/certificate_qr.dart';
 import 'usecases/documents_usecases.dart';
 
 /// Fetches one stored certificate file through Task 2's use case.
@@ -97,11 +98,29 @@ Future<void> _defaultSavePdf(Uint8List bytes, String fileName) async {
   await FilePicker.platform.saveFile(fileName: fileName, bytes: bytes);
 }
 
+/// The basename of a wire-supplied filename, on every platform.
+///
+/// The `Content-Disposition` filename is server data an attacker can
+/// influence only through the server, but it is still unvalidated wire
+/// input joined into a filesystem path — `../../../etc/passwd` or `a/b.pdf`
+/// must never escape the temp directory. The name is split on **both**
+/// separators (the host's own and `/`, which a cross-platform payload can
+/// carry on any host), empty parts and `..` are dropped, and the last
+/// surviving part is taken. Empty result → the caller's inert fallback.
+String sanitizePdfFileName(String fileName) {
+  final List<String> parts = fileName
+      .split('/')
+      .expand((String part) => part.split(Platform.pathSeparator))
+      .where((String part) => part.isNotEmpty && part != '..')
+      .toList();
+  return parts.isEmpty ? '' : parts.last;
+}
+
 /// View half: writes `bytes` under `fileName` in the (injectable) temp
 /// directory, then hands **exactly that path** to the (injectable) platform
-/// viewer. The written file is the guide's "store the bytes" step; nothing
-/// here invents a second name — the `Content-Disposition` filename the
-/// download record carries is used verbatim.
+/// viewer. The written file is the guide's "store the bytes" step; the name
+/// is the `Content-Disposition` filename the download record carries,
+/// [sanitizePdfFileName]-stripped to a basename before the join.
 Future<void> openPdfBytes(
   Uint8List bytes,
   String fileName, {
@@ -109,10 +128,12 @@ Future<void> openPdfBytes(
   Future<void> Function(String path)? open,
 }) async {
   final Directory dir = await (tempDir ?? defaultCertificateTempDir)();
+  String name = sanitizePdfFileName(fileName);
+  if (name.isEmpty || name == '.') name = 'certificate.pdf';
   final File file = File(
     dir.path.endsWith(Platform.pathSeparator)
-        ? '${dir.path}$fileName'
-        : '${dir.path}${Platform.pathSeparator}$fileName',
+        ? '${dir.path}$name'
+        : '${dir.path}${Platform.pathSeparator}$name',
   );
   await file.writeAsBytes(bytes, flush: true);
   await (open ?? defaultOpenPdf)(file.path);
@@ -137,3 +158,23 @@ Future<Either<Failure, CertificateFileDownload>> fetchStoredCertificateFile({
     documentsInjection<DownloadCertificateFile>()(
       DownloadCertificateFileParams(id: id, layout: layout, inline: inline),
     );
+
+/// The production QR fetch behind the viewer's conditional QR panel —
+/// Task 2's `GetCertificateQr` through the same container, for the same
+/// G-L5 reason as [fetchStoredCertificateFile]. Answers the endpoint's
+/// `payload` (the link fixed at issue, per the guide's QR paragraph) or
+/// null when the fetch fails or carries none — the panel draws nothing,
+/// it does not error.
+typedef CertificateQrFetcher = Future<String?> Function(String certificateId);
+
+Future<String?> fetchCertificateQrPayload(String certificateId) async {
+  final Either<Failure, CertificateQr> result =
+      await documentsInjection<GetCertificateQr>()(
+    GetCertificateParams(certificateId),
+  );
+  return result.fold(
+    (Failure _) => null,
+    (CertificateQr qr) =>
+        (qr.payload != null && qr.payload!.isNotEmpty) ? qr.payload : null,
+  );
+}
