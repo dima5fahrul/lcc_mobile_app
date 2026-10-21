@@ -62,6 +62,28 @@ dependencies:
   json_annotation: ^4.12.0
   equatable: ^2.0.7
 
+  # Certificate QR — the e-certificates API guide (MOBILE-API-E-CERTIFICATES.md,
+  # 2026-10, § Citizen endpoints, QR) makes "draw `payload` as the QR on screen"
+  # a product requirement for the certificate's own QR in the document viewer.
+  # Nothing already in the tree encodes a QR — payment's QrPlaceholder is
+  # deliberately decorative and argument-less — so an encoder is needed. Scoped
+  # to the certificate payload only; the payment placeholder stays untouched.
+  qr_flutter: ^4.1.0
+
+  # Platform PDF viewer — the guide's File paragraph: "store the bytes, and
+  # open them in the platform PDF viewer". `open_filex` is the open handoff
+  # (with its own file-type resolution); `path_provider` supplies the
+  # temporary directory the downloaded PDF is stored in before opening.
+  open_filex: ^4.0.0
+  path_provider: ^2.1.0
+
+  # SHA-256 — the guide's `X-Content-SHA256` integrity header must be verified
+  # against the downloaded bytes before anything is opened or saved
+  # (Task 6's `sha256Matches`). Already resolved transitively in
+  # pubspec.lock (3.0.7); this promotes it to a direct dependency for
+  # `certificate_pdf_io.dart`. Task 7's on-device hash check reuses it.
+  crypto: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -17,11 +17,18 @@
 /// `lang` comes from the ambient locale here, where a widget can watch it.
 library;
 
+// `hide State` — dartz's State monad would shadow Flutter's and break the
+// `extends State<CertificateFileActions>` below.
+import 'package:dartz/dartz.dart' hide State;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/error/failure.dart';
 import '../../features/application/domain/entities/application_detail.dart';
+import '../../features/documents/domain/certificate_pdf_io.dart';
 import '../../features/documents/domain/doc_spec_mappers.dart';
+import '../../features/documents/domain/entities/certificate_file.dart';
+import '../../features/documents/domain/entities/certificate_file_download.dart';
 import '../../features/documents/domain/entities/doc_spec.dart';
 import '../../features/documents/domain/entities/issued_certificate.dart';
 import '../../i18n/i18n.dart';
@@ -83,34 +90,46 @@ class DocumentActionsRow extends StatelessWidget {
     final Lang lang = Lang.fromCode(context.locale.languageCode);
     final DocSpec spec = docSpecFromApplication(detail, certificate, lang);
 
-    return Wrap(
-      spacing: AppSpacing.gap8,
-      runSpacing: AppSpacing.gap8,
+    // The v2 mount — Task 6: when the certificate carries `files[]`, the
+    // server-PDF pair renders beneath the legacy faux-PDF pair. Legacy rows
+    // (no `files[]`) render nothing here and the row above is byte-identical
+    // to what B5 shipped; `history_detail_page.dart` is untouched because the
+    // certificate is already in scope at this seam.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        // `bg-[#344EAD] text-white font-semibold` — `:381-388`.
-        _PrimaryButton(
-          label: '$_historyNs.viewDocument'.tr(context: context),
-          glyph: 'Eye',
-          onTap: () => showDocumentViewer(
-            context,
-            title: _title(lang),
-            spec: spec,
-            downloadName: _downloadName,
-            verifyCode: certificate?.verifyCode,
-            qrPayload: certificate?.qrPayload,
-            saveFile: saveFile,
-          ),
+        Wrap(
+          spacing: AppSpacing.gap8,
+          runSpacing: AppSpacing.gap8,
+          children: <Widget>[
+            // `bg-[#344EAD] text-white font-semibold` — `:381-388`.
+            _PrimaryButton(
+              label: '$_historyNs.viewDocument'.tr(context: context),
+              glyph: 'Eye',
+              onTap: () => showDocumentViewer(
+                context,
+                title: _title(lang),
+                spec: spec,
+                downloadName: _downloadName,
+                verifyCode: certificate?.verifyCode,
+                qrPayload: certificate?.qrPayload,
+                saveFile: saveFile,
+              ),
+            ),
+            // `border border-gray-200 text-gray-700 font-medium` — `:389-395`. The
+            // same chrome `history_detail_hero.dart`'s `_SecondaryButton` draws for
+            // *Refresh* and *Contact officer*; that one is private to B7b's widget
+            // file and G-L7 puts it out of reach, so the shape is restated here and
+            // `document_actions_row_test.dart` pins the tokens against it.
+            _SecondaryButton(
+              label: '$_historyNs.downloadDocument'.tr(context: context),
+              glyph: 'Download',
+              onTap: () => _download(lang),
+            ),
+          ],
         ),
-        // `border border-gray-200 text-gray-700 font-medium` — `:389-395`. The
-        // same chrome `history_detail_hero.dart`'s `_SecondaryButton` draws for
-        // *Refresh* and *Contact officer*; that one is private to B7b's widget
-        // file and G-L7 puts it out of reach, so the shape is restated here and
-        // `document_actions_row_test.dart` pins the tokens against it.
-        _SecondaryButton(
-          label: '$_historyNs.downloadDocument'.tr(context: context),
-          glyph: 'Download',
-          onTap: () => _download(lang),
-        ),
+        CertificateFileActions(certificate: certificate),
       ],
     );
   }
@@ -218,6 +237,157 @@ class _SecondaryButton extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The **server-PDF** actions — one *View* / *Download* pair per entry of the
+/// certificate's `files[]` (MOBILE-API-E-CERTIFICATES.md, 2026-10, § Citizen
+/// endpoints, File).
+///
+/// ## Why it lives in this file, not its own
+///
+/// `B5-AC-17` pins `lib/presentation/documents/` at **exactly four files** and
+/// `documents_scope_test.dart` is another task's surface this round — so the
+/// fifth widget is co-located here as a distinct public class with its own
+/// test file. The deviation is recorded in the task report.
+///
+/// ## The gate is `hasStoredFile`, and the legacy path stays
+///
+/// Legacy rows send no `files[]`; for them this renders nothing and the
+/// faux-PDF pair above keeps working exactly as B5 shipped it
+/// (`renderDocumentPdf`/`DocSpec` untouched). A v2 row gets BOTH: the legacy
+/// pair (the painter's rendering of the case) and this pair (the server's own
+/// PDF), because the two answer different questions and neither subsumes the
+/// other.
+///
+/// ## Every edge is injected, with the production default in the domain file
+///
+/// `fetchStoredFile` defaults to `fetchStoredCertificateFile` (Task 2's
+/// `DownloadCertificateFile` through the documents container — resolved in
+/// `certificate_pdf_io.dart`, because this widget is G-L5-blind to every
+/// locator), `openPdf`/`savePdf` to `openPdfBytes`/`savePdfBytes`. Tests
+/// inject recorders; no platform channel ever starts.
+///
+/// ## The integrity gate
+///
+/// Before either sink runs: `sha256Header` non-empty and different from the
+/// downloaded bytes → `verify.integrityFailed` snackbar, and **nothing** is
+/// opened or saved. An empty header is absence (a legacy fingerprint), not
+/// mismatch, and passes. A fetch `Failure` surfaces the server's own sentence
+/// the same way — the guide's 404 "certificate file not found" is copy, not a
+/// crash.
+class CertificateFileActions extends StatefulWidget {
+  const CertificateFileActions({
+    super.key,
+    required this.certificate,
+    this.fetchStoredFile = fetchStoredCertificateFile,
+    this.openPdf = openPdfBytes,
+    this.savePdf = savePdfBytes,
+  });
+
+  final IssuedCertificate? certificate;
+
+  final CertificateFileFetcher fetchStoredFile;
+  final CertificatePdfOpener openPdf;
+  final CertificatePdfSaver savePdf;
+
+  @override
+  State<CertificateFileActions> createState() => CertificateFileActionsState();
+}
+
+class CertificateFileActionsState extends State<CertificateFileActions> {
+  bool _busy = false;
+
+  Future<void> _run({
+    required CertificateFile file,
+    required bool inline,
+  }) async {
+    if (_busy) return;
+    _busy = true;
+    // Both strings are resolved BEFORE the first await: `context` is never
+    // read across an async gap (use_build_context_synchronously), and the
+    // messenger is captured for the same reason.
+    final String integrityFailed =
+        'verify.integrityFailed'.tr(context: context);
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    try {
+      final Either<Failure, CertificateFileDownload> result =
+          await widget.fetchStoredFile(
+        id: widget.certificate!.id,
+        layout: file.layout,
+        inline: inline,
+      );
+
+      final CertificateFileDownload? download = result.fold(
+        (Failure failure) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(failure.message)),
+          );
+          return null;
+        },
+        (CertificateFileDownload d) => d,
+      );
+      if (download == null) return;
+
+      // The integrity gate — before ANY sink. `sha256Matches` already treats
+      // an empty header as absence.
+      if (!sha256Matches(download.bytes, download.sha256Header)) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(integrityFailed)),
+        );
+        return;
+      }
+
+      // The Content-Disposition filename, with the guide's fallback.
+      final String fileName = (download.fileName != null &&
+              download.fileName!.isNotEmpty)
+          ? download.fileName!
+          : '${widget.certificate!.certificateNo}-${file.layout}.pdf';
+
+      if (inline) {
+        await widget.openPdf(download.bytes, fileName);
+      } else {
+        await widget.savePdf(download.bytes, fileName);
+      }
+    } finally {
+      _busy = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final IssuedCertificate? cert = widget.certificate;
+    if (cert == null || !cert.hasStoredFile) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (int i = 0; i < cert.files.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: AppSpacing.gap8),
+          Wrap(
+            spacing: AppSpacing.gap8,
+            runSpacing: AppSpacing.gap8,
+            children: <Widget>[
+              _PrimaryButton(
+                // The history namespace's own pair — the same copy the
+                // legacy row renders, now bound to the server PDF.
+                label: '$_historyNs.viewDocument'.tr(context: context),
+                glyph: 'Eye',
+                onTap: () =>
+                    _run(file: cert.files[i], inline: true),
+              ),
+              _SecondaryButton(
+                label: '$_historyNs.downloadDocument'.tr(context: context),
+                glyph: 'Download',
+                onTap: () =>
+                    _run(file: cert.files[i], inline: false),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }

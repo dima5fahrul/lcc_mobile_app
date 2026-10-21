@@ -57,6 +57,7 @@ import 'dart:typed_data';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../features/documents/domain/entities/doc_spec.dart';
 import '../icons/lucide_icon.dart';
@@ -425,15 +426,23 @@ class _VerificationStrip extends StatelessWidget {
             ),
             if (payload != null) ...<Widget>[
               const SizedBox(width: AppSpacing.gap8),
-              // `ml-auto` — pushed to the trailing edge (`:165`).
+              // `ml-auto` — pushed to the trailing edge (`:165`). The web
+              // rendered the payload as TEXT beside a decorative QrCode icon;
+              // the 2026-10 guide (§ Citizen endpoints, QR) upgrades the
+              // certificate's own QR to the real thing — "Draw `payload` as
+              // the QR on screen" — so the icon becomes a scannable
+              // `QrImageView` of exactly that payload, with the text kept
+              // (B5-AC-88 pins the payload text beside the mark). Payment's
+              // QrPlaceholder stays decorative and untouched.
               Expanded(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: <Widget>[
-                    const LucideIcon(
-                      name: 'QrCode',
-                      size: AppSpacing.gap14,
-                      color: AppColors.gray400Inline,
+                    QrImageView(
+                      data: payload!,
+                      size: AppSpacing.gap40,
+                      padding: EdgeInsets.zero,
+                      backgroundColor: AppColors.white,
                     ),
                     const SizedBox(width: AppSpacing.gap6),
                     Flexible(
