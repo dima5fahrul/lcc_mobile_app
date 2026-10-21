@@ -672,6 +672,44 @@ class ApiEndpoint {
   /// no longer in flight (`:158`, `B5-AC-39`).
   static String meCertificate(String id) =>
       '/me/certificates/${Uri.encodeComponent(id)}';
+
+  // ── Issued certificates, the v2 file & QR sub-paths (e-certificates) ───────
+  //
+  // **Supersedes this block's own B5-AC-7 adjudication above** (2026-10-21):
+  // MOBILE-API-E-CERTIFICATES.md — the backend team's API guide of that date —
+  // introduces `GET /me/certificates/{id}/file` and `GET
+  // /me/certificates/{id}/qr` as real, bearer-authenticated citizen endpoints
+  // (§ Citizen endpoints), where the old ruling refused the QR sub-path
+  // because the shipped web client never called it. The endpoints now have a
+  // contract, a consumer in this app (the documents datasource, same file the
+  // two B5 constants above are read from) and a product requirement behind
+  // them; the dead-end refusal does not survive a live endpoint.
+  //
+  // **Bearer by header, never by URL.** The guide is explicit — "Download
+  // with the bearer header (no token in the URL)" (§ Citizen endpoints,
+  // File). These paths therefore carry no token and no `Authorization`
+  // anything: the `AuthInterceptor` attaches the header, and the query map
+  // carries only `layout` and, for inline viewing, `disposition=inline`.
+  //
+  // Both are functions with the segment percent-encoded, the convention
+  // [meCertificate] establishes immediately above.
+
+  /// `GET /me/certificates/{id}/file` — the PDF bytes (raw, not the
+  /// envelope; the one documented envelope exception). The layout choice
+  /// (`card` | `booklet`) is a **query parameter** the caller passes to
+  /// `ApiClient.getBytes`, never a path segment; `disposition=inline` is
+  /// likewise appended as a query value when the caller wants to view rather
+  /// than download. The `Content-Disposition` filename and `X-Content-SHA256`
+  /// response headers are read off the answer by the datasource.
+  static String meCertificateFile(String id) =>
+      '/me/certificates/${Uri.encodeComponent(id)}/file';
+
+  /// `GET /me/certificates/{id}/qr` — the QR payload the certificate itself
+  /// prints, fixed at issue (§ Citizen endpoints, QR paragraph). Drawn on
+  /// screen from `payload`; `verify_url` beside it is the same link built
+  /// from the server's *current* setting and can differ for older issues.
+  static String meCertificateQr(String id) =>
+      '/me/certificates/${Uri.encodeComponent(id)}/qr';
   // ── The household record (F4) ──────────────────────────────────────────────
   //
   // **Two constants, and they are the only two this feature has.** FamilyBook

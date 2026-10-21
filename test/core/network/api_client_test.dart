@@ -10,6 +10,9 @@
 /// mocked Dio would let a wrong `ResponseType` or a wrong cast pass unnoticed.
 library;
 
+import 'dart:convert' show jsonEncode, utf8;
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/core/network/api_client.dart';
@@ -757,6 +760,157 @@ void main() {
         ),
         throwsA(isA<ApiException>()
             .having((ApiException e) => e.message, 'message', 'Request failed.')),
+      );
+    });
+  });
+
+  // ── getBytes — the binary door (MOBILE-API-E-CERTIFICATES.md, 2026-10) ─────
+  //
+  // The PDF file endpoints "return the raw PDF bytes, not JSON" (§ Citizen
+  // endpoints), so the envelope unwrap must NOT run on their success path —
+  // the bytes ARE the answer. The error path is the mirror image: a JSON
+  // error envelope arrives over a byte stream, and its `code`/`message` must
+  // survive exactly as `request` preserves them for JSON calls (the D-1
+  // ruling).
+  group('getBytes — binary transport with envelope error folding', () {
+    test('returns the raw bytes on success and asks for ResponseType.bytes',
+        () async {
+      final Uint8List pdf = Uint8List.fromList(<int>[0x25, 0x50, 0x44, 0x46]);
+      final RecordingHttpAdapter adapter = RecordingHttpAdapter(
+        (RequestOptions _, int __) =>
+            bytesResponse(pdf, headers: <String, List<String>>{
+              'content-disposition': <String>['attachment; filename="x.pdf"'],
+              'x-content-sha256': <String>['aa' * 32],
+            }),
+      );
+      final ApiClient client = ApiClient(
+        dio: buildTestDio(
+          storage: storage,
+          adapter: adapter,
+          withInterceptors: false,
+        ),
+        storage: storage,
+      );
+
+      final Uint8List out = await client.getBytes('/me/certificates/c1/file');
+
+      expect(out, pdf);
+      expect(adapter.requests.single.responseType, ResponseType.bytes);
+      expect(adapter.requests.single.method, 'GET');
+      // Headers stay reachable — the datasource reads them off the same
+      // answer `getBytes` consumed, so a regression to a headerless return
+      // breaks the filename parse. Exercised via the datasource test; here it
+      // is enough that the client did not crash on their presence.
+    });
+
+    test('forwards query parameters', () async {
+      final RecordingHttpAdapter adapter = RecordingHttpAdapter(
+        (RequestOptions _, int __) =>
+            bytesResponse(Uint8List.fromList(<int>[1, 2, 3])),
+      );
+      final ApiClient client = ApiClient(
+        dio: buildTestDio(
+          storage: storage,
+          adapter: adapter,
+          withInterceptors: false,
+        ),
+        storage: storage,
+      );
+
+      await client.getBytes('/f',
+          query: <String, dynamic>{'layout': 'booklet', 'empty': ''});
+
+      expect(adapter.requests.single.queryParameters,
+          <String, dynamic>{'layout': 'booklet'});
+    });
+
+    test('a JSON error envelope over the byte stream keeps code and message',
+        () async {
+      // The legacy no-file case: 404 NOT_FOUND "certificate file not found",
+      // a JSON body arriving over a transport asked for bytes.
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => bytesResponse(
+          Uint8List.fromList(utf8.encode(jsonEncode(<String, dynamic>{
+            'success': false,
+            'code': 'NOT_FOUND',
+            'message': 'certificate file not found',
+          }))),
+          statusCode: 404,
+          headers: <String, List<String>>{
+            Headers.contentTypeHeader: <String>[Headers.jsonContentType],
+          },
+        ),
+      ).client;
+
+      await expectLater(
+        client.getBytes('/me/certificates/legacy/file'),
+        throwsA(
+          isA<ApiException>()
+              .having((ApiException e) => e.status, 'status', 404)
+              .having((ApiException e) => e.code, 'code', ApiCode.notFound)
+              .having((ApiException e) => e.message, 'message',
+                  'certificate file not found'),
+        ),
+      );
+    });
+
+    test('a JSON success:false envelope on a 200 also folds to ApiException',
+        () async {
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => bytesResponse(
+          Uint8List.fromList(utf8.encode(jsonEncode(
+            <String, dynamic>{'success': false, 'code': 'FORBIDDEN', 'message': 'no'},
+          ))),
+          headers: <String, List<String>>{
+            Headers.contentTypeHeader: <String>[Headers.jsonContentType],
+          },
+        ),
+      ).client;
+
+      await expectLater(
+        client.getBytes('/f'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.status, 'status', 200)
+            .having((ApiException e) => e.code, 'code', ApiCode.forbidden)
+            .having((ApiException e) => e.message, 'message', 'no')),
+      );
+    });
+
+    test('a non-JSON non-2xx answer maps to NETWORK_ERROR, not a crash',
+        () async {
+      // A gateway 502 with an HTML body — no envelope to salvage, so the
+      // answer is the same one `request` gives a response-less failure.
+      final ApiClient client = clientWith(
+        (RequestOptions _, int __) => bytesResponse(
+          Uint8List.fromList(utf8.encode('<html>bad gateway</html>')),
+          statusCode: 502,
+          headers: <String, List<String>>{
+            Headers.contentTypeHeader: <String>['text/html'],
+          },
+        ),
+      ).client;
+
+      await expectLater(
+        client.getBytes('/f'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.status, 'status', 502)
+            .having((ApiException e) => e.code, 'code', ApiCode.networkError)),
+      );
+    });
+
+    test('a response-less transport failure maps to NETWORK_ERROR', () async {
+      final ApiClient client = clientWith(
+        (RequestOptions options, int __) => throw DioException(
+          requestOptions: options,
+          type: DioExceptionType.connectionError,
+        ),
+      ).client;
+
+      await expectLater(
+        client.getBytes('/f'),
+        throwsA(isA<ApiException>()
+            .having((ApiException e) => e.status, 'status', 0)
+            .having((ApiException e) => e.code, 'code', ApiCode.networkError)),
       );
     });
   });

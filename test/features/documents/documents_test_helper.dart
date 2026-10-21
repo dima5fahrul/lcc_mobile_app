@@ -25,6 +25,8 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:lcc_mobile_app/core/error/failure.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file_download.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_qr.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
 import 'package:lcc_mobile_app/features/documents/domain/repositories/documents_repository.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/bilingual.dart';
@@ -162,4 +164,16 @@ class FakeDocumentsRepository implements DocumentsRepository {
     if (latency > Duration.zero) await Future<void>.delayed(latency);
     return oneAnswer;
   }
+
+  @override
+  Future<Either<Failure, CertificateQr>> getCertificateQr(String id) async =>
+      Left<Failure, CertificateQr>(const Failure('no QR fixture'));
+
+  @override
+  Future<Either<Failure, CertificateFileDownload>> downloadCertificateFile({
+    required String id,
+    required String layout,
+    bool inline = false,
+  }) async =>
+      Left<Failure, CertificateFileDownload>(const Failure('no file fixture'));
 }

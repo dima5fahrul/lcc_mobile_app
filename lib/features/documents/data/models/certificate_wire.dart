@@ -18,6 +18,7 @@ library;
 
 import '../../../session/domain/entities/bilingual.dart';
 import '../../domain/entities/certificate_file.dart';
+import '../../domain/entities/certificate_qr.dart';
 import '../../domain/entities/issued_certificate.dart';
 
 /// A required string: anything that is not a `String` reads as `''`, which the
@@ -166,5 +167,25 @@ IssuedCertificate issuedCertificateFrom(Map<String, dynamic> json) {
     valid: _nullableBoolAt(body, 'valid'),
     language: _nullableStringAt(body, 'language'),
     reissuedFrom: _nullableStringAt(body, 'reissued_from'),
+  );
+}
+
+/// One QR endpoint answer — `GET /me/certificates/{id}/qr` (the 2026-10
+/// guide's § Citizen endpoints, QR paragraph). Same lenient readers as
+/// [issuedCertificateFrom]: `status` stays a plain string (open set), `valid`
+/// reads through [_nullableBoolAt] (non-bool = unknown, not false), and the
+/// optional strings read through [_nullableStringAt] so an absent or
+/// wrong-typed `payload` is "draw nothing", not a crash.
+CertificateQr certificateQrFrom(Map<String, dynamic> json) {
+  return CertificateQr(
+    certificateId: _stringAt(json, 'certificate_id'),
+    certificateNo: _stringAt(json, 'certificate_no'),
+    verifyCode: _stringAt(json, 'verify_code'),
+    verifyUrl: _nullableStringAt(json, 'verify_url'),
+    payload: _nullableStringAt(json, 'payload'),
+    documentHash: _nullableStringAt(json, 'document_hash'),
+    status: _stringAt(json, 'status'),
+    valid: _nullableBoolAt(json, 'valid'),
+    issuedAt: _stringAt(json, 'issued_at'),
   );
 }

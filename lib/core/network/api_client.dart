@@ -20,6 +20,9 @@ library;
 // would rename them to `_dio`/`_storage`, which is not a public-API win here.
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../storage/storage_service.dart';
@@ -239,6 +242,171 @@ class ApiClient {
   Future<T> upload<T>(String path, FormData form, {bool anonymous = false}) =>
       request<T>(HttpMethod.post, path,
           options: ApiRequestOptions(form: form, anonymous: anonymous));
+
+  /// Fetch a binary body — the PDF file endpoints, the one documented
+  /// exception to the envelope ("they return the raw PDF bytes, not JSON",
+  /// MOBILE-API-E-CERTIFICATES.md § Overview). Everything the caller needs
+  /// besides the bytes (the `Content-Disposition` filename, the
+  /// `X-Content-SHA256` integrity hash) travels in the response headers,
+  /// which the datasource reads off the same [Response] via [getResponse].
+  ///
+  /// Success returns the body as [Uint8List] directly. The one exception to
+  /// "no unwrap": a body whose content type is JSON is an envelope no matter
+  /// what transport the caller asked for, so it is decoded and routed through
+  /// `_unwrap` — a 2xx `success:false` body becomes an [ApiException] exactly
+  /// as it would on the JSON paths. Failure mirrors [request]: the envelope's
+  /// `code`/`message` survive (the D-1 ruling); anything else maps to
+  /// `ApiCode.networkError`.
+  Future<Uint8List> getBytes(
+    String path, {
+    Map<String, dynamic>? query,
+    bool anonymous = false,
+  }) async {
+    final Response<Uint8List> response = await _fetchBytes(
+      path,
+      ApiRequestOptions(query: query, anonymous: anonymous),
+    );
+    return response.data ?? Uint8List(0);
+  }
+
+  /// Fetch a binary body together with its response headers — the download
+  /// datasource needs the headers (`Content-Disposition`,
+  /// `X-Content-SHA256`) beside the bytes, and [getBytes] returns bytes
+  /// alone. Same error semantics as [getBytes].
+  Future<Response<Uint8List>> getResponse(
+    String path, {
+    Map<String, dynamic>? query,
+    bool anonymous = false,
+  }) async {
+    return _fetchBytes(
+      path,
+      ApiRequestOptions(query: query, anonymous: anonymous),
+    );
+  }
+
+  /// The shared binary transport behind [getBytes] and [getResponse]: one
+  /// GET with `ResponseType.bytes`, one success-path validation, one
+  /// `DioException` mapping. Two public entries, one code path — the same
+  /// rule `_send` serves for [request].
+  Future<Response<Uint8List>> _fetchBytes(
+    String path,
+    ApiRequestOptions opts,
+  ) async {
+    try {
+      final Response<dynamic> response = await _dio.get<dynamic>(
+        path,
+        queryParameters: _buildQuery(opts.query),
+        options: Options(
+          extra: <String, dynamic>{'anonymous': opts.anonymous},
+          contentType: 'application/json',
+          responseType: ResponseType.bytes,
+        ),
+      );
+      return _validatedBytesResponse(response, opts);
+    } on DioException catch (e) {
+      final Response<dynamic>? response = e.response;
+      if (response != null) {
+        // The server DID answer. With ResponseType.bytes dio's transformer
+        // hands the body back as raw bytes whatever its content type, so a
+        // JSON error envelope arrives as bytes; decode and route it through
+        // the same `_unwrap` the JSON paths use, so `code`/`message` reach
+        // the caller instead of being flattened into NETWORK_ERROR. A body
+        // that is not JSON — an HTML gateway page — is left alone and falls
+        // through to the network mapping below.
+        _foldByteEnvelope(response, opts);
+      }
+      if (e.type == DioExceptionType.cancel) {
+        throw ApiException(
+          status: 0,
+          code: ApiCode.networkError,
+          message: 'Request cancelled.',
+        );
+      }
+      throw ApiException(
+        status: e.response?.statusCode ?? 0,
+        code: ApiCode.networkError,
+        message: 'Cannot reach the server. Check your connection and try again.',
+      );
+    }
+  }
+
+  /// Validate a 2xx binary answer before handing it back: a real PDF (or any
+  /// non-JSON body) returns untouched; a JSON body is an envelope riding the
+  /// byte transport and goes through [_foldByteEnvelope] — `success:false`
+  /// throws from `_unwrap`, and a `success:true` envelope on a *bytes*
+  /// endpoint is a malformed answer (there are no bytes to return), so it is
+  /// reported as such rather than handed back as a `.pdf` of JSON.
+  Response<Uint8List> _validatedBytesResponse(
+    Response<dynamic> response,
+    ApiRequestOptions opts,
+  ) {
+    if (_isJsonContentType(
+      response.headers[Headers.contentTypeHeader],
+    )) {
+      final bool envelopeAccepted = _foldByteEnvelope(response, opts);
+      if (envelopeAccepted) {
+        throw ApiException(
+          status: response.statusCode ?? 0,
+          code: ApiCode.internalError,
+          message: 'The server sent a malformed response.',
+        );
+      }
+    }
+    return Response<Uint8List>(
+      data: response.data as Uint8List? ?? Uint8List(0),
+      requestOptions: response.requestOptions,
+      statusCode: response.statusCode,
+      statusMessage: response.statusMessage,
+      headers: response.headers,
+    );
+  }
+
+  /// Decode a byte-transport body and, when it is a JSON envelope map, route
+  /// it through `_unwrap`. Returns **true** when `_unwrap` accepted the
+  /// envelope (2xx + `success:true` — only reachable from the success path);
+  /// throws [ApiException] when `_unwrap` rejects it; returns false for any
+  /// body that is not a JSON map, leaving the bytes untouched.
+  bool _foldByteEnvelope(Response<dynamic> response, ApiRequestOptions opts) {
+    final Object? body = response.data;
+    if (body is! Uint8List) return false;
+    if (!_isJsonContentType(
+      response.headers[Headers.contentTypeHeader],
+    )) {
+      return false;
+    }
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(body));
+    } on FormatException {
+      // Not decodable JSON after all — leave the bytes alone.
+      return false;
+    }
+    if (decoded is! Map<String, dynamic>) return false;
+    // Reaching past `_unwrap` at all means it accepted the envelope — its
+    // *return* value is the envelope's `data` and says nothing about
+    // acceptance (a `success:true` envelope may legitimately carry null).
+    _unwrap<dynamic>(
+      Response<Map<String, dynamic>>(
+        data: decoded,
+        requestOptions: response.requestOptions,
+        statusCode: response.statusCode,
+        statusMessage: response.statusMessage,
+        headers: response.headers,
+      ),
+      opts,
+    );
+    return true;
+  }
+
+  /// Whether the response's `Content-Type` is JSON — the signal that a
+  /// byte-transport body is really an envelope to unwrap.
+  bool _isJsonContentType(List<String>? contentType) {
+    if (contentType == null || contentType.isEmpty) return false;
+    final String mime = contentType.first.split(';').first.trim().toLowerCase();
+    return mime == 'application/json' ||
+        mime == 'text/json' ||
+        mime.endsWith('+json');
+  }
 
   // ── Internals ──────────────────────────────────────────────────────────────
 

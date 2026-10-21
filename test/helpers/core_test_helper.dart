@@ -251,6 +251,24 @@ ResponseBody textResponse(String body, {int statusCode = 200}) {
   );
 }
 
+/// A binary [ResponseBody] — the PDF file endpoints answer raw bytes, and the
+/// download filename and payload hash arrive as response headers beside them.
+/// Header names are passed lowercase, the way the transport delivers them.
+ResponseBody bytesResponse(
+  Uint8List body, {
+  int statusCode = 200,
+  Map<String, List<String>> headers = const <String, List<String>>{},
+}) {
+  return ResponseBody.fromBytes(
+    body,
+    statusCode,
+    headers: <String, List<String>>{
+      Headers.contentTypeHeader: <String>['application/pdf'],
+      ...headers,
+    },
+  );
+}
+
 /// A `Dio` configured the way `buildDio` configures the real one — same two
 /// interceptors, same base options — but pointed at [adapter] instead of a
 /// socket, and without the debug-only Chucker interceptor (which needs

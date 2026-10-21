@@ -176,8 +176,84 @@ void main() {
               'is actually true — B5 added none.');
     });
 
-    test('B5-AC-7 — the QR sub-path has no hit at all', () {
-      expect(_grepLib(r"certificateQr|/qr'"), isEmpty);
+    test('B5-AC-7 — the QR constant lives in api_endpoint.dart and nowhere '
+        'else (**rewritten 2026-10-21**)', () {
+      // **Superseded adjudication.** The original criterion — "zero hits for
+      // `certificateQr|/qr'`" — was adjudicated against the web-client
+      // fidelity programme (specs.md § 6.0, Finding B): the QR sub-path was
+      // defined at `endpoints.ts:133` and never called by the shipped app, so
+      // porting it had no oracle. The **2026-10 API guide
+      // (MOBILE-API-E-CERTIFICATES.md) supersedes that ruling**: the backend
+      // now serves `GET /me/certificates/{id}/qr` as a real citizen endpoint
+      // (§ Citizen endpoints, QR paragraph), and the product requirement is
+      // to draw that payload on screen. The guard's spirit is kept, not
+      // dropped: no dead endpoints — the constant exists *because* a
+      // datasource method calls it within this task — and the QR surface is
+      // bounded to the endpoint file. New assertion: the two v2 constants
+      // (`meCertificateFile` / `meCertificateQr`) are declared in
+      // `lib/core/constant/api_endpoint.dart` and appear **nowhere else** in
+      // `lib/` — a stray call site outside the documents slice would be a
+      // layering breach, and a second declaration would be a drift point.
+      // Task 3 owns the B5-AC-8 (`/verify`) counterpart of this rewrite.
+      //
+      // The grep targets the two **constants** (`meCertificateFile`,
+      // `meCertificateQr`), not the substring `certificateQr`: the
+      // `CertificateQr` entity, its mapper and its usecase are the documents
+      // slice's own domain vocabulary and are meant to exist — the original
+      // criterion's subject was always *the endpoint symbol*, which is what
+      // the constants are now named.
+      final RegExp constants = RegExp('meCertificateQr|meCertificateFile',
+          caseSensitive: false);
+      // The constants must exist at all — a grep suite that finds nothing
+      // has no subject.
+      expect(
+        libFiles.firstWhere((DartFile f) =>
+            f.path == 'core/constant/api_endpoint.dart').code
+            .contains('meCertificateQr'),
+        isTrue,
+      );
+      expect(
+        libFiles.firstWhere((DartFile f) =>
+            f.path == 'core/constant/api_endpoint.dart').code
+            .contains('meCertificateFile'),
+        isTrue,
+      );
+      // "Nowhere else" means **no second declaration**: every *code* line
+      // outside api_endpoint.dart naming a constant must be a usage through
+      // the class — `ApiEndpoint.meCertificateQr(...)` — never a `static
+      // const` or a bare function re-declaring the path. (Comment lines are
+      // already stripped from `DartFile.code`, so prose cannot hit this.)
+      // The documents datasource is the one intended consumer.
+      final List<String> unqualified = <String>[
+        for (final DartFile f in libFiles)
+          if (f.path != 'core/constant/api_endpoint.dart')
+            for (final String line in f.code.split('\n'))
+              if (constants.hasMatch(line) &&
+                  !line.contains('ApiEndpoint.meCertificate'))
+                '${f.path}: ${line.trim()}',
+      ];
+      expect(unqualified, isEmpty,
+          reason: 'every use outside api_endpoint.dart goes through the '
+              'ApiEndpoint class — lines not reading `ApiEndpoint.meCertificate` '
+              'are a second declaration or a bypassed constant');
+      // Same bound for the `/qr` and `/file` path literals: they live in
+      // api_endpoint.dart's block (or its comments) and nowhere else.
+      final List<String> pathHits = _grepLib(r"/qr'|/file'");
+      expect(
+        pathHits.where((String h) =>
+            !h.startsWith('lib/core/constant/api_endpoint.dart')),
+        isEmpty,
+      );
+      expect(
+        libFiles
+            .where((DartFile f) =>
+                f.path != 'core/constant/api_endpoint.dart' &&
+                f.code.contains("'/me/certificates/")),
+        isEmpty,
+        reason: 'the v2 certificate sub-paths are reached only through the '
+            'constants — a hand-rolled literal elsewhere is the drift the '
+            'original criterion guarded against',
+      );
     });
 
     test('B5-AC-8 — every `/verify` hit is either B-auth\'s or rendered copy',

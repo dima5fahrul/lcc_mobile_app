@@ -25,6 +25,8 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../domain/entities/certificate_file_download.dart';
+import '../../domain/entities/certificate_qr.dart';
 import '../../domain/entities/issued_certificate.dart';
 import '../../domain/repositories/documents_repository.dart';
 import '../datasources/documents_remote_datasource.dart';
@@ -53,4 +55,17 @@ class DocumentsRepositoryImpl implements DocumentsRepository {
   @override
   Future<Either<Failure, IssuedCertificate>> getCertificate(String id) =>
       _guard(() => remote.getCertificate(id));
+
+  @override
+  Future<Either<Failure, CertificateQr>> getCertificateQr(String id) =>
+      _guard(() => remote.getCertificateQr(id));
+
+  @override
+  Future<Either<Failure, CertificateFileDownload>> downloadCertificateFile({
+    required String id,
+    required String layout,
+    bool inline = false,
+  }) => _guard(
+    () => remote.downloadCertificateFile(id, layout: layout, inline: inline),
+  );
 }
