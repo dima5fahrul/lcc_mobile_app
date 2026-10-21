@@ -42,6 +42,11 @@ DivorceFormData filledDivorceForm() {
     householdBook: _file('book.pdf', 11),
     guaranteeCert: _file('guarantee.pdf', 12),
     photos: _file('photo.jpg', 13),
+    // Forms v2 — the per-spouse 3×4 photos ("Photos (3×4)"): recorded so the
+    // golden proves they reach the wire through the real cubit path, into
+    // `spouses.husband.photo` / `spouses.wife.photo` with kind=photo.
+    husband: f.husband.copyWith(photo: _file('h-3x4.jpg', 14)),
+    wife: f.wife.copyWith(photo: _file('w-3x4.jpg', 15)),
   );
 }
 
@@ -112,7 +117,11 @@ void main() {
     drive: _driveDivorce,
     expectedSequence: <String>[
       'POST /applications',
-      // ATTACH BEFORE UPDATE — the nested family's order.
+      // ATTACH BEFORE UPDATE — the nested family's order. SIX uploads since
+      // forms v2's task 9: the four fixture files plus the two per-spouse
+      // 3×4 photos.
+      'POST /applications/case-1/attachments',
+      'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',

@@ -587,6 +587,19 @@ class MarriageFormCubit extends Cubit<MarriageFormViewState> {
   void setPhotos(PickedAttachment? f) => emit(state.copyWith(
       form: state.form.copyWith(photos: f, clearPhotos: f == null)));
 
+  /// Forms v2 — the per-spouse 3×4 photos (`spouses.spouse_{a,b}.photo`).
+  /// OPTIONAL state only: no validation, no canProceed dependency, and the
+  /// payload emits the slot only when a file was picked.
+  void setSpouseAPhoto(PickedAttachment? f) => patchSpouseA(
+        (MarriageSpouseInfo s) =>
+            s.copyWith(photo: f, clearPhoto: f == null),
+      );
+
+  void setSpouseBPhoto(PickedAttachment? f) => patchSpouseB(
+        (MarriageSpouseInfo s) =>
+            s.copyWith(photo: f, clearPhoto: f == null),
+      );
+
   void setBirthRecord(PickedAttachment? f) => emit(state.copyWith(
       form: state.form.copyWith(birthRecord: f, clearBirthRecord: f == null)));
 

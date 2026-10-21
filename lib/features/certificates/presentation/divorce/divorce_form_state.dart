@@ -103,6 +103,7 @@ class DivorceSpouseInfo {
     this.addrHouseNo = '',
     this.address = CertificateLocationValue.blank,
     this.marriageCertRef = '',
+    this.photo,
   });
 
   final String fullName;
@@ -124,6 +125,12 @@ class DivorceSpouseInfo {
   /// `residenceCertRef` and the wire key differs too.
   final String marriageCertRef;
 
+  /// Forms v2 — the per-spouse 3×4 photo. OPTIONAL: the slot
+  /// `spouses.{husband,wife}.photo` is emitted only when a file was picked,
+  /// and rides the existing `POST /applications/{id}/attachments` with
+  /// `kind=photo`. The booklet prints it.
+  final PickedAttachment? photo;
+
   static const DivorceSpouseInfo blank = DivorceSpouseInfo();
 
   DivorceSpouseInfo copyWith({
@@ -137,6 +144,8 @@ class DivorceSpouseInfo {
     String? addrHouseNo,
     CertificateLocationValue? address,
     String? marriageCertRef,
+    PickedAttachment? photo,
+    bool clearPhoto = false,
   }) =>
       DivorceSpouseInfo(
         fullName: fullName ?? this.fullName,
@@ -149,6 +158,7 @@ class DivorceSpouseInfo {
         addrHouseNo: addrHouseNo ?? this.addrHouseNo,
         address: address ?? this.address,
         marriageCertRef: marriageCertRef ?? this.marriageCertRef,
+        photo: clearPhoto ? null : (photo ?? this.photo),
       );
 }
 

@@ -200,7 +200,9 @@ class DivorceAttachment {
 }
 
 /// `:839-845` — `uploads()`. **Four entries, four distinct slots**, in
-/// **POST order**.
+/// **POST order**, plus forms v2's two optional per-spouse photo slots
+/// appended after them — up to six entries, six distinct slots, and a form
+/// that picks neither photo still sends exactly the source's four.
 ///
 /// ## The POST order is NOT the DOM order, and both are asserted
 ///
@@ -217,7 +219,9 @@ class DivorceAttachment {
 /// inclusion is one half of D-N — see `divorceResetMediation`.
 ///
 /// Unlike Marriage, no slot repeats here, so `F3-AC-56`'s no-dedupe property is
-/// vacuous on this page and is asserted on Marriage.
+/// vacuous on this page and is asserted on Marriage. The two forms-v2 photo
+/// slots keep that true — `spouses.husband.photo` and `spouses.wife.photo`
+/// repeat nothing.
 List<DivorceAttachment> divorceUploads(DivorceFormData form) {
   final List<DivorceAttachment> out = <DivorceAttachment>[];
 
@@ -232,6 +236,15 @@ List<DivorceAttachment> divorceUploads(DivorceFormData form) {
   add(form.guaranteeCert, 'supporting.guarantee_certificate', 'document',
       'Guarantee certificate');
   add(form.photos, 'supporting.photos_3x4', 'photo', '3x4 photographs');
+
+  // Forms v2 — the per-spouse 3×4 photos ("Photos (3×4)"): uploaded into
+  // `spouses.husband.photo` / `spouses.wife.photo` with `kind=photo` through
+  // the same attachments endpoint. OPTIONAL — a null file drops the entry
+  // entirely (`:845`'s `.filter`), so a form without them sends nothing new.
+  // They ride AFTER the four source slots so no pre-existing POST order
+  // moves.
+  add(form.husband.photo, 'spouses.husband.photo', 'photo', 'Husband');
+  add(form.wife.photo, 'spouses.wife.photo', 'photo', 'Wife');
 
   return out;
 }

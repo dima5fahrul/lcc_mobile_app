@@ -140,6 +140,7 @@ class MarriageSpouseInfo {
     this.singleStatusCert,
     this.priorMaritalProof,
     this.foreignDocs,
+    this.photo,
   });
 
   final String fullName;
@@ -170,6 +171,12 @@ class MarriageSpouseInfo {
   final PickedAttachment? priorMaritalProof;
   final PickedAttachment? foreignDocs;
 
+  /// Forms v2 — the per-spouse 3×4 photo. OPTIONAL: the slot
+  /// `spouses.spouse_{a,b}.photo` is emitted only when a file was picked, and
+  /// rides the existing `POST /applications/{id}/attachments` with
+  /// `kind=photo`. The booklet prints it.
+  final PickedAttachment? photo;
+
   /// `blankSpouse` — `:147-152`.
   static const MarriageSpouseInfo blank = MarriageSpouseInfo();
 
@@ -195,6 +202,8 @@ class MarriageSpouseInfo {
     bool clearPriorMaritalProof = false,
     PickedAttachment? foreignDocs,
     bool clearForeignDocs = false,
+    PickedAttachment? photo,
+    bool clearPhoto = false,
   }) =>
       MarriageSpouseInfo(
         fullName: fullName ?? this.fullName,
@@ -220,6 +229,7 @@ class MarriageSpouseInfo {
             : (priorMaritalProof ?? this.priorMaritalProof),
         foreignDocs:
             clearForeignDocs ? null : (foreignDocs ?? this.foreignDocs),
+        photo: clearPhoto ? null : (photo ?? this.photo),
       );
 }
 

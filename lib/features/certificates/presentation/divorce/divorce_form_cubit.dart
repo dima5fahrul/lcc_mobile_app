@@ -528,6 +528,17 @@ class DivorceFormCubit extends Cubit<DivorceFormViewState> {
   void setPhotos(PickedAttachment? f) => emit(state.copyWith(
       form: state.form.copyWith(photos: f, clearPhotos: f == null)));
 
+  /// Forms v2 — the per-spouse 3×4 photos (`spouses.{husband,wife}.photo`).
+  /// OPTIONAL state only: no validation, no canProceed dependency, and the
+  /// payload emits the slot only when a file was picked.
+  void setHusbandPhoto(PickedAttachment? f) => patchHusband(
+        (DivorceSpouseInfo s) => s.copyWith(photo: f, clearPhoto: f == null),
+      );
+
+  void setWifePhoto(PickedAttachment? f) => patchWife(
+        (DivorceSpouseInfo s) => s.copyWith(photo: f, clearPhoto: f == null),
+      );
+
   /// `:1041` — `onChange={(v) => { patchBasis({divorceType: v}); resetMediation(); }}`.
   ///
   /// **Both, in that order, on every change**, including a change to a code

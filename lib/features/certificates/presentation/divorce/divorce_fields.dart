@@ -27,7 +27,9 @@ import '../../../../presentation/icons/lucide_icon.dart';
 import '../../../../presentation/theme/app_colors.dart';
 import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
+import '../../../application/domain/entities/picked_attachment.dart';
 import '../certificate_forms/certificate_dated_field.dart';
+import '../certificate_forms/certificate_doc_upload.dart';
 import '../certificate_forms/certificate_field_label.dart';
 import '../certificate_forms/certificate_input_field.dart';
 import '../certificate_forms/certificate_location_fields.dart';
@@ -51,6 +53,7 @@ class DivorceSpouseSection extends StatelessWidget {
     required this.provinces,
     required this.cascade,
     required this.onAddressChanged,
+    required this.pickFile,
   });
 
   final DivorceSpouseInfo value;
@@ -61,6 +64,7 @@ class DivorceSpouseSection extends StatelessWidget {
   final CertificateLocationLevel provinces;
   final DivorceCascadeState cascade;
   final ValueChanged<CertificateLocationValue> onAddressChanged;
+  final CertificateFilePicker pickFile;
 
   @override
   Widget build(BuildContext context) {
@@ -178,6 +182,23 @@ class DivorceSpouseSection extends StatelessWidget {
               onChanged(value.copyWith(marriageCertRef: v)),
           required: true,
           serverError: serverErrors['spouses.marriage_certificate_ref'],
+        ),
+
+        // Forms v2 — the per-spouse 3×4 photo ("Photos (3×4)"). OPTIONAL: no
+        // `required`, no canProceed dependency — a form without it simply
+        // sends nothing for the slot. The section widget renders twice, so
+        // this one control covers `spouses.husband.photo` AND
+        // `spouses.wife.photo`.
+        const SizedBox(height: AppSpacing.gap12),
+        CertificateDocUpload(
+          label: 'forms.spousePhotoLabel'.tr(context: context),
+          file: value.photo,
+          onChanged: (PickedAttachment? f) => onChanged(
+            value.copyWith(photo: f, clearPhoto: f == null),
+          ),
+          uploadDocumentLabel: _t(context, 'uploadDocument'),
+          defaultHint: _t(context, 'uploadHint'),
+          pickFile: pickFile,
         ),
       ],
     );

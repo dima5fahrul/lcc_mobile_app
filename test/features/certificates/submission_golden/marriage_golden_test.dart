@@ -54,8 +54,17 @@ MarriageFormData filledMarriageForm() {
     readMarriageJson('$kMarriageFixtureDir/asymmetric.en.json'),
   );
   return f.copyWith(
-    spouseA: f.spouseA.copyWith(singleStatusCert: _file('a-single.pdf', 10)),
-    spouseB: f.spouseB.copyWith(singleStatusCert: _file('b-single.pdf', 11)),
+    spouseA: f.spouseA.copyWith(
+      singleStatusCert: _file('a-single.pdf', 10),
+      // Forms v2 — the per-spouse 3×4 photos ("Photos (3×4)"): recorded so the
+      // golden proves they reach the wire through the real cubit path, into
+      // `spouses.spouse_a.photo` / `spouses.spouse_b.photo` with kind=photo.
+      photo: _file('a-3x4.jpg', 14),
+    ),
+    spouseB: f.spouseB.copyWith(
+      singleStatusCert: _file('b-single.pdf', 11),
+      photo: _file('b-3x4.jpg', 15),
+    ),
     householdBook: _file('book.pdf', 12),
     photos: _file('photo.jpg', 13),
   );
@@ -132,7 +141,11 @@ void main() {
     drive: _driveMarriage,
     expectedSequence: <String>[
       'POST /applications',
-      // ATTACH BEFORE UPDATE — the nested family's order.
+      // ATTACH BEFORE UPDATE — the nested family's order. SIX uploads since
+      // forms v2's task 9: the four fixture files plus the two per-spouse
+      // 3×4 photos.
+      'POST /applications/case-1/attachments',
+      'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',
       'POST /applications/case-1/attachments',
@@ -156,7 +169,8 @@ void main() {
     final List<WireEntry> uploads = log.entries
         .where((WireEntry e) => e.parts != null)
         .toList(growable: false);
-    expect(uploads, hasLength(4));
+    expect(uploads, hasLength(6),
+        reason: 'the four source files plus the two forms-v2 spouse photos');
     for (final WireEntry e in uploads) {
       expect(
         e.parts!.where((String p) => p.startsWith('field:label=')),

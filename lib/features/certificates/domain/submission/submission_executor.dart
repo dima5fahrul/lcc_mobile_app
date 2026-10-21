@@ -333,9 +333,10 @@ class SubmissionExecutor {
           if (draft != null) continue;
           final ApplicationDetail created = await _orThrow(
             step,
-            () => createCase(_checked(plan.createEnvelope, createEnvelope(
-              createPayload!,
-            ))),
+            () => createCase(_checked(
+              plan.createEnvelope,
+              createEnvelope(_withoutOfficeUse(createPayload!)),
+            )),
           );
           draft = SubmissionDraft(
             id: created.row.id,
@@ -356,8 +357,12 @@ class SubmissionExecutor {
               d.id,
               _checked(
                 plan.updateEnvelope,
-                updateEnvelope(_bind(binding, createPayload, d.referenceNo,
-                    buildFormData)),
+                updateEnvelope(_withoutOfficeUse(_bind(
+                  binding,
+                  createPayload,
+                  d.referenceNo,
+                  buildFormData,
+                ))),
               ),
             ),
           );
@@ -477,6 +482,34 @@ class SubmissionExecutor {
       case NestedParameterReference():
         return buildFormData(reference);
     }
+  }
+
+  /// The officer-only section, dropped where it is serialised.
+  ///
+  /// `MOBILE-API-E-CERTIFICATES.md` ("Officer-only fields"): the
+  /// `office_use` section — a birth's family book, ICD-10 and manner of
+  /// death — is set by officers only, and the server drops any key a citizen
+  /// sends inside it, so the app neither renders nor sends it. The five
+  /// payload builders never emit one, but a guard costs nothing where the
+  /// envelope is finalised and guarantees the checklist's *"never send
+  /// `office_use`"* holds even if a builder later grows one by accident.
+  ///
+  /// Both spellings a dotted `form_data` can carry are stripped:
+  /// the flat leaf (`office_use.family_book`) and the nested section
+  /// (`office_use: {icd10: …}`). Everything else — keys, values and their
+  /// **insertion order** — survives untouched, because the wire bytes are
+  /// `JSON.stringify`'s input order. When nothing matches the **caller's own
+  /// map is returned unchanged** — the flat family re-spreads
+  /// `createPayload` into the update, so a mutating copy would eat keys out
+  /// from under the page.
+  Map<String, Object?> _withoutOfficeUse(Map<String, Object?> formData) {
+    bool isOfficeUse(String key) =>
+        key == 'office_use' || key.startsWith('office_use.');
+    if (!formData.keys.any(isOfficeUse)) return formData;
+    return <String, Object?>{
+      for (final MapEntry<String, Object?> e in formData.entries)
+        if (!isOfficeUse(e.key)) e.key: e.value,
+    };
   }
 
   /// Debug-only double entry between the page's transcribed envelope and the

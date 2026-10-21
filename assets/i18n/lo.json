@@ -1338,6 +1338,10 @@
     "custodyWith_husband": "ຝ່າຍຜັວ",
     "custodyWith_wife": "ຝ່າຍຍິງ",
     "custodyWith_shared": "ຮ່ວມກັນ",
-    "custodyWith_not-applicable": "ບໍ່ກ່ຽວຂ້ອງ"
+    "custodyWith_not-applicable": "ບໍ່ກ່ຽວຂ້ອງ",
+    "spousePhotoLabel": "ຮູບຖ່າຍ (3×4)"
+  },
+  "verify": {
+    "integrityFailed": "ກວດສອບຄວາມຖືກຕ້ອງຂອງໄຟລ໌ບໍ່ສຳເລັດ"
   }
 }

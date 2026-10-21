@@ -246,8 +246,8 @@ class MarriageAttachment {
 
   final PickedAttachment file;
 
-  /// The schema key. **Three of Marriage's six slots appear twice** — see
-  /// [marriageUploads].
+  /// The schema key. **Three of Marriage's six source slots appear twice** —
+  /// see [marriageUploads].
   final String slot;
 
   /// `"document"` or `"photo"`. Only `supporting.photos_3x4` is a photo.
@@ -259,7 +259,10 @@ class MarriageAttachment {
   final String label;
 }
 
-/// `:938-949` — `uploads()`. **NINE entries over SIX distinct slots.**
+/// `:938-949` — `uploads()`. **NINE entries over SIX distinct slots** in the
+/// source, plus forms v2's two optional per-spouse photo slots appended after
+/// them — so up to **ELEVEN entries over EIGHT distinct slots**, and a form
+/// that picks none of the new photos still sends exactly the source's nine.
 ///
 /// | slot | entries |
 /// | --- | --- |
@@ -269,9 +272,12 @@ class MarriageAttachment {
 /// | `supporting.household_book` | 1 |
 /// | `supporting.photos_3x4` | 1 |
 /// | `supporting.birth_record` | 1 |
+/// | `spouses.spouse_a.photo` | 0–1 (forms v2, OPTIONAL) |
+/// | `spouses.spouse_b.photo` | 0–1 (forms v2, OPTIONAL) |
 ///
 /// `fsd.md` § 5.4 says "7 distinct slots"; counted at `:940-948` it is **6**
-/// (`FU-6`).
+/// (`FU-6`). The photo slots come from
+/// `MOBILE-API-E-CERTIFICATES.md` ("Photos (3×4)"), not the source page.
 ///
 /// ## No dedupe, and that is the wire contract
 ///
@@ -323,6 +329,15 @@ List<MarriageAttachment> marriageUploads(MarriageFormData form) {
   add(form.photos, 'supporting.photos_3x4', 'photo', '3x4 photographs');
   add(form.birthRecord, 'supporting.birth_record', 'document',
       'Children birth record');
+
+  // Forms v2 — the per-spouse 3×4 photos ("Photos (3×4)"): uploaded into
+  // `spouses.spouse_a.photo` / `spouses.spouse_b.photo` with `kind=photo`
+  // through the same attachments endpoint. OPTIONAL — a null file drops the
+  // entry entirely (`:949`'s `.filter`), so a form without them sends
+  // nothing new and every fixture recorded before task 9 is byte-identical.
+  // They ride AFTER the six source slots so no pre-existing POST order moves.
+  add(form.spouseA.photo, 'spouses.spouse_a.photo', 'photo', 'Spouse A');
+  add(form.spouseB.photo, 'spouses.spouse_b.photo', 'photo', 'Spouse B');
 
   return out;
 }

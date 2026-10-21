@@ -1338,6 +1338,10 @@
     "custodyWith_husband": "The husband",
     "custodyWith_wife": "The wife",
     "custodyWith_shared": "Shared",
-    "custodyWith_not-applicable": "Not applicable"
+    "custodyWith_not-applicable": "Not applicable",
+    "spousePhotoLabel": "Photo (3×4)"
+  },
+  "verify": {
+    "integrityFailed": "Integrity check failed"
   }
 }

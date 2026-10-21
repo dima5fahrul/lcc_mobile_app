@@ -199,6 +199,7 @@ class _Wizard extends StatelessWidget {
             cascade: state.cascade(DivorceCascade.husband),
             onAddressChanged: (v) => cubit
                 .patchHusband((DivorceSpouseInfo s) => s.copyWith(address: v)),
+            pickFile: pickFile,
           ),
         );
       case 3:
@@ -213,6 +214,7 @@ class _Wizard extends StatelessWidget {
             cascade: state.cascade(DivorceCascade.wife),
             onAddressChanged: (v) => cubit
                 .patchWife((DivorceSpouseInfo s) => s.copyWith(address: v)),
+            pickFile: pickFile,
           ),
         );
       case 4:
