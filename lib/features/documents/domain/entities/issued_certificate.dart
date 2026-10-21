@@ -35,6 +35,7 @@ library;
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../session/domain/entities/bilingual.dart';
+import 'certificate_file.dart';
 
 part 'issued_certificate.freezed.dart';
 
@@ -92,6 +93,54 @@ abstract class IssuedCertificate with _$IssuedCertificate {
     /// `application_row.dart` wrote its rule against — and the conflict is
     /// reported rather than resolved by renaming the field to dodge a grep.
     String? documentHash,
+
+    // ---- The v2 keys of MOBILE-API-E-CERTIFICATES.md (§ Certificate model,
+    // list item in § Citizen endpoints), each defaulted to its empty shape so
+    // the legacy rows — which send none of them — keep parsing unchanged.
+    // `service` (the bilingual object) is mapped onto [serviceName]
+    // new-first, `service_name` falling back; see `certificate_wire.dart`.
+
+    /// Which copy of a multi-document issue this row is — `"A"`/`"B"` on the
+    /// divorce booklet rows, `""` on every single-document row. Kept a plain
+    /// `String` for the same reason `status` is: the set belongs to the
+    /// server's document-type table, not to this entity.
+    @Default('') String copy,
+
+    /// The layouts this row's type produces (`card`, `booklet`). The spec's
+    /// table grows by row, so an enum would fail rows it was never told
+    /// about — see `certificate_file.dart` § `layout`.
+    @Default(<String>[]) List<String> layouts,
+
+    /// One per-layout PDF. **The download currency** — the legacy `fileUrl`
+    /// above stays parsed but the spec says "Use `files[]`, not the legacy
+    /// `file_url` field". [hasStoredFile] and [fileForLayout] are the two
+    /// gates the download task reads through.
+    @Default(<CertificateFile>[]) List<CertificateFile> files,
+
+    /// Every person the certificate names — both spouses on a marriage row,
+    /// where the singular [holderName] cannot carry both.
+    @Default(<String>[]) List<String> holders,
+
+    /// The validity horizon (`valid_until`), empty-string-on-the-wire meaning
+    /// absent for legacy rows — hence nullable, with the mapper collapsing
+    /// `''` to null so callers test one absence, not two.
+    String? validUntil,
+
+    /// `valid` — the server's own current-validity verdict, which is not the
+    /// same question as [status]: `issued` implies it, but `expired` (a
+    /// public-verification-only status) and revoked rows answer differently.
+    /// Nullable because absent (`valid_until` empty, legacy rows) means
+    /// unknown, which `false` would misreport.
+    bool? valid,
+
+    /// The PDF's language — `lo` bilingual Lao/English, `en` English only.
+    /// A plain `String`, not an enum, per the `status` rule above.
+    String? language,
+
+    /// `reissued_from` — the row this one replaced, set on the *new* row of a
+    /// reissue chain. A link, parsed like [applicationId]: carried because
+    /// every wire field is parsed, rendered by no call site yet.
+    String? reissuedFrom,
   }) = _IssuedCertificate;
 
   const IssuedCertificate._();
@@ -103,4 +152,20 @@ abstract class IssuedCertificate with _$IssuedCertificate {
 
   /// `certificate?.qr_payload &&` — `:482`, and `payload &&` at `:164`.
   bool get hasQrPayload => qrPayload != null && qrPayload!.isNotEmpty;
+
+  /// Whether the server stored a PDF for this row at all. Legacy rows send no
+  /// `files[]` and the download endpoint answers 404 for them — the gate the
+  /// download task checks **before** offering the button.
+  bool get hasStoredFile => files.isNotEmpty;
+
+  /// The file for one layout — the `?layout=` choice the download endpoint
+  /// takes. Null when this row has no such layout (legacy rows send nothing;
+  /// a `card`-only row has no `booklet`), which callers must treat as "no
+  /// document", not as a crash.
+  CertificateFile? fileForLayout(String layout) {
+    for (final CertificateFile file in files) {
+      if (file.layout == layout) return file;
+    }
+    return null;
+  }
 }

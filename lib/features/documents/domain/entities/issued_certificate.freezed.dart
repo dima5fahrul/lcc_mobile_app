@@ -41,7 +41,38 @@ mixin _$IssuedCertificate {
 /// an entity that silently drops a wire field is the defect
 /// `application_row.dart` wrote its rule against — and the conflict is
 /// reported rather than resolved by renaming the field to dodge a grep.
- String? get documentHash;
+ String? get documentHash;// ---- The v2 keys of MOBILE-API-E-CERTIFICATES.md (§ Certificate model,
+// list item in § Citizen endpoints), each defaulted to its empty shape so
+// the legacy rows — which send none of them — keep parsing unchanged.
+// `service` (the bilingual object) is mapped onto [serviceName]
+// new-first, `service_name` falling back; see `certificate_wire.dart`.
+/// Which copy of a multi-document issue this row is — `"A"`/`"B"` on the
+/// divorce booklet rows, `""` on every single-document row. Kept a plain
+/// `String` for the same reason `status` is: the set belongs to the
+/// server's document-type table, not to this entity.
+ String get copy;/// The layouts this row's type produces (`card`, `booklet`). The spec's
+/// table grows by row, so an enum would fail rows it was never told
+/// about — see `certificate_file.dart` § `layout`.
+ List<String> get layouts;/// One per-layout PDF. **The download currency** — the legacy `fileUrl`
+/// above stays parsed but the spec says "Use `files[]`, not the legacy
+/// `file_url` field". [hasStoredFile] and [fileForLayout] are the two
+/// gates the download task reads through.
+ List<CertificateFile> get files;/// Every person the certificate names — both spouses on a marriage row,
+/// where the singular [holderName] cannot carry both.
+ List<String> get holders;/// The validity horizon (`valid_until`), empty-string-on-the-wire meaning
+/// absent for legacy rows — hence nullable, with the mapper collapsing
+/// `''` to null so callers test one absence, not two.
+ String? get validUntil;/// `valid` — the server's own current-validity verdict, which is not the
+/// same question as [status]: `issued` implies it, but `expired` (a
+/// public-verification-only status) and revoked rows answer differently.
+/// Nullable because absent (`valid_until` empty, legacy rows) means
+/// unknown, which `false` would misreport.
+ bool? get valid;/// The PDF's language — `lo` bilingual Lao/English, `en` English only.
+/// A plain `String`, not an enum, per the `status` rule above.
+ String? get language;/// `reissued_from` — the row this one replaced, set on the *new* row of a
+/// reissue chain. A link, parsed like [applicationId]: carried because
+/// every wire field is parsed, rendered by no call site yet.
+ String? get reissuedFrom;
 /// Create a copy of IssuedCertificate
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -52,16 +83,16 @@ $IssuedCertificateCopyWith<IssuedCertificate> get copyWith => _$IssuedCertificat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is IssuedCertificate&&(identical(other.id, id) || other.id == id)&&(identical(other.certificateNo, certificateNo) || other.certificateNo == certificateNo)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.referenceNo, referenceNo) || other.referenceNo == referenceNo)&&(identical(other.serviceCode, serviceCode) || other.serviceCode == serviceCode)&&(identical(other.serviceName, serviceName) || other.serviceName == serviceName)&&(identical(other.holderName, holderName) || other.holderName == holderName)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.issuedByName, issuedByName) || other.issuedByName == issuedByName)&&(identical(other.status, status) || other.status == status)&&(identical(other.verifyCode, verifyCode) || other.verifyCode == verifyCode)&&(identical(other.verifyUrl, verifyUrl) || other.verifyUrl == verifyUrl)&&(identical(other.qrPayload, qrPayload) || other.qrPayload == qrPayload)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.documentHash, documentHash) || other.documentHash == documentHash));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is IssuedCertificate&&(identical(other.id, id) || other.id == id)&&(identical(other.certificateNo, certificateNo) || other.certificateNo == certificateNo)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.referenceNo, referenceNo) || other.referenceNo == referenceNo)&&(identical(other.serviceCode, serviceCode) || other.serviceCode == serviceCode)&&(identical(other.serviceName, serviceName) || other.serviceName == serviceName)&&(identical(other.holderName, holderName) || other.holderName == holderName)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.issuedByName, issuedByName) || other.issuedByName == issuedByName)&&(identical(other.status, status) || other.status == status)&&(identical(other.verifyCode, verifyCode) || other.verifyCode == verifyCode)&&(identical(other.verifyUrl, verifyUrl) || other.verifyUrl == verifyUrl)&&(identical(other.qrPayload, qrPayload) || other.qrPayload == qrPayload)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.documentHash, documentHash) || other.documentHash == documentHash)&&(identical(other.copy, copy) || other.copy == copy)&&const DeepCollectionEquality().equals(other.layouts, layouts)&&const DeepCollectionEquality().equals(other.files, files)&&const DeepCollectionEquality().equals(other.holders, holders)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.valid, valid) || other.valid == valid)&&(identical(other.language, language) || other.language == language)&&(identical(other.reissuedFrom, reissuedFrom) || other.reissuedFrom == reissuedFrom));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,certificateNo,applicationId,referenceNo,serviceCode,serviceName,holderName,uin,issuedAt,issuedByName,status,verifyCode,verifyUrl,qrPayload,fileUrl,documentHash);
+int get hashCode => Object.hashAll([runtimeType,id,certificateNo,applicationId,referenceNo,serviceCode,serviceName,holderName,uin,issuedAt,issuedByName,status,verifyCode,verifyUrl,qrPayload,fileUrl,documentHash,copy,const DeepCollectionEquality().hash(layouts),const DeepCollectionEquality().hash(files),const DeepCollectionEquality().hash(holders),validUntil,valid,language,reissuedFrom]);
 
 @override
 String toString() {
-  return 'IssuedCertificate(id: $id, certificateNo: $certificateNo, applicationId: $applicationId, referenceNo: $referenceNo, serviceCode: $serviceCode, serviceName: $serviceName, holderName: $holderName, uin: $uin, issuedAt: $issuedAt, issuedByName: $issuedByName, status: $status, verifyCode: $verifyCode, verifyUrl: $verifyUrl, qrPayload: $qrPayload, fileUrl: $fileUrl, documentHash: $documentHash)';
+  return 'IssuedCertificate(id: $id, certificateNo: $certificateNo, applicationId: $applicationId, referenceNo: $referenceNo, serviceCode: $serviceCode, serviceName: $serviceName, holderName: $holderName, uin: $uin, issuedAt: $issuedAt, issuedByName: $issuedByName, status: $status, verifyCode: $verifyCode, verifyUrl: $verifyUrl, qrPayload: $qrPayload, fileUrl: $fileUrl, documentHash: $documentHash, copy: $copy, layouts: $layouts, files: $files, holders: $holders, validUntil: $validUntil, valid: $valid, language: $language, reissuedFrom: $reissuedFrom)';
 }
 
 
@@ -72,7 +103,7 @@ abstract mixin class $IssuedCertificateCopyWith<$Res>  {
   factory $IssuedCertificateCopyWith(IssuedCertificate value, $Res Function(IssuedCertificate) _then) = _$IssuedCertificateCopyWithImpl;
 @useResult
 $Res call({
- String id, String certificateNo, String? applicationId, String? referenceNo, String serviceCode, Bilingual? serviceName, String holderName, String? uin, String issuedAt, String? issuedByName, String status, String verifyCode, String? verifyUrl, String? qrPayload, String? fileUrl, String? documentHash
+ String id, String certificateNo, String? applicationId, String? referenceNo, String serviceCode, Bilingual? serviceName, String holderName, String? uin, String issuedAt, String? issuedByName, String status, String verifyCode, String? verifyUrl, String? qrPayload, String? fileUrl, String? documentHash, String copy, List<String> layouts, List<CertificateFile> files, List<String> holders, String? validUntil, bool? valid, String? language, String? reissuedFrom
 });
 
 
@@ -89,7 +120,7 @@ class _$IssuedCertificateCopyWithImpl<$Res>
 
 /// Create a copy of IssuedCertificate
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? certificateNo = null,Object? applicationId = freezed,Object? referenceNo = freezed,Object? serviceCode = null,Object? serviceName = freezed,Object? holderName = null,Object? uin = freezed,Object? issuedAt = null,Object? issuedByName = freezed,Object? status = null,Object? verifyCode = null,Object? verifyUrl = freezed,Object? qrPayload = freezed,Object? fileUrl = freezed,Object? documentHash = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? certificateNo = null,Object? applicationId = freezed,Object? referenceNo = freezed,Object? serviceCode = null,Object? serviceName = freezed,Object? holderName = null,Object? uin = freezed,Object? issuedAt = null,Object? issuedByName = freezed,Object? status = null,Object? verifyCode = null,Object? verifyUrl = freezed,Object? qrPayload = freezed,Object? fileUrl = freezed,Object? documentHash = freezed,Object? copy = null,Object? layouts = null,Object? files = null,Object? holders = null,Object? validUntil = freezed,Object? valid = freezed,Object? language = freezed,Object? reissuedFrom = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,certificateNo: null == certificateNo ? _self.certificateNo : certificateNo // ignore: cast_nullable_to_non_nullable
@@ -107,6 +138,14 @@ as String,verifyUrl: freezed == verifyUrl ? _self.verifyUrl : verifyUrl // ignor
 as String?,qrPayload: freezed == qrPayload ? _self.qrPayload : qrPayload // ignore: cast_nullable_to_non_nullable
 as String?,fileUrl: freezed == fileUrl ? _self.fileUrl : fileUrl // ignore: cast_nullable_to_non_nullable
 as String?,documentHash: freezed == documentHash ? _self.documentHash : documentHash // ignore: cast_nullable_to_non_nullable
+as String?,copy: null == copy ? _self.copy : copy // ignore: cast_nullable_to_non_nullable
+as String,layouts: null == layouts ? _self.layouts : layouts // ignore: cast_nullable_to_non_nullable
+as List<String>,files: null == files ? _self.files : files // ignore: cast_nullable_to_non_nullable
+as List<CertificateFile>,holders: null == holders ? _self.holders : holders // ignore: cast_nullable_to_non_nullable
+as List<String>,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
+as String?,valid: freezed == valid ? _self.valid : valid // ignore: cast_nullable_to_non_nullable
+as bool?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
+as String?,reissuedFrom: freezed == reissuedFrom ? _self.reissuedFrom : reissuedFrom // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }
@@ -204,10 +243,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash,  String copy,  List<String> layouts,  List<CertificateFile> files,  List<String> holders,  String? validUntil,  bool? valid,  String? language,  String? reissuedFrom)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _IssuedCertificate() when $default != null:
-return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash);case _:
+return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash,_that.copy,_that.layouts,_that.files,_that.holders,_that.validUntil,_that.valid,_that.language,_that.reissuedFrom);case _:
   return orElse();
 
 }
@@ -225,10 +264,10 @@ return $default(_that.id,_that.certificateNo,_that.applicationId,_that.reference
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash,  String copy,  List<String> layouts,  List<CertificateFile> files,  List<String> holders,  String? validUntil,  bool? valid,  String? language,  String? reissuedFrom)  $default,) {final _that = this;
 switch (_that) {
 case _IssuedCertificate():
-return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash);case _:
+return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash,_that.copy,_that.layouts,_that.files,_that.holders,_that.validUntil,_that.valid,_that.language,_that.reissuedFrom);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -245,10 +284,10 @@ return $default(_that.id,_that.certificateNo,_that.applicationId,_that.reference
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String certificateNo,  String? applicationId,  String? referenceNo,  String serviceCode,  Bilingual? serviceName,  String holderName,  String? uin,  String issuedAt,  String? issuedByName,  String status,  String verifyCode,  String? verifyUrl,  String? qrPayload,  String? fileUrl,  String? documentHash,  String copy,  List<String> layouts,  List<CertificateFile> files,  List<String> holders,  String? validUntil,  bool? valid,  String? language,  String? reissuedFrom)?  $default,) {final _that = this;
 switch (_that) {
 case _IssuedCertificate() when $default != null:
-return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash);case _:
+return $default(_that.id,_that.certificateNo,_that.applicationId,_that.referenceNo,_that.serviceCode,_that.serviceName,_that.holderName,_that.uin,_that.issuedAt,_that.issuedByName,_that.status,_that.verifyCode,_that.verifyUrl,_that.qrPayload,_that.fileUrl,_that.documentHash,_that.copy,_that.layouts,_that.files,_that.holders,_that.validUntil,_that.valid,_that.language,_that.reissuedFrom);case _:
   return null;
 
 }
@@ -260,7 +299,7 @@ return $default(_that.id,_that.certificateNo,_that.applicationId,_that.reference
 
 
 class _IssuedCertificate extends IssuedCertificate {
-  const _IssuedCertificate({required this.id, required this.certificateNo, this.applicationId, this.referenceNo, required this.serviceCode, this.serviceName, required this.holderName, this.uin, required this.issuedAt, this.issuedByName, required this.status, required this.verifyCode, this.verifyUrl, this.qrPayload, this.fileUrl, this.documentHash}): super._();
+  const _IssuedCertificate({required this.id, required this.certificateNo, this.applicationId, this.referenceNo, required this.serviceCode, this.serviceName, required this.holderName, this.uin, required this.issuedAt, this.issuedByName, required this.status, required this.verifyCode, this.verifyUrl, this.qrPayload, this.fileUrl, this.documentHash, this.copy = '', final  List<String> layouts = const <String>[], final  List<CertificateFile> files = const <CertificateFile>[], final  List<String> holders = const <String>[], this.validUntil, this.valid, this.language, this.reissuedFrom}): _layouts = layouts,_files = files,_holders = holders,super._();
   
 
 @override final  String id;
@@ -306,6 +345,72 @@ class _IssuedCertificate extends IssuedCertificate {
 /// `application_row.dart` wrote its rule against — and the conflict is
 /// reported rather than resolved by renaming the field to dodge a grep.
 @override final  String? documentHash;
+// ---- The v2 keys of MOBILE-API-E-CERTIFICATES.md (§ Certificate model,
+// list item in § Citizen endpoints), each defaulted to its empty shape so
+// the legacy rows — which send none of them — keep parsing unchanged.
+// `service` (the bilingual object) is mapped onto [serviceName]
+// new-first, `service_name` falling back; see `certificate_wire.dart`.
+/// Which copy of a multi-document issue this row is — `"A"`/`"B"` on the
+/// divorce booklet rows, `""` on every single-document row. Kept a plain
+/// `String` for the same reason `status` is: the set belongs to the
+/// server's document-type table, not to this entity.
+@override@JsonKey() final  String copy;
+/// The layouts this row's type produces (`card`, `booklet`). The spec's
+/// table grows by row, so an enum would fail rows it was never told
+/// about — see `certificate_file.dart` § `layout`.
+ final  List<String> _layouts;
+/// The layouts this row's type produces (`card`, `booklet`). The spec's
+/// table grows by row, so an enum would fail rows it was never told
+/// about — see `certificate_file.dart` § `layout`.
+@override@JsonKey() List<String> get layouts {
+  if (_layouts is EqualUnmodifiableListView) return _layouts;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_layouts);
+}
+
+/// One per-layout PDF. **The download currency** — the legacy `fileUrl`
+/// above stays parsed but the spec says "Use `files[]`, not the legacy
+/// `file_url` field". [hasStoredFile] and [fileForLayout] are the two
+/// gates the download task reads through.
+ final  List<CertificateFile> _files;
+/// One per-layout PDF. **The download currency** — the legacy `fileUrl`
+/// above stays parsed but the spec says "Use `files[]`, not the legacy
+/// `file_url` field". [hasStoredFile] and [fileForLayout] are the two
+/// gates the download task reads through.
+@override@JsonKey() List<CertificateFile> get files {
+  if (_files is EqualUnmodifiableListView) return _files;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_files);
+}
+
+/// Every person the certificate names — both spouses on a marriage row,
+/// where the singular [holderName] cannot carry both.
+ final  List<String> _holders;
+/// Every person the certificate names — both spouses on a marriage row,
+/// where the singular [holderName] cannot carry both.
+@override@JsonKey() List<String> get holders {
+  if (_holders is EqualUnmodifiableListView) return _holders;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_holders);
+}
+
+/// The validity horizon (`valid_until`), empty-string-on-the-wire meaning
+/// absent for legacy rows — hence nullable, with the mapper collapsing
+/// `''` to null so callers test one absence, not two.
+@override final  String? validUntil;
+/// `valid` — the server's own current-validity verdict, which is not the
+/// same question as [status]: `issued` implies it, but `expired` (a
+/// public-verification-only status) and revoked rows answer differently.
+/// Nullable because absent (`valid_until` empty, legacy rows) means
+/// unknown, which `false` would misreport.
+@override final  bool? valid;
+/// The PDF's language — `lo` bilingual Lao/English, `en` English only.
+/// A plain `String`, not an enum, per the `status` rule above.
+@override final  String? language;
+/// `reissued_from` — the row this one replaced, set on the *new* row of a
+/// reissue chain. A link, parsed like [applicationId]: carried because
+/// every wire field is parsed, rendered by no call site yet.
+@override final  String? reissuedFrom;
 
 /// Create a copy of IssuedCertificate
 /// with the given fields replaced by the non-null parameter values.
@@ -317,16 +422,16 @@ _$IssuedCertificateCopyWith<_IssuedCertificate> get copyWith => __$IssuedCertifi
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IssuedCertificate&&(identical(other.id, id) || other.id == id)&&(identical(other.certificateNo, certificateNo) || other.certificateNo == certificateNo)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.referenceNo, referenceNo) || other.referenceNo == referenceNo)&&(identical(other.serviceCode, serviceCode) || other.serviceCode == serviceCode)&&(identical(other.serviceName, serviceName) || other.serviceName == serviceName)&&(identical(other.holderName, holderName) || other.holderName == holderName)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.issuedByName, issuedByName) || other.issuedByName == issuedByName)&&(identical(other.status, status) || other.status == status)&&(identical(other.verifyCode, verifyCode) || other.verifyCode == verifyCode)&&(identical(other.verifyUrl, verifyUrl) || other.verifyUrl == verifyUrl)&&(identical(other.qrPayload, qrPayload) || other.qrPayload == qrPayload)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.documentHash, documentHash) || other.documentHash == documentHash));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _IssuedCertificate&&(identical(other.id, id) || other.id == id)&&(identical(other.certificateNo, certificateNo) || other.certificateNo == certificateNo)&&(identical(other.applicationId, applicationId) || other.applicationId == applicationId)&&(identical(other.referenceNo, referenceNo) || other.referenceNo == referenceNo)&&(identical(other.serviceCode, serviceCode) || other.serviceCode == serviceCode)&&(identical(other.serviceName, serviceName) || other.serviceName == serviceName)&&(identical(other.holderName, holderName) || other.holderName == holderName)&&(identical(other.uin, uin) || other.uin == uin)&&(identical(other.issuedAt, issuedAt) || other.issuedAt == issuedAt)&&(identical(other.issuedByName, issuedByName) || other.issuedByName == issuedByName)&&(identical(other.status, status) || other.status == status)&&(identical(other.verifyCode, verifyCode) || other.verifyCode == verifyCode)&&(identical(other.verifyUrl, verifyUrl) || other.verifyUrl == verifyUrl)&&(identical(other.qrPayload, qrPayload) || other.qrPayload == qrPayload)&&(identical(other.fileUrl, fileUrl) || other.fileUrl == fileUrl)&&(identical(other.documentHash, documentHash) || other.documentHash == documentHash)&&(identical(other.copy, copy) || other.copy == copy)&&const DeepCollectionEquality().equals(other._layouts, _layouts)&&const DeepCollectionEquality().equals(other._files, _files)&&const DeepCollectionEquality().equals(other._holders, _holders)&&(identical(other.validUntil, validUntil) || other.validUntil == validUntil)&&(identical(other.valid, valid) || other.valid == valid)&&(identical(other.language, language) || other.language == language)&&(identical(other.reissuedFrom, reissuedFrom) || other.reissuedFrom == reissuedFrom));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,certificateNo,applicationId,referenceNo,serviceCode,serviceName,holderName,uin,issuedAt,issuedByName,status,verifyCode,verifyUrl,qrPayload,fileUrl,documentHash);
+int get hashCode => Object.hashAll([runtimeType,id,certificateNo,applicationId,referenceNo,serviceCode,serviceName,holderName,uin,issuedAt,issuedByName,status,verifyCode,verifyUrl,qrPayload,fileUrl,documentHash,copy,const DeepCollectionEquality().hash(_layouts),const DeepCollectionEquality().hash(_files),const DeepCollectionEquality().hash(_holders),validUntil,valid,language,reissuedFrom]);
 
 @override
 String toString() {
-  return 'IssuedCertificate(id: $id, certificateNo: $certificateNo, applicationId: $applicationId, referenceNo: $referenceNo, serviceCode: $serviceCode, serviceName: $serviceName, holderName: $holderName, uin: $uin, issuedAt: $issuedAt, issuedByName: $issuedByName, status: $status, verifyCode: $verifyCode, verifyUrl: $verifyUrl, qrPayload: $qrPayload, fileUrl: $fileUrl, documentHash: $documentHash)';
+  return 'IssuedCertificate(id: $id, certificateNo: $certificateNo, applicationId: $applicationId, referenceNo: $referenceNo, serviceCode: $serviceCode, serviceName: $serviceName, holderName: $holderName, uin: $uin, issuedAt: $issuedAt, issuedByName: $issuedByName, status: $status, verifyCode: $verifyCode, verifyUrl: $verifyUrl, qrPayload: $qrPayload, fileUrl: $fileUrl, documentHash: $documentHash, copy: $copy, layouts: $layouts, files: $files, holders: $holders, validUntil: $validUntil, valid: $valid, language: $language, reissuedFrom: $reissuedFrom)';
 }
 
 
@@ -337,7 +442,7 @@ abstract mixin class _$IssuedCertificateCopyWith<$Res> implements $IssuedCertifi
   factory _$IssuedCertificateCopyWith(_IssuedCertificate value, $Res Function(_IssuedCertificate) _then) = __$IssuedCertificateCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String certificateNo, String? applicationId, String? referenceNo, String serviceCode, Bilingual? serviceName, String holderName, String? uin, String issuedAt, String? issuedByName, String status, String verifyCode, String? verifyUrl, String? qrPayload, String? fileUrl, String? documentHash
+ String id, String certificateNo, String? applicationId, String? referenceNo, String serviceCode, Bilingual? serviceName, String holderName, String? uin, String issuedAt, String? issuedByName, String status, String verifyCode, String? verifyUrl, String? qrPayload, String? fileUrl, String? documentHash, String copy, List<String> layouts, List<CertificateFile> files, List<String> holders, String? validUntil, bool? valid, String? language, String? reissuedFrom
 });
 
 
@@ -354,7 +459,7 @@ class __$IssuedCertificateCopyWithImpl<$Res>
 
 /// Create a copy of IssuedCertificate
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? certificateNo = null,Object? applicationId = freezed,Object? referenceNo = freezed,Object? serviceCode = null,Object? serviceName = freezed,Object? holderName = null,Object? uin = freezed,Object? issuedAt = null,Object? issuedByName = freezed,Object? status = null,Object? verifyCode = null,Object? verifyUrl = freezed,Object? qrPayload = freezed,Object? fileUrl = freezed,Object? documentHash = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? certificateNo = null,Object? applicationId = freezed,Object? referenceNo = freezed,Object? serviceCode = null,Object? serviceName = freezed,Object? holderName = null,Object? uin = freezed,Object? issuedAt = null,Object? issuedByName = freezed,Object? status = null,Object? verifyCode = null,Object? verifyUrl = freezed,Object? qrPayload = freezed,Object? fileUrl = freezed,Object? documentHash = freezed,Object? copy = null,Object? layouts = null,Object? files = null,Object? holders = null,Object? validUntil = freezed,Object? valid = freezed,Object? language = freezed,Object? reissuedFrom = freezed,}) {
   return _then(_IssuedCertificate(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,certificateNo: null == certificateNo ? _self.certificateNo : certificateNo // ignore: cast_nullable_to_non_nullable
@@ -372,6 +477,14 @@ as String,verifyUrl: freezed == verifyUrl ? _self.verifyUrl : verifyUrl // ignor
 as String?,qrPayload: freezed == qrPayload ? _self.qrPayload : qrPayload // ignore: cast_nullable_to_non_nullable
 as String?,fileUrl: freezed == fileUrl ? _self.fileUrl : fileUrl // ignore: cast_nullable_to_non_nullable
 as String?,documentHash: freezed == documentHash ? _self.documentHash : documentHash // ignore: cast_nullable_to_non_nullable
+as String?,copy: null == copy ? _self.copy : copy // ignore: cast_nullable_to_non_nullable
+as String,layouts: null == layouts ? _self._layouts : layouts // ignore: cast_nullable_to_non_nullable
+as List<String>,files: null == files ? _self._files : files // ignore: cast_nullable_to_non_nullable
+as List<CertificateFile>,holders: null == holders ? _self._holders : holders // ignore: cast_nullable_to_non_nullable
+as List<String>,validUntil: freezed == validUntil ? _self.validUntil : validUntil // ignore: cast_nullable_to_non_nullable
+as String?,valid: freezed == valid ? _self.valid : valid // ignore: cast_nullable_to_non_nullable
+as bool?,language: freezed == language ? _self.language : language // ignore: cast_nullable_to_non_nullable
+as String?,reissuedFrom: freezed == reissuedFrom ? _self.reissuedFrom : reissuedFrom // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
 }

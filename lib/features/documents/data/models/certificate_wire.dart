@@ -17,6 +17,7 @@
 library;
 
 import '../../../session/domain/entities/bilingual.dart';
+import '../../domain/entities/certificate_file.dart';
 import '../../domain/entities/issued_certificate.dart';
 
 /// A required string: anything that is not a `String` reads as `''`, which the
@@ -32,6 +33,26 @@ String _stringAt(Map<String, dynamic> json, String key) {
 String? _nullableStringAt(Map<String, dynamic> json, String key) {
   final Object? raw = json[key];
   return raw is String ? raw : null;
+}
+
+/// `valid_until` — the one v2 optional whose `''` **is** collapsed to null.
+///
+/// The spec's own list item sends `"valid_until": ""` for a row without a
+/// horizon, i.e. the wire uses `''` as an absence marker on this key, so
+/// keeping it verbatim would hand callers two absences (null and `''`) where
+/// the spec means one.
+String? _nullableDateAt(Map<String, dynamic> json, String key) {
+  final String? raw = _nullableStringAt(json, key);
+  return raw == null || raw.isEmpty ? null : raw;
+}
+
+/// An optional bool: `true`/`false` read verbatim, everything else (absent,
+/// null, a string the server should not have sent) reads as *unknown* rather
+/// than as a verdict — `valid: false` and "never answered" are different
+/// facts about a certificate.
+bool? _nullableBoolAt(Map<String, dynamic> json, String key) {
+  final Object? raw = json[key];
+  return raw is bool ? raw : null;
 }
 
 /// `service_name?: Bilingual` — `types.ts:630`.
@@ -53,24 +74,97 @@ Bilingual? _nullableBilingualAt(Map<String, dynamic> json, String key) {
   return null;
 }
 
+/// `files[]` — one `CertificateFile` per layout (`§ Certificate model`).
+///
+/// A body that is not a list, or an entry that is not a map, contributes
+/// nothing rather than a crash: a list endpoint returns many rows, and one
+/// malformed row must not blank the card (the same disposition
+/// `getCertificates` takes via `whereType`). Per-field reads go through the
+/// same `_stringAt` leniency, so a map with wrong-typed fields is skipped
+/// whole — a partial file with no URL is worse than none.
+List<CertificateFile> _filesAt(Map<String, dynamic> json, String key) {
+  final Object? raw = json[key];
+  if (raw is! List<dynamic>) return const <CertificateFile>[];
+  return <CertificateFile>[
+    for (final Object? entry in raw)
+      if (entry is Map<String, dynamic> &&
+          _stringAt(entry, 'layout').isNotEmpty &&
+          _stringAt(entry, 'url').isNotEmpty)
+        CertificateFile(
+          layout: _stringAt(entry, 'layout'),
+          url: _stringAt(entry, 'url'),
+          sha256: _stringAt(entry, 'sha256'),
+        ),
+  ];
+}
+
+/// A list-of-strings wire key (`layouts`, `holders`): non-strings are dropped
+/// one element at a time — a row that names three people and one stray `42`
+/// still parses its three names.
+List<String> _stringsAt(Map<String, dynamic> json, String key) {
+  final Object? raw = json[key];
+  if (raw is! List<dynamic>) return const <String>[];
+  return <String>[
+    for (final Object? entry in raw)
+      if (entry is String) entry,
+  ];
+}
+
+/// The certificate object inside a detail body, wherever the endpoint put it.
+///
+/// `GET /me/certificates/{id}` on the v2 API answers
+/// `data = {certificate: …, issuing_office: …, holder: …}` — the item nested
+/// under `certificate` — while the shipped v1 body was the item itself, flat.
+/// Both shapes land here; `certificate` wins only when it is a map, so a
+/// server that sends `"certificate": null` among the detail siblings still
+/// falls through to the flat read instead of blanking.
+Map<String, dynamic> _certificateBody(dynamic data) {
+  if (data is Map<String, dynamic> &&
+      data['certificate'] is Map<String, dynamic>) {
+    return data['certificate'] as Map<String, dynamic>;
+  }
+  return data is Map<String, dynamic> ? data : const <String, dynamic>{};
+}
+
 /// One `Certificate` object.
-IssuedCertificate issuedCertificateFrom(Map<String, dynamic> json) =>
-    IssuedCertificate(
-      id: _stringAt(json, 'id'),
-      certificateNo: _stringAt(json, 'certificate_no'),
-      applicationId: _nullableStringAt(json, 'application_id'),
-      referenceNo: _nullableStringAt(json, 'reference_no'),
-      serviceCode: _stringAt(json, 'service_code'),
-      serviceName: _nullableBilingualAt(json, 'service_name'),
-      holderName: _stringAt(json, 'holder_name'),
-      uin: _nullableStringAt(json, 'uin'),
-      issuedAt: _stringAt(json, 'issued_at'),
-      issuedByName: _nullableStringAt(json, 'issued_by_name'),
-      // A plain string, never an enum — specs.md § 5 and `B5-AC-28`.
-      status: _stringAt(json, 'status'),
-      verifyCode: _stringAt(json, 'verify_code'),
-      verifyUrl: _nullableStringAt(json, 'verify_url'),
-      qrPayload: _nullableStringAt(json, 'qr_payload'),
-      fileUrl: _nullableStringAt(json, 'file_url'),
-      documentHash: _nullableStringAt(json, 'document_hash'),
-    );
+///
+/// Accepts both body shapes the endpoints produce: a bare list item (no
+/// `certificate` key, so [_certificateBody] returns it unchanged) and the
+/// detail body, which may nest the item under `certificate` (v2) or be the
+/// item itself (v1) — the datasource forwards either whole.
+IssuedCertificate issuedCertificateFrom(Map<String, dynamic> json) {
+  final Map<String, dynamic> body = _certificateBody(json);
+  return IssuedCertificate(
+    id: _stringAt(body, 'id'),
+    certificateNo: _stringAt(body, 'certificate_no'),
+    applicationId: _nullableStringAt(body, 'application_id'),
+    referenceNo: _nullableStringAt(body, 'reference_no'),
+    serviceCode: _stringAt(body, 'service_code'),
+    // New-first: the v2 bilingual `service` object is the current shape and
+    // shadows the legacy string; a v1 row sends no `service` and falls
+    // through to `service_name`.
+    serviceName:
+        _nullableBilingualAt(body, 'service') ??
+        _nullableBilingualAt(body, 'service_name'),
+    holderName: _stringAt(body, 'holder_name'),
+    uin: _nullableStringAt(body, 'uin'),
+    issuedAt: _stringAt(body, 'issued_at'),
+    issuedByName: _nullableStringAt(body, 'issued_by_name'),
+    // A plain string, never an enum — specs.md § 5 and `B5-AC-28`.
+    status: _stringAt(body, 'status'),
+    verifyCode: _stringAt(body, 'verify_code'),
+    verifyUrl: _nullableStringAt(body, 'verify_url'),
+    qrPayload: _nullableStringAt(body, 'qr_payload'),
+    fileUrl: _nullableStringAt(body, 'file_url'),
+    documentHash: _nullableStringAt(body, 'document_hash'),
+    // The v2 keys, each defaulted by the entity when the key is absent.
+    copy: _stringAt(body, 'copy'),
+    layouts: _stringsAt(body, 'layouts'),
+    files: _filesAt(body, 'files'),
+    holders: _stringsAt(body, 'holders'),
+    validUntil: _nullableDateAt(body, 'valid_until'),
+    valid: _nullableBoolAt(body, 'valid'),
+    language: _nullableStringAt(body, 'language'),
+    reissuedFrom: _nullableStringAt(body, 'reissued_from'),
+  );
+}

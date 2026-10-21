@@ -1,10 +1,17 @@
-/// `issuedCertificateFrom` — **B5-AC-27**, **B5-AC-28**, **B5-AC-29**.
+/// `issuedCertificateFrom` — **B5-AC-27**, **B5-AC-28**, **B5-AC-29**, plus the
+/// v2 keys of MOBILE-API-E-CERTIFICATES.md (§ Certificate model, § Citizen
+/// endpoints).
 ///
-/// The wire shape is `lcc-app/src/app/api/types.ts:625-641`.
+/// The base wire shape is `lcc-app/src/app/api/types.ts:625-641`. The v2 keys
+/// (`files[]`, `copy`, `layouts`, `holders`, `valid_until`, `valid`,
+/// `language`, `reissued_from`, and the bilingual `service` object) arrive on
+/// top of it, read new-first with legacy fallback, and the detail endpoint's
+/// body may nest the certificate under `certificate`.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/features/documents/data/models/certificate_wire.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
 import 'package:lcc_mobile_app/features/session/domain/entities/bilingual.dart';
 
@@ -27,6 +34,47 @@ const Map<String, dynamic> _full = <String, dynamic>{
   'qr_payload': 'LCC:CERT-77',
   'file_url': 'https://cdn.example/77.pdf',
   'document_hash': 'sha256:abc',
+};
+
+/// A v2 payload — the MOBILE-API-E-CERTIFICATES.md list item (§ Citizen
+/// endpoints), abridged to the keys this mapper reads. Every new key carries a
+/// distinguishable value, per the same rule as [_full].
+const Map<String, dynamic> _v2 = <String, dynamic>{
+  'id': '3c1f',
+  'certificate_no': 'LA-DIV-2026-000094-A',
+  'application_id': '9a0e',
+  'service_code': 'divorce',
+  // Deliberately conflicts with `service` below: the test that reads this
+  // fixture proves the v2 object wins, which only a differing legacy value
+  // can demonstrate.
+  'service_name': 'Legacy Divorce',
+  'service': <String, dynamic>{
+    'en': 'Divorce Certificate',
+    'lo': 'ໃບຢືນຢັນຢ່າງ',
+  },
+  'copy': 'A',
+  'layouts': <String>['booklet'],
+  'holder_name': 'PHIMMASONE Khamsy',
+  'holders': <String>['PHIMMASONE Khamsy', 'KHAMSY Phimmasone'],
+  'issued_at': '2026-09-25',
+  'valid_until': '2026-12-24',
+  'verify_code': 'DIV-4H7Z-51KA',
+  'verify_url': 'https://lcc.gov.la/v/DIV-4H7Z-51KA',
+  'language': 'lo',
+  'status': 'issued',
+  'valid': true,
+  'files': <Map<String, dynamic>>[
+    <String, dynamic>{
+      'layout': 'booklet',
+      'url': '/api/v1/me/certificates/3c1f/file?layout=booklet',
+      'sha256': '9f2c',
+    },
+    <String, dynamic>{
+      'layout': 'card',
+      'url': '/api/v1/me/certificates/3c1f/file?layout=card',
+      'sha256': '',
+    },
+  ],
 };
 
 void main() {
@@ -151,6 +199,176 @@ void main() {
             .hasQrPayload,
         isTrue,
       );
+    });
+  });
+
+  group('v2 wire keys — MOBILE-API-E-CERTIFICATES.md list item', () {
+    test('files[] parses layout, url and sha256 per entry', () {
+      final IssuedCertificate c = issuedCertificateFrom(_v2);
+
+      expect(c.files, hasLength(2));
+      expect(c.files[0].layout, 'booklet');
+      expect(
+        c.files[0].url,
+        '/api/v1/me/certificates/3c1f/file?layout=booklet',
+      );
+      expect(c.files[0].sha256, '9f2c');
+      // The spec's "sha256 is empty for an old certificate whose file was
+      // never hashed" — kept as the empty string the wire sent, not collapsed.
+      expect(c.files[1].layout, 'card');
+      expect(c.files[1].url, '/api/v1/me/certificates/3c1f/file?layout=card');
+      expect(c.files[1].sha256, '');
+    });
+
+    test('copy, layouts, holders and valid_until land verbatim', () {
+      final IssuedCertificate c = issuedCertificateFrom(_v2);
+
+      expect(c.copy, 'A');
+      expect(c.layouts, <String>['booklet']);
+      expect(
+        c.holders,
+        <String>['PHIMMASONE Khamsy', 'KHAMSY Phimmasone'],
+        reason:
+            'a marriage row names two people; holder_name alone cannot '
+            'carry both',
+      );
+      expect(c.validUntil, '2026-12-24');
+    });
+
+    test('valid, language and reissued_from land verbatim', () {
+      final IssuedCertificate c = issuedCertificateFrom(_v2);
+
+      expect(c.valid, isTrue);
+      expect(c.language, 'lo');
+      final IssuedCertificate superseded = issuedCertificateFrom(
+        const <String, dynamic>{'reissued_from': 'old-row-id'},
+      );
+      expect(superseded.reissuedFrom, 'old-row-id');
+      expect(superseded.valid, isNull, reason: 'absent stays absent');
+      // The spec's list item shows `"valid_until": ""` — a legacy row's
+      // absence marker, which must read null, not the empty string.
+      expect(
+        issuedCertificateFrom(const <String, dynamic>{
+          'valid_until': '',
+        }).validUntil,
+        isNull,
+      );
+    });
+
+    test('service (bilingual object) wins over legacy service_name', () {
+      final IssuedCertificate c = issuedCertificateFrom(_v2);
+
+      expect(
+        c.serviceName,
+        const Bilingual(en: 'Divorce Certificate', lo: 'ໃບຢືນຢັນຢ່າງ'),
+        reason:
+            'both keys present — the bilingual object is the current shape '
+            'and must not be shadowed by the legacy string',
+      );
+    });
+
+    test('hasStoredFile is true exactly when files[] is non-empty', () {
+      expect(issuedCertificateFrom(_v2).hasStoredFile, isTrue);
+      expect(
+        issuedCertificateFrom(const <String, dynamic>{
+          'files': <dynamic>[],
+        }).hasStoredFile,
+        isFalse,
+        reason: 'a legacy row sends no files[] at all',
+      );
+    });
+
+    test('fileForLayout finds one entry and misses unknown layouts', () {
+      final IssuedCertificate c = issuedCertificateFrom(_v2);
+
+      expect(c.fileForLayout('booklet'), isA<CertificateFile>());
+      expect(
+        c.fileForLayout('booklet')!.url,
+        '/api/v1/me/certificates/3c1f/file?layout=booklet',
+      );
+      expect(c.fileForLayout('card')!.sha256, '');
+      expect(c.fileForLayout('nothing'), isNull);
+    });
+
+    test(
+      'legacy-only body still parses — service_name fallback, empty files',
+      () {
+        final IssuedCertificate c = issuedCertificateFrom(_full);
+
+        expect(
+          c.serviceName,
+          const Bilingual(en: 'Residence', lo: 'ທີ່ຢູ່'),
+          reason:
+              'no `service` key — the legacy string fallback keeps the '
+              'v1 rows green',
+        );
+        expect(c.files, isEmpty);
+        expect(c.copy, '');
+        expect(c.layouts, isEmpty);
+        expect(c.holders, isEmpty);
+        expect(c.validUntil, isNull);
+        expect(c.valid, isNull);
+        expect(c.language, isNull);
+        expect(c.reissuedFrom, isNull);
+        expect(c.hasStoredFile, isFalse);
+      },
+    );
+
+    test('malformed files[] yields an empty list, not a crash', () {
+      expect(
+        issuedCertificateFrom(const <String, dynamic>{
+          'files': 'not-a-list',
+        }).files,
+        isEmpty,
+      );
+      expect(
+        issuedCertificateFrom(const <String, dynamic>{
+          'files': <dynamic>['layout', 42, null],
+        }).files,
+        isEmpty,
+        reason:
+            'entries that are not maps are dropped row by row, not '
+            'fatally',
+      );
+      expect(
+        issuedCertificateFrom(const <String, dynamic>{
+          'files': <dynamic>[
+            <String, dynamic>{'layout': 7, 'url': <String>[], 'sha256': true},
+          ],
+        }).files,
+        isEmpty,
+        reason:
+            'a map whose fields are the wrong types produces no entry — '
+            'the lenient-reader rule, applied per field',
+      );
+    });
+
+    test('malformed copy/layouts/holders fall back to their defaults', () {
+      final IssuedCertificate c = issuedCertificateFrom(const <String, dynamic>{
+        'copy': 9,
+        'layouts': 'booklet',
+        'holders': 'one name',
+      });
+      expect(c.copy, '');
+      expect(c.layouts, isEmpty);
+      expect(c.holders, isEmpty);
+    });
+
+    test('the detail endpoint may nest the body under `certificate`', () {
+      final IssuedCertificate nested = issuedCertificateFrom(<String, dynamic>{
+        'certificate': _v2,
+      });
+
+      expect(nested.id, '3c1f');
+      expect(nested.files, hasLength(2));
+      expect(
+        nested.serviceName,
+        const Bilingual(en: 'Divorce Certificate', lo: 'ໃບຢືນຢັນຢ່າງ'),
+      );
+
+      // The flat shape — the old detail body — must still parse, and the
+      // nested read must not have disturbed it.
+      expect(issuedCertificateFrom(_full).id, 'cert-77');
     });
   });
 }
