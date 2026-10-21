@@ -603,18 +603,33 @@ void main() {
             }
             continue;
           }
-          // Forms v2's named relabels: the shipped value is asserted
-          // **positively**, so the grant is exercised, not skipped — a relabel
-          // that drifts from the granted string fails here, and so does any
-          // *other* edit to the namespace (the loop below still requires the
-          // remaining keys byte-identical).
-          final String relabelKey = '$ns.citizenNameLabel';
-          if (kRelabelGrants[locale]?[relabelKey] != null) {
+          // Forms v2's named relabels — mirror of the [kAppendGrants] branch
+          // above, per key rather than per namespace: every pre-existing key
+          // is still compared byte-identically **except** the granted one,
+          // whose shipped value is asserted **positively** against the pinned
+          // string. Nothing about the rest of the namespace is exempted; a
+          // relabel that drifts from the grant, or any other edit, fails here.
+          final Map<String, String>? grants = kRelabelGrants[locale];
+          final Map<String, String> grantedKeys = <String, String>{
+            for (final String k in grants?.keys ?? const <String>[])
+              if (k.startsWith('$ns.'))
+                k.substring(ns.length + 1): grants![k]!,
+          };
+          if (grantedKeys.isNotEmpty) {
+            final Map<String, dynamic> b = before[ns] as Map<String, dynamic>;
             final Map<String, dynamic> s = shipped[ns] as Map<String, dynamic>;
-            expect(s['citizenNameLabel'],
-                kRelabelGrants[locale]![relabelKey],
-                reason: '$locale: `$relabelKey` differs from the forms-v2 '
-                    'relabel grant — the label is pinned, not free-form');
+            for (final String key in b.keys) {
+              if (grantedKeys.containsKey(key)) {
+                expect(s[key], grantedKeys[key],
+                    reason: '$locale: `$ns.$key` differs from the forms-v2 '
+                        'relabel grant — the label is pinned, not free-form');
+              } else {
+                expect(jsonEncode(s[key]), jsonEncode(b[key]),
+                    reason: '$locale: `$ns.$key` was edited without a '
+                        'kRelabelGrants entry; only the granted relabels are '
+                        'exempt, every other pre-existing key is frozen');
+              }
+            }
             continue;
           }
           expect(

@@ -11,6 +11,7 @@
 /// requiredness model at the type level.
 library;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../presentation/forms/widgets/date_field.dart';
@@ -276,9 +277,9 @@ class BirthStep2 extends StatelessWidget {
         // Forms v2 — the optional Latin split names. Both OPTIONAL: no
         // `required`, absent keys when left blank.
         BirthInputField(
-          label: birthT(context, 'surnameLabel'),
+          label: 'forms.surnameLabel'.tr(context: context),
           value: c.surname,
-          placeholder: birthT(context, 'surnamePlaceholder'),
+          placeholder: 'forms.surnamePlaceholder'.tr(context: context),
           onChanged: (String v) => cubit.patchChild(
               (BirthChildInfo x) => x.copyWith(surname: v),
               path: 'child.child_surname'),
@@ -286,23 +287,39 @@ class BirthStep2 extends StatelessWidget {
         ),
         _pair(
           BirthInputField(
-            label: birthT(context, 'givenNameLabel'),
+            label: 'forms.givenNameLabel'.tr(context: context),
             value: c.givenName,
-            placeholder: birthT(context, 'givenNamePlaceholder'),
+            placeholder: 'forms.givenNamePlaceholder'.tr(context: context),
             onChanged: (String v) => cubit.patchChild(
                 (BirthChildInfo x) => x.copyWith(givenName: v),
                 path: 'child.child_given_name'),
             path: 'child.child_given_name',
           ),
-          // Forms v2 — optional time of birth, `HH:MM`, free text like
-          // Death's time-of-death input.
+          // Forms v2 — optional time of birth, `HH:MM`. The gate normalises
+          // the free-text input to digits + one colon, capped at `HH:MM`'s
+          // five characters; anything else stays out of the payload.
           BirthInputField(
-            label: birthT(context, 'timeOfBirthLabel'),
+            label: 'forms.timeOfBirthLabel'.tr(context: context),
             value: c.timeOfBirth,
-            placeholder: birthT(context, 'timeOfBirthPlaceholder'),
-            onChanged: (String v) => cubit.patchChild(
-                (BirthChildInfo x) => x.copyWith(timeOfBirth: v),
-                path: 'child.child_time_of_birth'),
+            placeholder: 'forms.timeOfBirthPlaceholder'.tr(context: context),
+            onChanged: (String v) {
+              final String digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+              if (digits.isEmpty) {
+                cubit.patchChild(
+                    (BirthChildInfo x) => x.copyWith(timeOfBirth: ''),
+                    path: 'child.child_time_of_birth');
+                return;
+              }
+              final String hh =
+                  digits.substring(0, digits.length > 2 ? 2 : digits.length);
+              final String mm = digits.length > 2
+                  ? digits.substring(2, digits.length > 4 ? 4 : digits.length)
+                  : '';
+              cubit.patchChild(
+                  (BirthChildInfo x) => x.copyWith(
+                      timeOfBirth: mm.isEmpty ? hh : '$hh:$mm'),
+                  path: 'child.child_time_of_birth');
+            },
             path: 'child.child_time_of_birth',
           ),
         ),

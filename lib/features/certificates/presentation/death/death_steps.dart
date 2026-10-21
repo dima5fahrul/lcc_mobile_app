@@ -7,6 +7,7 @@
 /// writes one inline.
 library;
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../presentation/forms/widgets/date_field.dart';
@@ -267,18 +268,18 @@ class DeathStep2 extends StatelessWidget {
         // Forms v2 — the optional Latin split names. Both OPTIONAL: no
         // `required`, absent keys when left blank.
         DeathInputField(
-          label: deathT(context, 'surnameLabel'),
+          label: 'forms.surnameLabel'.tr(context: context),
           value: d.surname,
-          placeholder: deathT(context, 'surnamePlaceholder'),
+          placeholder: 'forms.surnamePlaceholder'.tr(context: context),
           onChanged: (String v) => cubit.patchDeceased(
               (DeathDeceasedInfo x) => x.copyWith(surname: v),
               path: 'deceased.deceased_surname'),
           path: 'deceased.deceased_surname',
         ),
         DeathInputField(
-          label: deathT(context, 'givenNameLabel'),
+          label: 'forms.givenNameLabel'.tr(context: context),
           value: d.givenName,
-          placeholder: deathT(context, 'givenNamePlaceholder'),
+          placeholder: 'forms.givenNamePlaceholder'.tr(context: context),
           onChanged: (String v) => cubit.patchDeceased(
               (DeathDeceasedInfo x) => x.copyWith(givenName: v),
               path: 'deceased.deceased_given_name'),

@@ -33,18 +33,53 @@ library;
 
 import 'dart:convert';
 
+import 'package:dartz/dartz.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lcc_mobile_app/core/error/failure.dart';
+import 'package:lcc_mobile_app/features/application/domain/repositories/application_repository.dart';
+import 'package:lcc_mobile_app/features/application/domain/usecases/application_usecases.dart';
 import 'package:lcc_mobile_app/features/certificates/domain/submission/submission_clock.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_form_state.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_payload.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/birth/birth_steps.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/death/death_form_cubit.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/death/death_form_state.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/death/death_payload.dart';
+import 'package:lcc_mobile_app/features/certificates/presentation/death/death_steps.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_form_state.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_payload.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_form_state.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/marriage/marriage_payload.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_form_state.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/resident/resident_payload.dart';
+import 'package:lcc_mobile_app/features/reference/domain/repositories/reference_repository.dart';
+import 'package:lcc_mobile_app/features/reference/domain/usecases/get_lookup_options.dart';
+import 'package:lcc_mobile_app/features/service/domain/entities/service.dart';
+import 'package:lcc_mobile_app/features/wallet/domain/entities/payment_method.dart';
+
+import '../../../helpers/app_test_harness.dart';
+
+/// The label tests render real widgets; any reach into the write slice or the
+/// reference catalogue is a bug in the test, so both collaborators throw.
+class _RefRepo implements ReferenceRepository {
+  const _RefRepo();
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw StateError(
+        '${invocation.memberName} — the label tests must not reach the '
+        'reference catalogue',
+      );
+}
+
+class _UnusedRepo implements ApplicationRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw StateError(
+        '${invocation.memberName} — the label tests must not reach the '
+        'write slice',
+      );
+}
 
 void main() {
   // Any fixed instant; none of the new keys read the clock.
@@ -471,6 +506,96 @@ void main() {
       expect(basis.containsKey('custody_with'), isFalse, reason: json);
       expect(json.contains('custody_with'), isFalse, reason: json);
       expectNoEmptyV2Value(payload, v2Keys);
+    });
+  });
+
+  group('labels — the v2 fields render real text, not raw keys', () {
+    // easy_localization returns the KEY ITSELF on a miss, so a label wired
+    // through the wrong namespace renders as literal `birth.surnameLabel` —
+    // green payloads, broken screen. These pump the real step widgets with
+    // the real bundle and assert the rendered text of one v2 site per form
+    // that reads from the shared `forms` namespace.
+    //
+    // `pumpAndSettle` cannot be used: `EasyLocalization` keeps a frame
+    // scheduled and it never returns (see birth_page_widget_test.dart). Three
+    // explicit pumps clear the layout passes.
+    Future<void> pumpStep(WidgetTester tester, Widget step) async {
+      await tester.pumpWidget(
+        wrapWithLocalization(
+          Builder(
+            builder: (BuildContext context) => MaterialApp(
+              locale: context.locale,
+              supportedLocales: context.supportedLocales,
+              localizationsDelegates: context.localizationDelegates,
+              home: Scaffold(body: SingleChildScrollView(child: step)),
+            ),
+          ),
+        ),
+      );
+      for (int i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+    }
+
+    testWidgets('birth step 2 renders the child surname label and placeholder',
+        (WidgetTester tester) async {
+      final BirthFormCubit cubit = BirthFormCubit(
+        clock: clock,
+        getLookupOptions:
+            GetLookupOptions(repository: const _RefRepo()),
+        createApplication: CreateApplication(repository: _UnusedRepo()),
+        updateApplication: UpdateApplication(repository: _UnusedRepo()),
+        addAttachment: AddAttachment(repository: _UnusedRepo()),
+        submitApplication: SubmitApplication(repository: _UnusedRepo()),
+        loadService: () async => Left<Failure, Service>(Failure('unused')),
+        loadPaymentMethods: () async =>
+            const Right<Failure, List<PaymentMethod>>(<PaymentMethod>[]),
+        readLegalBasisText: () => 'unused',
+      );
+      await pumpStep(tester, BirthStep2(cubit: cubit, state: cubit.state));
+
+      // FieldLabel uppercases its Text child (`_Uppercase` in
+      // field_label.dart), so the render is the uppercased string.
+      expect(find.text('SURNAME (LATIN SCRIPT)'), findsOneWidget,
+          reason: 'the v2 label must come from the `forms` namespace — '
+              'a raw `birth.surnameLabel` here means the field was wired '
+              'through birthT and hit a missing key');
+      // The miss class itself: easy_localization echoes the key verbatim on a
+      // miss, so ANY rendered dotted key is a label wired to the wrong
+      // namespace. Nothing on this step may degrade to one.
+      expect(
+        find.textContaining(RegExp(r'\b(birth|forms)\.[a-zA-Z]')),
+        findsNothing,
+        reason: 'a rendered raw i18n key means a label missed its namespace',
+      );
+    });
+
+    testWidgets('death step 2 renders the deceased given-name label',
+        (WidgetTester tester) async {
+      final DeathFormCubit cubit = DeathFormCubit(
+        clock: clock,
+        getLookupOptions:
+            GetLookupOptions(repository: const _RefRepo()),
+        createApplication: CreateApplication(repository: _UnusedRepo()),
+        updateApplication: UpdateApplication(repository: _UnusedRepo()),
+        addAttachment: AddAttachment(repository: _UnusedRepo()),
+        submitApplication: SubmitApplication(repository: _UnusedRepo()),
+        loadService: () async => Left<Failure, Service>(Failure('unused')),
+        loadPaymentMethods: () async =>
+            const Right<Failure, List<PaymentMethod>>(<PaymentMethod>[]),
+        readLegalBasisText: () => 'unused',
+      );
+      await pumpStep(tester, DeathStep2(cubit: cubit, state: cubit.state));
+
+      expect(find.text('GIVEN NAME (LATIN SCRIPT)'), findsOneWidget,
+          reason: 'the v2 label must come from the `forms` namespace — '
+              'a raw `death.givenNameLabel` here means the field was wired '
+              'through deathT and hit a missing key');
+      expect(
+        find.textContaining(RegExp(r'\b(death|forms)\.[a-zA-Z]')),
+        findsNothing,
+        reason: 'a rendered raw i18n key means a label missed its namespace',
+      );
     });
   });
 }

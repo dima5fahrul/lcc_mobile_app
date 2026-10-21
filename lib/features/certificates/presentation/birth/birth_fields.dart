@@ -646,9 +646,9 @@ class BirthParentSection extends StatelessWidget {
         // `parents.mother.*` for the mother and `parents.father.*` for the
         // father via `prefix` — exactly the guide's keys. Both OPTIONAL.
         BirthInputField(
-          label: birthT(context, 'surnameLabel'),
+          label: 'forms.surnameLabel'.tr(context: context),
           value: value.surname,
-          placeholder: birthT(context, 'surnamePlaceholder'),
+          placeholder: 'forms.surnamePlaceholder'.tr(context: context),
           onChanged: (String v) => onChanged(
             (BirthParentInfo p) => p.copyWith(surname: v),
             path: _at('surname'),
@@ -656,9 +656,9 @@ class BirthParentSection extends StatelessWidget {
           path: _at('surname'),
         ),
         BirthInputField(
-          label: birthT(context, 'givenNameLabel'),
+          label: 'forms.givenNameLabel'.tr(context: context),
           value: value.givenName,
-          placeholder: birthT(context, 'givenNamePlaceholder'),
+          placeholder: 'forms.givenNamePlaceholder'.tr(context: context),
           onChanged: (String v) => onChanged(
             (BirthParentInfo p) => p.copyWith(givenName: v),
             path: _at('given_name'),
