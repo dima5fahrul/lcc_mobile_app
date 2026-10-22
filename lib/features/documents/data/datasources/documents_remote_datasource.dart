@@ -81,17 +81,80 @@ class DocumentsRemoteDatasourceImpl implements DocumentsRemoteDatasource {
       ApiEndpoint.meCertificates,
       query: query,
     );
-    // `api.get<Certificate[]>` — a **plain array**, not paged. A body that is
-    // not a list at all yields the empty list and therefore the card's
-    // "not available yet" note, not a crash; and `whereType` costs one
-    // malformed row rather than the whole card. The disposition
-    // `account_remote_datasource.dart:77-86` and
-    // `notification_remote_datasource.dart:76-79` already take (`B5-AC-30`).
-    if (data is! List<dynamic>) return const <IssuedCertificate>[];
-    return data
-        .whereType<Map<String, dynamic>>()
+    return _certificateRows(data)
         .map(issuedCertificateFrom)
         .toList(growable: false);
+  }
+
+  /// The keys a wrapped list body could plausibly carry its rows under, in
+  /// the order they are tried. See [_certificateRows].
+  static const List<String> _kRowKeys = <String>[
+    'items',
+    'data',
+    'rows',
+    'certificates',
+  ];
+
+  /// The certificate rows of a `GET /me/certificates` body — **whichever of
+  /// the two wire shapes the server actually sends**.
+  ///
+  /// ## Why this is permissive, and why it must stay permissive
+  ///
+  /// **DO NOT "simplify" this back into a single-shape parse.** The live shape
+  /// is *unconfirmed*: no token for this endpoint has ever been available to
+  /// this programme, so nothing here has been observed against a real
+  /// response (the same limitation `documents_test_helper.dart` records for
+  /// the fixtures).
+  ///
+  /// Two shapes are therefore both credible and both are accepted:
+  ///
+  /// * **A plain array.** `api.get<Certificate[]>` in the old web client, which
+  ///   is where this datasource's original `data is! List` assumption came
+  ///   from.
+  /// * **An object wrapping the rows.** The 2026-10 guide
+  ///   (MOBILE-API-E-CERTIFICATES.md § Citizen endpoints, **List**) calls the
+  ///   endpoint a *"Paginated list of certificate items"* and says `meta`
+  ///   *"holds `page`, `per_page`, `total`, `total_pages`, `has_next`,
+  ///   `has_prev`"* — a paginated envelope whose `data` is commonly an object,
+  ///   not a bare array.
+  ///
+  /// The cost of guessing wrong in one direction is silent and total: a
+  /// wrapped body read by an array-only parser yields the **empty list**, so
+  /// every certificate disappears with no error anywhere — no exception, no
+  /// `Failure`, just the card's "not available yet" note on an account that
+  /// has certificates. Accepting both shapes costs one `Map` lookup.
+  ///
+  /// ## The lenient disposition is unchanged (`B5-AC-30`)
+  ///
+  /// A shape that matches **nothing** yields the empty list rather than
+  /// throwing, and `whereType<Map<String, dynamic>>()` still costs one
+  /// malformed row rather than the whole list — the disposition
+  /// `account_remote_datasource.dart:77-86` and
+  /// `notification_remote_datasource.dart:76-79` already take.
+  ///
+  /// ## Why not `ApiClient.requestPaged`
+  ///
+  /// `requestPaged` reads `envelope['data']` and keeps it only when it
+  /// `is List` (`api_client.dart:188-190`), so it has the *same* blind spot
+  /// this helper exists to close — it would answer the empty list for a
+  /// wrapped body too. It would also change this method's return type to
+  /// `Paged<…>` and push a `PageMeta` nobody renders through the repository
+  /// and use case. Nothing on the surface pages this list today; when
+  /// something does, `requestPaged` is the right instrument for the `meta`
+  /// half and this helper is still the right instrument for the rows.
+  static List<Map<String, dynamic>> _certificateRows(dynamic data) {
+    if (data is List<dynamic>) {
+      return data.whereType<Map<String, dynamic>>().toList(growable: false);
+    }
+    if (data is Map<String, dynamic>) {
+      for (final String key in _kRowKeys) {
+        final dynamic rows = data[key];
+        if (rows is List<dynamic>) {
+          return rows.whereType<Map<String, dynamic>>().toList(growable: false);
+        }
+      }
+    }
+    return const <Map<String, dynamic>>[];
   }
 
   @override

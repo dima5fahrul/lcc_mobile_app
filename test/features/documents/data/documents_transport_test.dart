@@ -125,7 +125,7 @@ void main() {
     );
   }
 
-  group('GET /me/certificates — a PLAIN array, not paged', () {
+  group('GET /me/certificates — the rows, in EITHER wire shape', () {
     test('three rows come back as entities', () async {
       final r = rig(_envelope(<Map<String, dynamic>>[
         _cert('a'),
@@ -161,6 +161,105 @@ void main() {
     test('one malformed row costs that row, not the card', () async {
       final r = rig(_envelope(<dynamic>[_cert('a'), 'not-an-object']));
       expect(await r.datasource.getCertificates(), hasLength(1));
+    });
+
+    // ── User decision, 2026-10-22 — BOTH shapes parse ───────────────────────
+    //
+    // The array-only assumption came from the old web client
+    // (`api.get<Certificate[]>`). The 2026-10 guide calls this endpoint a
+    // *"Paginated list of certificate items"* whose `meta` *"holds `page`,
+    // `per_page`, `total`, `total_pages`, `has_next`, `has_prev`"*
+    // (§ Citizen endpoints, **List**), which is the shape of an envelope whose
+    // `data` wraps the rows in an object. No token for this endpoint has ever
+    // been available to this programme, so neither shape has been observed
+    // live — and guessing wrong in the array-only direction is SILENT: every
+    // certificate vanishes with no exception and no `Failure`, leaving the
+    // card's "not available yet" note on an account that has certificates.
+    // The parser therefore accepts both, and these tests are what stops a
+    // later "simplification" back to one.
+
+    test('a MAP under `items` parses, and parses IDENTICALLY to the bare array',
+        () async {
+      final List<Map<String, dynamic>> rows = <Map<String, dynamic>>[
+        _cert('a'),
+        _cert('b'),
+      ];
+
+      final List<IssuedCertificate> fromArray =
+          await rig(_envelope(rows)).datasource.getCertificates();
+      final List<IssuedCertificate> fromItems = await rig(
+        _envelope(<String, dynamic>{
+          'items': rows,
+          // The `meta` the guide describes rides alongside and is ignored —
+          // nothing on this surface pages the list today.
+          'meta': <String, dynamic>{
+            'page': 1,
+            'per_page': 20,
+            'total': 2,
+            'total_pages': 1,
+            'has_next': false,
+            'has_prev': false,
+          },
+        }),
+      ).datasource.getCertificates();
+
+      expect(fromItems, hasLength(2));
+      expect(fromItems, fromArray,
+          reason: 'the tolerance is shape-AGNOSTIC: the two bodies carry the '
+              'same rows and must therefore produce equal entities, not '
+              'merely equal counts');
+    });
+
+    for (final String key in <String>['data', 'rows', 'certificates']) {
+      test('a MAP under `$key` parses too', () async {
+        final r = rig(_envelope(<String, dynamic>{
+          key: <Map<String, dynamic>>[_cert('a'), _cert('b'), _cert('c')],
+        }));
+
+        final List<IssuedCertificate> out =
+            await r.datasource.getCertificates();
+
+        expect(out, hasLength(3));
+        expect(out.first.certificateNo, 'CERT-a');
+      });
+    }
+
+    test('an UNRECOGNISED map yields the empty list — lenient, not a throw',
+        () async {
+      final r = rig(_envelope(<String, dynamic>{'foo': 1}));
+      expect(await r.datasource.getCertificates(), isEmpty);
+    });
+
+    test('a body that is neither a list nor a map yields the empty list',
+        () async {
+      for (final Object? body in <Object?>[null, 7, 'not-a-body', true]) {
+        final r = rig(_envelope(body));
+        expect(await r.datasource.getCertificates(), isEmpty,
+            reason: 'body=$body');
+      }
+    });
+
+    test('a map whose rows key holds a NON-list yields the empty list',
+        () async {
+      for (final String key in <String>[
+        'items',
+        'data',
+        'rows',
+        'certificates',
+      ]) {
+        final r = rig(_envelope(<String, dynamic>{key: 'not-a-list'}));
+        expect(await r.datasource.getCertificates(), isEmpty,
+            reason: 'key=$key — a wrapper key present but wrong-typed is '
+                'absence, not a crash');
+      }
+    });
+
+    test('a wrapped list keeps the per-row leniency — one malformed row costs '
+        'that row only', () async {
+      final r = rig(_envelope(<String, dynamic>{
+        'items': <dynamic>[_cert('a'), 'not-an-object', _cert('b')],
+      }));
+      expect(await r.datasource.getCertificates(), hasLength(2));
     });
 
     // ── Review I-2, 2026-10-22 — the `application_id` filter ────────────────
