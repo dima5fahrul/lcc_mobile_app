@@ -8,6 +8,26 @@
 /// On submit → `AuthEvent.loginStarted`. On success the shell's
 /// `BlocListener` reads the session and hands it to SessionBloc. On failure
 /// the form surfaces `AuthState.fieldErrors` per-field.
+///
+/// ## The public-verification door (user decision, 2026-10-22)
+///
+/// The form's last control is a secondary text button into the public
+/// certificate-verification entry page ([AppNameRoutes.verify]) — see
+/// [_VerifyEntryAction] at the foot of this file. It is the **second** of the
+/// slice's two in-app doors; the first is the account page's
+/// (`account_page.dart`, review C-1), and that one is unreachable to exactly
+/// the citizen who needs verification most: `/account` is in
+/// `AppRoutes._protectedPaths` while the verification routes are public, so a
+/// signed-OUT citizen who opens the app to check someone else's certificate
+/// is redirected here and, before this, had no way onward at all. The guide
+/// opens its § Public verification endpoints with *"Two endpoints work
+/// without login"*, and that citizen is its first use case.
+///
+/// Every colour, size and gap in the new control is an
+/// `AppColors`/`AppTypography`/`AppSpacing` token, not a literal. This file is
+/// on `color_literal_test.dart`'s closed grandfather list for the literals it
+/// already carries; that exemption covers what is here, and new code in an
+/// exempt file still has none.
 library;
 
 import 'dart:math';
@@ -15,7 +35,12 @@ import 'dart:math';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../presentation/theme/app_colors.dart';
+import '../../../../presentation/theme/app_spacing.dart';
+import '../../../../presentation/theme/app_typography.dart';
+import '../../../../utils/routes/app_name_routes.dart';
 import '../bloc/auth_bloc.dart';
 import '../widgets/api_notice.dart';
 import '../widgets/cta_button.dart';
@@ -363,6 +388,7 @@ class _LoginFormState extends State<LoginForm> {
                 ),
               ),
             ),
+            const _VerifyEntryAction(),
           ],
         );
       },
@@ -396,6 +422,76 @@ class _LoginFormState extends State<LoginForm> {
           color: hasError ? const Color(0xFFFCA5A5) : const Color(0xFF344EAD),
           width: 2,
         ),
+      ),
+    );
+  }
+}
+
+/// The sign-in screen's door into the **public** certificate-verification
+/// slice — user decision, 2026-10-22. See this file's library doc for why a
+/// second door was needed at all.
+///
+/// ## Shape
+///
+/// A hint line over a secondary text button, which is both what the existing
+/// account-page door does (`account_page.dart`'s `_VerifyEntryAction`, same
+/// two keys, so the two doors read identically) and what this screen already
+/// does one control up: the register switch is a centred [TextButton] with a
+/// grey caption and a brand-blue action in the same column position. Nothing
+/// is invented — the caption takes the grey the `auth.noAccount` caption
+/// beside it uses ([AppColors.gray400Inline] is that exact value as a token)
+/// and the action takes the weight and colour `auth.forgotPassword` uses.
+///
+/// ## The two keys are REUSED, not duplicated
+///
+/// `verify.openAction` / `verify.openActionHint` already exist in both
+/// locales for the account-page door and say exactly the right thing here
+/// ("Verify a certificate" / "Check any certificate by its code or QR code.").
+/// A near-duplicate pair would be two strings to keep in step for one fact,
+/// so this round adds **no** i18n key in either file — the en/lo key sets are
+/// untouched and therefore still identical.
+///
+/// ## `.tr(context: context)`
+///
+/// Both reads pass `context:` (G-L8). The surrounding form's bare `.tr()`
+/// calls are pre-existing and allowlisted; `tr_allowlist.yaml` is a ceiling
+/// and new code never joins it.
+class _VerifyEntryAction extends StatelessWidget {
+  const _VerifyEntryAction();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.gap8),
+      child: Column(
+        children: <Widget>[
+          Text(
+            'verify.openActionHint'.tr(context: context),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: AppTypography.size11,
+              color: AppColors.gray400Inline,
+            ),
+          ),
+          TextButton(
+            // The verification entry is **public** — it is not one of
+            // `AppRoutes._protectedPaths` — so this is a plain `go` with no
+            // auth gate to cross, and no `?from=` to carry: the citizen is
+            // not trying to sign in, they are trying to check a document.
+            // Deliberately `.go`, not `.push`: `AppBackPolicy` records it as
+            // an ordinary forward visit, which is what makes Back return
+            // here. `back_policy_guard_test.dart` counts this call site.
+            onPressed: () => context.go(AppNameRoutes.verify),
+            child: Text(
+              'verify.openAction'.tr(context: context),
+              style: const TextStyle(
+                fontSize: AppTypography.size12,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

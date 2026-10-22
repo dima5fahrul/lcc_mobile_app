@@ -213,18 +213,38 @@ void main() {
     // about — and Back from `/verify` falls out of `BackVisitStack` recording
     // an ordinary forward visit, exactly as `VerifyScannerPage`'s own `.go()`
     // does. (42 → 43, "other" 41 → 42.)
+    //
+    // **Bumped a fourth time, 2026-10-22, user decision — the SECOND door.**
+    // Exactly ONE more real call: `_VerifyEntryAction` in
+    // `lib/features/auth/presentation/pages/login_form.dart` —
+    // `context.go(AppNameRoutes.verify)`. C-1's account-page door (the third
+    // bump above) is behind the auth gate: `/account` is in
+    // `AppRoutes._protectedPaths` and the verification routes are public, so
+    // the signed-OUT citizen who opens the app to check someone else's
+    // certificate is redirected to `/signin?from=%2Faccount` and, with only
+    // that door, could reach no part of the public verification slice at all
+    // — while the guide opens its § Public verification endpoints with "Two
+    // endpoints work without login". This is the door on the screen they land
+    // on. The Home page was explicitly ruled out (its Tier-1 fidelity oracle
+    // compares regions node-for-node and reports extras as failures), and
+    // this call touches neither `app_back_policy.dart` nor
+    // `back_visit_stack.dart` — the two files GOR-269's claim is actually
+    // about. Back from the entry page falls out of `BackVisitStack` recording
+    // an ordinary forward visit, exactly as the other seven do.
+    // (43 → 44, "other" 42 → 43.)
     final List<_Source> code = files
         .map((_Source f) => (path: f.path, text: stripComments(f.text)))
         .toList();
 
     final List<String> gos = _hits(code, '.go(');
-    expect(gos, hasLength(43),
+    expect(gos, hasLength(44),
         reason: 'the fix observes the router; it does not instrument the '
             'call sites. 34 pre-existing + exactly one in the policy + '
             'Task 4\'s five new verify-page call sites + Task 5\'s one '
             '(VerifyScannerPage) + Task 7\'s one (VerifyFileCheckPage, '
             'concurrent) + C-1\'s one (the account page\'s verification '
-            'entry, the slice\'s only in-app door). Hits: $gos');
+            'entry) + the sign-in screen\'s one (login_form.dart, the door '
+            'a signed-OUT citizen can actually reach). Hits: $gos');
 
     expect(
       gos
@@ -237,15 +257,16 @@ void main() {
           'would distinguish from the first',
     );
 
-    // And the other 42 (34 pre-existing + Task 4's 5 + Task 5's 1 + Task 7's
-    // concurrent 1 + C-1's 1) are outside the two files GOR-269 created, i.e.
-    // none of the original fix, Task 4, Task 5, Task 7 or C-1 quietly moved a
-    // production call site into the policy's own home.
+    // And the other 43 (34 pre-existing + Task 4's 5 + Task 5's 1 + Task 7's
+    // concurrent 1 + C-1's 1 + the sign-in door's 1) are outside the two files
+    // GOR-269 created, i.e. none of the original fix, Task 4, Task 5, Task 7,
+    // C-1 or the sign-in door quietly moved a production call site into the
+    // policy's own home.
     expect(
       gos.where((String h) =>
           !h.startsWith('lib/utils/routes/app_back_policy.dart:') &&
           !h.startsWith('lib/utils/routes/back_visit_stack.dart:')),
-      hasLength(42),
+      hasLength(43),
     );
 
     // No real `push`/`pushNamed`/`goNamed` anywhere OUTSIDE one sanctioned,
