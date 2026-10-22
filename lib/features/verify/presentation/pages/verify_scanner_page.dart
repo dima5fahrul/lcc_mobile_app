@@ -112,7 +112,17 @@ class _VerifyScannerPageState extends State<VerifyScannerPage> {
 
     final List<Barcode> barcodes = capture.barcodes;
     final String? raw = barcodes.isEmpty ? null : barcodes.first.rawValue;
-    if (raw == null) return;
+    if (raw == null) {
+      // A decodable barcode with no text — e.g. a binary-payload QR — or a
+      // capture the platform reported with no barcode at all is rule 3's
+      // "anything else" exactly as much as a wa.me URL is: not a
+      // certificate code, and the citizen gets the SAME banner rather than
+      // silence. (Fix round 1 — this branch used to return with no
+      // feedback, "keep scanning" without ever saying why there was
+      // nothing to navigate to.)
+      if (!_showInvalid) setState(() => _showInvalid = true);
+      return;
+    }
 
     // The SAME gate `VerifyCodeEntryPage._submit` runs typed text through —
     // rules 1-3 of § QR codes and deep links. Rule 3's `null` means send

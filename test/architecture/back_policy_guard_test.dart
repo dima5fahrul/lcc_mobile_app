@@ -231,32 +231,66 @@ void main() {
       hasLength(41),
     );
 
-    // No real `push`/`goNamed` anywhere — candidate A (`fix-plan.md` § 7.1)
-    // rejected. Stripping comments removes the one raw-text hit, a JavaScript
-    // snippet in a doc comment, so this is the strictly stronger assertion.
-    expect(_hits(code, RegExp(r'\.push\(|pushNamed\(|goNamed\(')), isEmpty,
+    // No real `push`/`pushNamed`/`goNamed` anywhere OUTSIDE one sanctioned,
+    // NAMED exception — candidate A (`fix-plan.md` § 7.1) rejected as a
+    // general navigation pattern.
+    //
+    // **Widened, Task 5 fix round 1.** The ORIGINAL pattern here —
+    // `\.push\(|pushNamed\(|goNamed\(`, requiring the open paren
+    // immediately after the method name — could not see
+    // `Navigator.of(context).push<void>(...)`
+    // (`verify_code_entry_page.dart:140`), because of its explicit `<void>`
+    // type argument. That made this test's own stated law ("zero real push
+    // outside one exempted doc comment") not actually enforced against the
+    // one real push site that exists: a reviewer found it only by reading
+    // the source, not by this guard, and the guard would have stayed GREEN
+    // through a later change that added a second, unsanctioned push the
+    // same way. `(?:<[^>]*>)?` admits one optional generic type argument
+    // between the method name and its paren — for `push`, `pushNamed` AND
+    // `goNamed` alike, even though only `push`/`pushNamed` are known to take
+    // one in Flutter/go_router today; widened for all three so the same
+    // blind spot cannot reopen through whichever of them grows a type
+    // parameter next.
+    final RegExp realPushPattern = RegExp(
+      r'\.push(?:<[^>]*>)?\(|pushNamed(?:<[^>]*>)?\(|goNamed(?:<[^>]*>)?\(',
+    );
+
+    // **The one sanctioned real push — named and justified, not hidden.**
+    // `Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_)
+    // => const VerifyScannerPage()))`, the entry page's Scan button, is a
+    // direct coordinator ruling (Task 5): the scanner is reached from
+    // exactly this one button, needs no deep-link entry point of its own,
+    // and therefore gets no `GoRoute` at all — a plain `Navigator.push` IS
+    // the design, not an oversight this guard exists to catch. It stays
+    // entirely OUTSIDE go_router — go_router's own matched-route stack never
+    // resolves a location for it — so `SR-1`'s subject (every ROUTED
+    // navigation passing through `AppRoutes._redirect`) does not apply to
+    // it, and `AppBackPolicy` (which listens to the `GoRouterDelegate`'s
+    // `currentConfiguration`, never the raw `Navigator`) is unaffected: the
+    // visit stack's head stays `/verify` while this page sits on top of it,
+    // which is exactly why `VerifyScannerPage` itself reaches the result
+    // route with `.go()` and not a second `push` — see that file's own
+    // library doc, and the `.go(` block above.
+    const String kSanctionedScannerPush =
+        'lib/features/verify/presentation/pages/verify_code_entry_page.dart:140';
+
+    expect(_hits(code, realPushPattern), <String>[kSanctionedScannerPush],
         reason: 'a real push() would fix nine routes, leave the four tabs '
             'broken, and keep the shell s 4,000 ms chat poll alive behind '
-            'every step of a seven-step form');
+            'every step of a seven-step form — EXCEPT the one sanctioned, '
+            'named site above, which never enters go_router and so cannot '
+            'cause that failure. Any OTHER real push is still exactly what '
+            'this assertion refuses.');
 
-    // The original doc-comment hit is still there, and is still only a doc
-    // comment. Task 5 adds a SECOND doc-comment hit for the same reason —
-    // `verify_scanner_page.dart`'s library doc explains why the entry page's
-    // Scan button uses a plain `Navigator.push(MaterialPageRoute(...))`
-    // (quoted in prose) rather than a `GoRoute`, and that explanation
-    // necessarily names the method it is NOT using go_router for. The actual
-    // call, `Navigator.of(context).push<void>(...)` in
-    // `verify_code_entry_page.dart`, carries an explicit `<void>` type
-    // argument — ordinary Dart for a route whose popped result nobody reads
-    // — which is why it is absent from BOTH lists: `\.push\(` requires the
-    // open paren immediately after `push`, and `push<void>(` does not have
-    // one. That is a measured fact about the regex, not a rewrite chosen to
-    // dodge it; the call is a plain, un-forbidden `Navigator.push`, nothing
-    // routed through go_router, and `SR-1`'s own subject (`AppRoutes
-    // ._redirect` seeing every ROUTED navigation) does not apply to a
-    // Navigator entry go_router never resolves a location for.
-    expect(_hits(files, RegExp(r'\.push\(|pushNamed\(|goNamed\(')), <String>[
+    // The two doc-comment hits: the original JavaScript snippet, and Task
+    // 5's own `verify_scanner_page.dart` library doc explaining — in prose —
+    // why the Scan button uses a plain `Navigator.push(MaterialPageRoute
+    // (...))` rather than a `GoRoute`. Comment-stripping removes both from
+    // the `code` scan above; this is the raw, unstripped list, so they
+    // reappear here alongside the one real call.
+    expect(_hits(files, realPushPattern), <String>[
       'lib/features/reference/data/datasources/location_remote_datasource.dart:18',
+      kSanctionedScannerPush,
       'lib/features/verify/presentation/pages/verify_scanner_page.dart:5',
     ]);
   });

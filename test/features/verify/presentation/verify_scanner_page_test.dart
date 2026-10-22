@@ -280,6 +280,38 @@ void main() {
   );
 
   testWidgets(
+    'a decodable barcode with a null rawValue (fix round 1) shows the '
+    'banner too — silence is not an acceptable answer to rule 3',
+    (WidgetTester tester) async {
+      final FakeMobileScannerController controller =
+          await pumpScanner(tester);
+
+      // A binary-payload QR, or any other barcode the platform decoded as a
+      // symbol but could not render as text — `rawValue` is `null`, not an
+      // empty string. Before fix round 1, `_handleDetect` returned here
+      // with no `setState` at all: the camera kept scanning, which is
+      // correct, but the citizen got no feedback for the frame, which is
+      // not — rule 3 says "show 'This QR code is not a certificate code'",
+      // not "say nothing when there is nothing to parse".
+      controller.emit(
+        const BarcodeCapture(barcodes: <Barcode>[Barcode(rawValue: null)]),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('This QR code is not a certificate code'),
+        findsOneWidget,
+        reason: 'a null rawValue is rule 3\'s "anything else" exactly as '
+            'much as a wa.me URL is',
+      );
+      expect(find.byType(VerifyScannerPage), findsOneWidget,
+          reason: 'keep scanning');
+      expect(find.textContaining('RESULT:'), findsNothing,
+          reason: 'nothing was sent anywhere — there was nothing to send');
+    },
+  );
+
+  testWidgets(
     'a bare code with no scheme also navigates — rule 2, not only rule 1',
     (WidgetTester tester) async {
       final FakeMobileScannerController controller =
