@@ -357,4 +357,34 @@ void main() {
               'per scanner visit');
     },
   );
+
+  // ── Review M-1, 2026-10-22 — the parser's answer reaches the route whole ──
+
+  testWidgets(
+    'a code containing a path delimiter survives the hand-off — the router '
+    'gets the code the parser returned, not a prefix of it',
+    (WidgetTester tester) async {
+      final FakeMobileScannerController controller =
+          await pumpScanner(tester);
+
+      // Rule 1 returns the `/v/` segment percent-DECODED, so this QR yields
+      // the code `RES?a=b`. Interpolated raw into `/verify/<code>` the router
+      // read it as the path `/verify/RES` plus a query, and the app verified
+      // `RES` — a code nobody scanned, silently.
+      controller.emit(
+        const BarcodeCapture(
+          barcodes: <Barcode>[
+            Barcode(rawValue: 'https://portal.gov.la/v/RES%3Fa%3Db'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('RESULT:RES?a=b'), findsOneWidget,
+          reason: '`state.pathParameters` decodes what `Uri.encodeComponent` '
+              'wrote, so the round trip is lossless');
+      expect(find.text('RESULT:RES'), findsNothing,
+          reason: 'the truncation is the defect');
+    },
+  );
 }

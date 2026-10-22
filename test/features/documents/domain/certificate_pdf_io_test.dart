@@ -129,4 +129,69 @@ void main() {
           reason: 'never the directory itself — a fallback name instead');
     });
   });
+
+  // ── Review M-2, 2026-10-22 — the SAVE half sanitises too ──────────────────
+  //
+  // `savePdfBytes` handed the wire's `Content-Disposition` filename to
+  // `FilePicker.saveFile` verbatim while `openPdfBytes` above stripped it, so
+  // one of the two halves of the same header was defended and the other was
+  // not.
+
+  group('savePdfBytes', () {
+    test('the server filename reaches the save dialog unchanged when it is '
+        'already a plain basename', () async {
+      final List<String> saved = <String>[];
+      await savePdfBytes(
+        Uint8List.fromList(<int>[1, 2, 3]),
+        'LA-MAR-2026-000652-booklet.pdf',
+        save: (Uint8List _, String name) async => saved.add(name),
+      );
+
+      expect(saved, <String>['LA-MAR-2026-000652-booklet.pdf']);
+    });
+
+    test('M-2 — a traversal or nested filename is reduced to its basename',
+        () async {
+      for (final (String given, String want) in <(String, String)>[
+        ('../../../etc/passwd', 'passwd'),
+        ('a/b.pdf', 'b.pdf'),
+        ('../../x.pdf', 'x.pdf'),
+      ]) {
+        final List<String> saved = <String>[];
+        await savePdfBytes(
+          Uint8List.fromList(<int>[1]),
+          given,
+          save: (Uint8List _, String name) async => saved.add(name),
+        );
+        expect(saved, <String>[want], reason: given);
+      }
+    });
+
+    test('M-2 — a name that reduces to nothing becomes the same inert '
+        'fallback the View path uses', () async {
+      for (final String given in <String>['..', '', '/', '.']) {
+        final List<String> saved = <String>[];
+        await savePdfBytes(
+          Uint8List.fromList(<int>[1]),
+          given,
+          save: (Uint8List _, String name) async => saved.add(name),
+        );
+        expect(saved, <String>['certificate.pdf'], reason: 'given "$given"');
+      }
+    });
+
+    test('the bytes are passed through untouched', () async {
+      final Uint8List bytes = Uint8List.fromList(<int>[9, 8, 7]);
+      final List<Uint8List> seen = <Uint8List>[];
+      await savePdfBytes(
+        bytes,
+        'x.pdf',
+        save: (Uint8List b, String _) async => seen.add(b),
+      );
+
+      expect(seen.single, same(bytes),
+          reason: 'sanitising the NAME must not re-encode the FILE — the '
+              'bytes are what verification hashes');
+    });
+  });
 }

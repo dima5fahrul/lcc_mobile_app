@@ -61,6 +61,7 @@ import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../utils/routes/app_name_routes.dart';
 import '../../domain/entities/verification_result.dart';
+import '../../domain/vientiane_calendar.dart';
 import '../../verify_routes.dart' show kVerifyFileCheckCodeParam;
 import '../bloc/verify_bloc.dart';
 // `formatDate` is the app's shared date formatter, re-exported through
@@ -313,7 +314,16 @@ class _DetailsCard extends StatelessWidget {
       if (result.revokedAt.isNotEmpty)
         _DetailRow(
           label: 'verify.detail.revokedAt'.tr(context: context),
-          value: formatDate(result.revokedAt, lang == Lang.lo ? 'lo' : 'en'),
+          // `revoked_at` is the one RFC 3339 **date-time** on this screen, and
+          // `DateTime.parse` normalises its `+07:00` to UTC — review M-7. The
+          // instant is put back on the Vientiane calendar before the date is
+          // read, so a revocation at 00:30 in Vientiane does not render as the
+          // day before. `issued_at`/`valid_until` are plain dates and go
+          // straight to `formatDate`, unchanged.
+          value: formatDate(
+            vientianeCalendarDate(result.revokedAt),
+            lang == Lang.lo ? 'lo' : 'en',
+          ),
         ),
       if (result.revokeReason.isNotEmpty)
         _DetailRow(

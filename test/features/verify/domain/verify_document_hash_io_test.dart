@@ -54,5 +54,35 @@ void main() {
       final Uint8List bytes = Uint8List(64 * 1024);
       expect(sha256HexOfBytes(bytes), sha256.convert(bytes).toString());
     });
+
+    // ── Review M-5, 2026-10-22 ──────────────────────────────────────────────
+    //
+    // The function read `capture.value.toString()`, and `Digest?.toString()`
+    // on a null answers the literal string `"null"` — so a sink that never
+    // emitted would have POSTed `{"hash": "null"}` rather than refusing. It
+    // now captures to a local and throws `StateError` instead.
+    //
+    // **The throw has NO direct test, and that is reported rather than faked.**
+    // `crypto`'s `startChunkedConversion` always emits on `close()`, the sink
+    // is a private class in this library, and there is no seam to hand it a
+    // different one — so the branch is unreachable by construction. Widening
+    // the public API to make an impossible case observable would be a worse
+    // trade than this note. What IS asserted is the property the branch
+    // protects: the output is a digest, never a sentinel.
+
+    test('M-5 — the output is never the literal string "null"', () {
+      for (final List<int> input in <List<int>>[
+        const <int>[],
+        <int>[0],
+        utf8.encode('a certificate PDF'),
+        List<int>.generate(64 * 1024 + 1, (int i) => i % 256),
+      ]) {
+        final String hex = sha256HexOfBytes(input);
+        expect(hex, isNot('null'));
+        expect(RegExp(r'^[0-9a-f]{64}$').hasMatch(hex), isTrue,
+            reason: 'a non-digest answer of any shape is the defect — the '
+                '64-hex contract is what the endpoint is promised');
+      }
+    });
   });
 }

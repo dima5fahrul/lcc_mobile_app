@@ -142,7 +142,14 @@ class _VerifyScannerPageState extends State<VerifyScannerPage> {
     // first makes the ordering not matter.
     final GoRouter router = GoRouter.of(context);
     Navigator.of(context).pop(); // Leave the scanner — back lands on entry.
-    router.go('${AppNameRoutes.verify}/$code');
+    // `Uri.encodeComponent`, not a raw interpolation — review M-1, 2026-10-22.
+    // Rule 1 returns a percent-DECODED segment, so a QR encoding
+    // `https://x/v/RES%3Fa%3Db` yields the code `RES?a=b`, and a raw join
+    // would be parsed by the router as the path `/verify/RES` plus a query —
+    // verifying `RES`, a code nobody scanned. (Not a hole: `ApiEndpoint
+    // .verifyByCode` encodes again before the wire. But the parser's output
+    // has to be delivered faithfully.)
+    router.go('${AppNameRoutes.verify}/${Uri.encodeComponent(code)}');
   }
 
   @override

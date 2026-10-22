@@ -271,4 +271,105 @@ void main() {
       expect(find.text('network error'), findsOneWidget);
     });
   });
+
+  // ── Review M-4, 2026-10-22 — NO viewed code is its own branch ─────────────
+  //
+  // The page is reachable with an empty `viewedVerifyCode`: a typed deep link
+  // to the file-check path, or the route builder's own `?? ''` when the query
+  // param is absent. `sameCode` was then false for EVERY answer, so an
+  // ordinary found certificate reported as "a genuine but different one" —
+  // different from nothing at all.
+
+  group('M-4 — an empty viewedVerifyCode', () {
+    testWidgets('a found, issued certificate reads as a NEUTRAL fact, not as '
+        'a different-certificate warning', (WidgetTester tester) async {
+      await _pump(
+        tester,
+        viewedVerifyCode: '',
+        pickFile: stubPicker(_fileBytes),
+        verifyDocumentHash: stubFetcher(Right(issuedResult())),
+      );
+
+      await tester.tap(find.text('Choose a file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('This file belongs to an issued certificate'),
+          findsOneWidget);
+      expect(find.textContaining('LA-RES-2026-000123'), findsOneWidget,
+          reason: 'the certificate the file belongs to, named');
+      expect(find.textContaining('Valid'), findsOneWidget,
+          reason: 'and its status, through the shared verify.status.* copy');
+
+      expect(
+        find.text('This is a genuine certificate, but a different one'),
+        findsNothing,
+        reason: 'the defect: a comparison against nothing reported as a '
+            'mismatch',
+      );
+      expect(find.text('This file matches the issued document.'), findsNothing,
+          reason: 'and it must not over-claim either — nothing was matched');
+    });
+
+    testWidgets('a REVOKED answer still shows the status screen — the status '
+        'always wins', (WidgetTester tester) async {
+      await _pump(
+        tester,
+        viewedVerifyCode: '',
+        pickFile: stubPicker(_fileBytes),
+        verifyDocumentHash: stubFetcher(Right(revokedResult())),
+      );
+
+      await tester.tap(find.text('Choose a file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Revoked — do not accept'), findsOneWidget);
+      expect(find.text('This file belongs to an issued certificate'),
+          findsNothing,
+          reason: 'a revoked document must never read as merely "found"');
+    });
+
+    testWidgets('`not-found` is unaffected — it never compared codes',
+        (WidgetTester tester) async {
+      await _pump(
+        tester,
+        viewedVerifyCode: '',
+        pickFile: stubPicker(_fileBytes),
+        verifyDocumentHash: stubFetcher(
+          Right(issuedResult().copyWith(status: 'not-found', valid: false)),
+        ),
+      );
+
+      await tester.tap(find.text('Choose a file'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Not an issued document'), findsOneWidget);
+    });
+  });
+
+  // ── Review M-7, 2026-10-22 — `revoked_at` on the Vientiane calendar ───────
+
+  group('M-7 — revoked_at is a date-TIME, read on the Vientiane calendar', () {
+    testWidgets('00:30+07:00 renders as that day, not the one before',
+        (WidgetTester tester) async {
+      await _pump(
+        tester,
+        pickFile: stubPicker(_fileBytes),
+        verifyDocumentHash: stubFetcher(
+          Right(revokedResult().copyWith(
+            verifyCode: kViewedCode,
+            revokedAt: '2026-10-22T00:30:00+07:00',
+          )),
+        ),
+      );
+
+      await tester.tap(find.text('Choose a file'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('22 Oct 2026'), findsOneWidget,
+          reason: '`DateTime.parse` normalises +07:00 to UTC, so this used to '
+              'render 21 Oct — the wrong day on the screen that tells '
+              'somebody whether to accept a document');
+      expect(find.textContaining('21 Oct 2026'), findsNothing);
+    });
+  });
 }

@@ -66,7 +66,10 @@ class _VerifyCodeEntryPageState extends State<VerifyCodeEntryPage> {
       return;
     }
 
-    context.go('${AppNameRoutes.verify}/$code');
+    // Encoded, for `VerifyScannerPage._handleDetect`'s reason (review M-1):
+    // the parser's answer is a decoded segment and a raw join would let a
+    // `?`, `#` or `/` inside it re-partition the path.
+    context.go('${AppNameRoutes.verify}/${Uri.encodeComponent(code)}');
   }
 
   @override

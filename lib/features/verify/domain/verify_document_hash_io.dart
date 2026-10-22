@@ -74,7 +74,20 @@ String sha256HexOfBytes(List<int> bytes) {
   }
   sink.close();
 
-  return capture.value.toString();
+  // **Review M-5, 2026-10-22.** This read `capture.value.toString()`, and
+  // `Digest?.toString()` on a null answers the literal string `"null"` — so a
+  // sink that never emitted would have POSTed `{"hash": "null"}` instead of
+  // refusing. Unreachable with `crypto`'s own sink (`close()` always emits),
+  // which is exactly why it would never have been noticed; one line makes the
+  // impossible case loud instead of wrong.
+  final Digest? digest = capture.value;
+  if (digest == null) {
+    throw StateError(
+      'sha256.startChunkedConversion emitted no Digest on close() — refusing '
+      'to send a hash that was never computed',
+    );
+  }
+  return digest.toString();
 }
 
 /// Calling [VerifyDocumentHash] with a hex digest, as a parameter — the

@@ -144,8 +144,24 @@ Future<void> openPdfBytes(
 /// discards it — the web renders nothing on either outcome. The signature
 /// matches [CertificatePdfSaver] exactly so the widget can bind it as its
 /// default; tests inject at the widget, not here.
-Future<void> savePdfBytes(Uint8List bytes, String fileName) async {
-  await _defaultSavePdf(bytes, fileName);
+///
+/// **Review M-2, 2026-10-22 — the name is [sanitizePdfFileName]-stripped
+/// here too.** It was passed to `FilePicker.saveFile` verbatim while
+/// [openPdfBytes] three functions up stripped it, so one of the two halves of
+/// the same wire header was defended and the other was not. The same
+/// basename, the same inert fallback, on both paths.
+/// [save] is injectable for the same reason [openPdfBytes]' `tempDir`/`open`
+/// are: `FilePicker.platform.saveFile` is a platform channel, and without a
+/// seam the sanitisation above could only be asserted on the helper rather
+/// than on the path that uses it. Production never passes it.
+Future<void> savePdfBytes(
+  Uint8List bytes,
+  String fileName, {
+  Future<void> Function(Uint8List bytes, String fileName)? save,
+}) async {
+  String name = sanitizePdfFileName(fileName);
+  if (name.isEmpty || name == '.') name = 'certificate.pdf';
+  await (save ?? _defaultSavePdf)(bytes, name);
 }
 
 /// The production fetch behind `CertificateFileActions.fetchStoredFile` —

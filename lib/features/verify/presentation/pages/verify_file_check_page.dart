@@ -63,6 +63,7 @@ import '../../../../presentation/theme/app_typography.dart';
 import '../../../../utils/routes/app_name_routes.dart';
 import '../../domain/entities/verification_result.dart';
 import '../../domain/verify_document_hash_io.dart';
+import '../../domain/vientiane_calendar.dart';
 import '../../../home/domain/home_formatting.dart' show formatDate;
 
 /// Picking a file and getting its bytes back, as a parameter — the
@@ -153,9 +154,13 @@ class _VerifyFileCheckPageState extends State<VerifyFileCheckPage> {
 
   void _goBack() {
     final String code = widget.viewedVerifyCode;
+    // Encoded, for the reason review M-1 gives at the scanner and the entry
+    // page: `viewedVerifyCode` arrives percent-DECODED from
+    // `state.uri.queryParameters`, so a raw join would let a character inside
+    // it re-partition the path it is being put back into.
     context.go(code.isEmpty
         ? AppNameRoutes.verify
-        : '${AppNameRoutes.verify}/$code');
+        : '${AppNameRoutes.verify}/${Uri.encodeComponent(code)}');
   }
 
   @override
@@ -244,6 +249,26 @@ class _ResultArea extends StatelessWidget {
     final VerificationResult? answer = result;
     if (answer == null) return const SizedBox.shrink();
 
+    // **Review M-4, 2026-10-22 — "no code was being viewed" is its own
+    // branch, not a mismatch.** This page is reachable with an empty
+    // `viewedVerifyCode`: a typed deep link to the file-check path, or the
+    // route builder's own `?? ''` when the query param is absent. With no code
+    // to compare against, `sameCode` is false for EVERY answer, so a perfectly
+    // ordinary found certificate was reported as "This is a genuine
+    // certificate, but a different one" — different from nothing. The spec's
+    // branch table (§ Checking a PDF on the device, step 4) is written
+    // throughout as a comparison against "the code being viewed"; where there
+    // is none, none of its three branches applies, and the honest answer is
+    // the fact itself: this file belongs to certificate <no>, whose status is
+    // <status>. The status screen still wins when the status forbids
+    // acceptance — a revoked document must never read as merely "found".
+    if (viewedVerifyCode.isEmpty) {
+      if (_statusWinsOverMatch.contains(answer.status)) {
+        return _StatusWinsBody(result: answer);
+      }
+      return _FoundBody(result: answer);
+    }
+
     final bool sameCode = answer.verifyCode == viewedVerifyCode;
     // Branch 4 — checked FIRST, so it wins over branch 1 even though a
     // revoked/superseded/expired certificate's own file still hashes to its
@@ -328,6 +353,87 @@ class _MatchBody extends StatelessWidget {
         SizedBox(height: AppSpacing.gap8),
         Text(
           '${'verify.fileCheck.layoutLabel'.tr(context: context)}: $layoutLabel',
+          style: TextStyle(
+            fontFamily: AppTypography.fontFamily,
+            fontFamilyFallback: AppTypography.fontFamilyFallback,
+            fontSize: AppTypography.size14,
+            color: AppColors.gray900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// **Review M-4** — the neutral answer when there was no viewed code to
+/// compare against: *"this file belongs to certificate `{no}`, status
+/// `{status}`"*.
+///
+/// Deliberately **not** a verdict. It is neither the green *matches the issued
+/// document* (nothing was being matched) nor the amber *genuine but different*
+/// (different from what?), and the surrounding chrome says so: the same grey
+/// card `_NotIssuedBody` uses, because what this screen knows is a fact and
+/// not an acceptance.
+///
+/// The status is rendered through `verify.status.*` — the same words
+/// `VerifyResultPage` uses for the same fact — with the server's own string as
+/// the fallback, since `status` is an open set.
+class _FoundBody extends StatelessWidget {
+  const _FoundBody({required this.result});
+
+  final VerificationResult result;
+
+  /// `verify.status.*` for the five the guide names, verbatim otherwise.
+  static String _statusLabel(BuildContext context, String status) {
+    switch (status) {
+      case 'issued':
+        return 'verify.status.issued'.tr(context: context);
+      case 'expired':
+        return 'verify.status.expired'.tr(context: context);
+      case 'revoked':
+        return 'verify.status.revoked'.tr(context: context);
+      case 'superseded':
+        return 'verify.status.superseded'.tr(context: context);
+      case 'not-found':
+        return 'verify.status.notFound'.tr(context: context);
+      default:
+        return status;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      borderColor: AppColors.gray300,
+      backgroundColor: AppColors.gray50,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const LucideIcon(name: 'FileCheck2', color: AppColors.gray600),
+            SizedBox(width: AppSpacing.gap8),
+            Expanded(
+              child: Text(
+                'verify.fileCheck.foundTitle'.tr(context: context),
+                style: TextStyle(
+                  fontFamily: AppTypography.fontFamily,
+                  fontFamilyFallback: AppTypography.fontFamilyFallback,
+                  fontSize: AppTypography.size16,
+                  fontWeight: AppTypography.bold,
+                  color: AppColors.gray900,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: AppSpacing.gap8),
+        Text(
+          'verify.fileCheck.foundBody'.tr(
+            context: context,
+            namedArgs: <String, String>{
+              'no': result.certificateNo,
+              'status': _statusLabel(context, result.status),
+            },
+          ),
           style: TextStyle(
             fontFamily: AppTypography.fontFamily,
             fontFamilyFallback: AppTypography.fontFamilyFallback,
@@ -488,7 +594,9 @@ class _StatusWinsBody extends StatelessWidget {
         if (result.revokedAt.isNotEmpty)
           _DetailLine(
             label: 'verify.detail.revokedAt'.tr(context: context),
-            value: formatDate(result.revokedAt, lang),
+            // Review M-7 — the Vientiane calendar, for
+            // `verify_result_page.dart`'s reason at its own `revokedAt` row.
+            value: formatDate(vientianeCalendarDate(result.revokedAt), lang),
           ),
         if (result.revokeReason.isNotEmpty)
           _DetailLine(
