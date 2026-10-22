@@ -49,7 +49,6 @@ import 'package:lcc_mobile_app/features/certificates/presentation/certificate_fo
 import 'package:lcc_mobile_app/features/certificates/presentation/certificate_forms/certificate_ref_list.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_fields.dart';
 import 'package:lcc_mobile_app/features/certificates/presentation/divorce/divorce_form_cubit.dart';
-import 'package:lcc_mobile_app/i18n/i18n.dart';
 
 import '../../../application/application_write_fakes.dart';
 import '../../../../helpers/app_test_harness.dart';
