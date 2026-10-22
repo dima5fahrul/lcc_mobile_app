@@ -20,10 +20,11 @@ import '../repositories/documents_repository.dart';
 /// `me.certificates()` — the list.
 ///
 /// **Takes an optional `application_id` since 2026-10-22 (review I-2).** The
-/// source's call (`:149`) passed only the abort signal, and the parameter type
-/// stays [NoParams]-compatible for it: `GetCertificatesParams()` with no
-/// argument sends no query at all, which is byte-identical to the unfiltered
-/// request. The filter exists because the spec's § Divorce says so — *"one
+/// source's call (`:149`) passed only the abort signal, and that call is still
+/// expressible: `GetCertificatesParams()` with no argument sends no query key
+/// at all, so the request on the wire is byte-identical to the unfiltered one
+/// `NoParams` used to produce. The filter exists because the spec's § Divorce
+/// says so — *"one
 /// application yields three certificates … List them with `GET
 /// /me/certificates?application_id=…`"* — and § Citizen endpoints, List
 /// declares `application_id` among the endpoint's optional query parameters.
