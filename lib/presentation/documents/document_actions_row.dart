@@ -464,20 +464,50 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
     }
   }
 
-  /// `document_type` + `copy`, as the spec labels a divorce's three documents:
+  /// The row's own heading, as the spec labels a divorce's three documents:
   /// *"`""` joint card, `A` husband's booklet, `B` wife's booklet"*
   /// (§ Divorce).
   ///
+  /// **The human-facing half is the bilingual `service` name, not the wire
+  /// code** (review, 2026-10-22). The checklist's words are *"label by
+  /// `document_type` and `copy`"*, and `document_type` is a three-letter
+  /// transport code — `DIV`, `MAR`, `FBK`. Rendered verbatim it reaches a
+  /// Lao-locale citizen as `DIV · ບັດຮ່ວມ`: half a sentence they can read
+  /// and half an enum they cannot. The row already carries `service`, *"an
+  /// object `{"en": "...", "lo": "..."}`"* whose rule the guide states
+  /// outright (§ Authentication and conventions, Bilingual text: *"Show `lo`
+  /// when the app is in Lao, else `en`; fall back to the other half when one
+  /// is empty"*) — which is exactly [text]. So the service name leads, and
+  /// `document_type` is the **fallback**, for a row that sends no `service`
+  /// or sends one with both halves empty. [lang] comes from the ambient
+  /// locale in [build], the same way [DocumentActionsRow._title] resolves it.
+  ///
+  /// The `copy` suffix is unchanged.
+  ///
   /// **Empty when the row says nothing about itself** — a legacy row sends
-  /// neither key, and "Joint card" for a row that never claimed to be one
-  /// would be the app inventing a fact. The caller renders no heading at all
-  /// for an empty label rather than an empty line.
-  String _rowLabel(BuildContext context, IssuedCertificate certificate) {
+  /// neither `document_type` nor `copy`, and "Joint card" for a row that
+  /// never claimed to be one would be the app inventing a fact. The gate
+  /// stays on those two keys rather than on `service`, deliberately: this
+  /// heading exists to tell the rows of one case APART, and the service name
+  /// is the same string on every row of an application, so a row with only a
+  /// service name has still said nothing that distinguishes it. The caller
+  /// renders no heading at all for an empty label rather than an empty line.
+  String _rowLabel(
+    BuildContext context,
+    Lang lang,
+    IssuedCertificate certificate,
+  ) {
     if (certificate.documentType.isEmpty && certificate.copy.isEmpty) {
       return '';
     }
+    // `text` already answers `''` for a null pair and for one whose wanted
+    // side, `en` and `lo` are all empty, so this one check covers both
+    // "absent" and "both halves empty".
+    final String service = text(certificate.serviceName, lang);
+    final String kind =
+        service.isNotEmpty ? service : certificate.documentType;
     final List<String> parts = <String>[
-      if (certificate.documentType.isNotEmpty) certificate.documentType,
+      if (kind.isNotEmpty) kind,
       switch (certificate.copy) {
         'A' => 'verify.copy.a'.tr(context: context),
         'B' => 'verify.copy.b'.tr(context: context),
@@ -499,6 +529,12 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
         .toList(growable: false);
     if (rows.isEmpty) return const SizedBox.shrink();
 
+    // The reader's side of every `Bilingual` this widget resolves — read from
+    // the ambient locale here, where a widget can watch it, exactly as
+    // `DocumentActionsRow.build` does one class up. `_rowLabel` is its only
+    // consumer today.
+    final Lang lang = Lang.fromCode(context.locale.languageCode);
+
     // One heading per row only when there is more than one row to tell apart
     // (review I-2). A single-document application renders exactly what it did
     // before this change. `_rowLabel` can still answer `''` for a row that
@@ -512,9 +548,10 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
       children: <Widget>[
         for (int r = 0; r < rows.length; r++) ...<Widget>[
           if (r > 0) const SizedBox(height: AppSpacing.gap12),
-          if (heading && _rowLabel(context, rows[r]).isNotEmpty) ...<Widget>[
+          if (heading &&
+              _rowLabel(context, lang, rows[r]).isNotEmpty) ...<Widget>[
             Text(
-              _rowLabel(context, rows[r]),
+              _rowLabel(context, lang, rows[r]),
               style: const TextStyle(
                 fontSize: AppTypography.size12,
                 fontWeight: AppTypography.semiBold,

@@ -28,6 +28,7 @@ import 'package:lcc_mobile_app/core/error/failure.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file_download.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
+import 'package:lcc_mobile_app/features/session/domain/entities/bilingual.dart';
 import 'package:lcc_mobile_app/presentation/documents/document_actions_row.dart';
 import 'package:lcc_mobile_app/presentation/documents/document_viewer.dart';
 import 'package:lcc_mobile_app/presentation/theme/app_theme.dart';
@@ -202,6 +203,11 @@ void main() {
   // ── Review I-2 — a divorce's THREE documents ──────────────────────────────
 
   group('I-2 — every certificate row of the application renders', () {
+    /// The bilingual `service` object a v2 divorce row carries — § Citizen
+    /// endpoints, List: `"service": { "en": "Divorce Certificate", "lo": "…" }`.
+    const Bilingual kDivorceService =
+        Bilingual(en: 'Divorce Certificate', lo: 'ໃບຢັ້ງຢືນການຢ່າຮ້າງ');
+
     /// The spec's § Divorce arrangement: *"one application yields three
     /// certificates: the joint card and booklets A (husband) and B (wife)"* —
     /// same `application_id`, one `copy` each, one file each.
@@ -209,6 +215,7 @@ void main() {
           certFixture().copyWith(
             id: 'div-joint',
             certificateNo: 'LA-DIV-2026-000094',
+            serviceName: kDivorceService,
             documentType: 'DIV',
             copy: '',
             files: <CertificateFile>[
@@ -219,6 +226,7 @@ void main() {
           certFixture().copyWith(
             id: 'div-a',
             certificateNo: 'LA-DIV-2026-000094-A',
+            serviceName: kDivorceService,
             documentType: 'DIV',
             copy: 'A',
             files: <CertificateFile>[
@@ -229,6 +237,7 @@ void main() {
           certFixture().copyWith(
             id: 'div-b',
             certificateNo: 'LA-DIV-2026-000094-B',
+            serviceName: kDivorceService,
             documentType: 'DIV',
             copy: 'B',
             files: <CertificateFile>[
@@ -239,7 +248,7 @@ void main() {
         ];
 
     testWidgets('three rows render three pairs, each headed by its '
-        'document_type and copy', (WidgetTester tester) async {
+        'SERVICE NAME and copy', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(390, 1600);
       await pumpActions(tester,
           certificate: divorceRows().first,
@@ -250,10 +259,72 @@ void main() {
       expect(find.textContaining('View document'), findsNWidgets(3));
       expect(find.textContaining('Download document'), findsNWidgets(3));
 
-      // The labels the spec names: `""` joint card, `A` husband's booklet,
-      // `B` wife's booklet.
+      // The copy labels the spec names: `""` joint card, `A` husband's
+      // booklet, `B` wife's booklet — and the human-facing half is the
+      // bilingual `service`, not the `DIV` wire code (review, 2026-10-22).
+      expect(find.text('Divorce Certificate · Joint card'), findsOneWidget);
+      expect(
+          find.text("Divorce Certificate · Husband's booklet"), findsOneWidget);
+      expect(find.text("Divorce Certificate · Wife's booklet"), findsOneWidget);
+      expect(find.textContaining('DIV'), findsNothing,
+          reason: 'the three-letter transport code is not citizen copy');
+    });
+
+    // ── Review, 2026-10-22 — the heading's human-facing half ────────────────
+    //
+    // `_rowLabel` used to render `document_type` verbatim, so a Lao-locale
+    // citizen reading a divorce case saw `DIV · ບັດຮ່ວມ` — half a sentence and
+    // half an enum. The row already carries `service`, a `Bilingual` the guide
+    // tells the app how to read (§ Authentication and conventions). Both
+    // arrangements are covered: present → the service name in the reader's
+    // own language; absent → the wire code, because a heading of only
+    // "Joint card" would say nothing about WHAT the document is.
+
+    testWidgets('the Lao arm of `service` is what a Lao reader gets — not the '
+        'wire code', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: divorceRows(),
+          locale: const Locale('lo'),
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      expect(find.text('ໃບຢັ້ງຢືນການຢ່າຮ້າງ · ບັດຮ່ວມ'), findsOneWidget);
+      expect(find.text('ໃບຢັ້ງຢືນການຢ່າຮ້າງ · ປຶ້ມຂອງຝ່າຍຊາຍ'), findsOneWidget);
+      expect(find.text('ໃບຢັ້ງຢືນການຢ່າຮ້າງ · ປຶ້ມຂອງຝ່າຍຍິງ'), findsOneWidget);
+      expect(find.textContaining('DIV'), findsNothing);
+    });
+
+    testWidgets('with NO `service` the heading falls back to the raw '
+        'document_type', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: divorceRows()
+              .map((IssuedCertificate c) => c.copyWith(serviceName: null))
+              .toList(),
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
       expect(find.text('DIV · Joint card'), findsOneWidget);
       expect(find.text("DIV · Husband's booklet"), findsOneWidget);
+      expect(find.text("DIV · Wife's booklet"), findsOneWidget);
+    });
+
+    testWidgets('a `service` whose BOTH halves are empty falls back too — '
+        'empty is absence, not a blank label', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: divorceRows()
+              .map((IssuedCertificate c) =>
+                  c.copyWith(serviceName: const Bilingual(en: '', lo: '')))
+              .toList(),
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      expect(find.text('DIV · Joint card'), findsOneWidget);
       expect(find.text("DIV · Wife's booklet"), findsOneWidget);
     });
 
@@ -303,9 +374,12 @@ void main() {
 
       expect(find.textContaining('View document'), findsNWidgets(2));
       expect(find.text('Joint card'), findsNothing);
-      expect(find.text('DIV · Joint card'), findsNothing);
+      expect(find.text('Divorce Certificate · Joint card'), findsNothing,
+          reason: 'the gate is `document_type`/`copy`, not `service` — a row '
+              'that named neither is not distinguished by a service name '
+              'every row of the case shares');
       // The row that DID name itself still gets its heading.
-      expect(find.text("DIV · Wife's booklet"), findsOneWidget);
+      expect(find.text("Divorce Certificate · Wife's booklet"), findsOneWidget);
     });
 
     testWidgets('a row with no stored file is skipped, not drawn empty',
@@ -320,7 +394,8 @@ void main() {
               okFile());
 
       expect(find.textContaining('View document'), findsNWidgets(1));
-      expect(find.text("DIV · Husband's booklet"), findsNothing);
+      expect(
+          find.text("Divorce Certificate · Husband's booklet"), findsNothing);
     });
   });
 
