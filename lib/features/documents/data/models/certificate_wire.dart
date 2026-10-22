@@ -159,6 +159,11 @@ IssuedCertificate issuedCertificateFrom(Map<String, dynamic> json) {
     fileUrl: _nullableStringAt(body, 'file_url'),
     documentHash: _nullableStringAt(body, 'document_hash'),
     // The v2 keys, each defaulted by the entity when the key is absent.
+    //
+    // `document_type` (review I-2, 2026-10-22): the spec's list item carries
+    // it beside `copy` and the implementation checklist labels a row by the
+    // pair. Legacy rows send neither and both default to `''`.
+    documentType: _stringAt(body, 'document_type'),
     copy: _stringAt(body, 'copy'),
     layouts: _stringsAt(body, 'layouts'),
     files: _filesAt(body, 'files'),

@@ -162,6 +162,48 @@ void main() {
       final r = rig(_envelope(<dynamic>[_cert('a'), 'not-an-object']));
       expect(await r.datasource.getCertificates(), hasLength(1));
     });
+
+    // ── Review I-2, 2026-10-22 — the `application_id` filter ────────────────
+    //
+    // § Divorce: *"one application yields three certificates … List them with
+    // `GET /me/certificates?application_id=…`"*, and § Citizen endpoints,
+    // List declares the parameter.
+
+    test('an application_id goes out as the application_id QUERY param',
+        () async {
+      final r = rig(_envelope(<Map<String, dynamic>>[_cert('a')]));
+      await r.datasource.getCertificates(applicationId: '9a0e');
+
+      expect(r.adapter.requests.single.path, ApiEndpoint.meCertificates,
+          reason: 'a query filter, never a new path');
+      expect(
+        r.adapter.requests.single.queryParameters,
+        <String, dynamic>{'application_id': '9a0e'},
+      );
+    });
+
+    test('the filter reaches the datasource THROUGH the repository', () async {
+      final r = rig(_envelope(<Map<String, dynamic>>[_cert('a')]));
+      await r.repository.getCertificates(applicationId: '9a0e');
+
+      expect(
+        r.adapter.requests.single.queryParameters,
+        <String, dynamic>{'application_id': '9a0e'},
+      );
+    });
+
+    test('no filter, or an EMPTY one, sends no query at all — the unfiltered '
+        'URL is byte-identical to what it was', () async {
+      for (final String? filter in <String?>[null, '']) {
+        final r = rig(_envelope(<Map<String, dynamic>>[_cert('a')]));
+        await r.datasource.getCertificates(applicationId: filter);
+
+        expect(r.adapter.requests.single.queryParameters, isEmpty,
+            reason: 'filter=$filter');
+        expect(r.adapter.requests.single.uri.hasQuery, isFalse,
+            reason: 'not even a bare `?` — filter=$filter');
+      }
+    });
   });
 
   group('GET /me/certificates/{id}', () {

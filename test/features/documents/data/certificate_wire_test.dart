@@ -52,6 +52,7 @@ const Map<String, dynamic> _v2 = <String, dynamic>{
     'en': 'Divorce Certificate',
     'lo': 'ໃບຢືນຢັນຢ່າງ',
   },
+  'document_type': 'DIV',
   'copy': 'A',
   'layouts': <String>['booklet'],
   'holder_name': 'PHIMMASONE Khamsy',
@@ -220,9 +221,15 @@ void main() {
       expect(c.files[1].sha256, '');
     });
 
-    test('copy, layouts, holders and valid_until land verbatim', () {
+    test('document_type, copy, layouts, holders and valid_until land verbatim',
+        () {
       final IssuedCertificate c = issuedCertificateFrom(_v2);
 
+      // `document_type` — review I-2, 2026-10-22. It was the one list-item
+      // key this mapper did not read, and the spec's implementation checklist
+      // labels a row by `document_type` + `copy`; with only `copy` a divorce
+      // booklet could not say what kind of document it was a copy of.
+      expect(c.documentType, 'DIV');
       expect(c.copy, 'A');
       expect(c.layouts, <String>['booklet']);
       expect(
@@ -343,12 +350,15 @@ void main() {
       );
     });
 
-    test('malformed copy/layouts/holders fall back to their defaults', () {
+    test('malformed document_type/copy/layouts/holders fall back to their '
+        'defaults', () {
       final IssuedCertificate c = issuedCertificateFrom(const <String, dynamic>{
+        'document_type': 7,
         'copy': 9,
         'layouts': 'booklet',
         'holders': 'one name',
       });
+      expect(c.documentType, '');
       expect(c.copy, '');
       expect(c.layouts, isEmpty);
       expect(c.holders, isEmpty);

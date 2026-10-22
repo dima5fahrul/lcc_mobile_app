@@ -38,7 +38,11 @@ import '../../domain/entities/issued_certificate.dart';
 import '../models/certificate_wire.dart';
 
 abstract class DocumentsRemoteDatasource {
-  Future<List<IssuedCertificate>> getCertificates();
+  /// [applicationId] is the endpoint's own `?application_id=…` filter
+  /// (§ Citizen endpoints, List). Null or empty sends **no query key at all**,
+  /// so the unfiltered call goes out byte-identical to what it was before the
+  /// parameter existed.
+  Future<List<IssuedCertificate>> getCertificates({String? applicationId});
 
   Future<IssuedCertificate> getCertificate(String id);
 
@@ -62,9 +66,21 @@ class DocumentsRemoteDatasourceImpl implements DocumentsRemoteDatasource {
   final ApiClient apiClient;
 
   @override
-  Future<List<IssuedCertificate>> getCertificates() async {
-    final dynamic data =
-        await apiClient.get<dynamic>(ApiEndpoint.meCertificates);
+  Future<List<IssuedCertificate>> getCertificates({
+    String? applicationId,
+  }) async {
+    // An absent or empty filter sends `query: null`, not `{}` — dio appends a
+    // `?` for an empty map, and the unfiltered request has to stay the exact
+    // URL it was before this parameter existed.
+    final String? filter = applicationId;
+    final Map<String, dynamic>? query =
+        (filter == null || filter.isEmpty)
+            ? null
+            : <String, dynamic>{'application_id': filter};
+    final dynamic data = await apiClient.get<dynamic>(
+      ApiEndpoint.meCertificates,
+      query: query,
+    );
     // `api.get<Certificate[]>` — a **plain array**, not paged. A body that is
     // not a list at all yields the empty list and therefore the card's
     // "not available yet" note, not a crash; and `whereType` costs one

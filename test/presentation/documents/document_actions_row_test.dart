@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/application_detail.dart';
 import 'package:lcc_mobile_app/features/application/domain/entities/case_status.dart';
+import 'package:lcc_mobile_app/features/documents/domain/entities/certificate_file.dart';
 import 'package:lcc_mobile_app/features/documents/domain/entities/issued_certificate.dart';
 import 'package:lcc_mobile_app/presentation/documents/document_actions_row.dart';
 import 'package:lcc_mobile_app/presentation/documents/document_viewer.dart';
@@ -46,6 +47,7 @@ void main() {
   Future<_RecordingSaver> pumpRow(
     WidgetTester tester, {
     IssuedCertificate? certificate,
+    List<IssuedCertificate> certificates = const <IssuedCertificate>[],
     Locale locale = const Locale('en'),
   }) async {
     tester.view.devicePixelRatio = 1.0;
@@ -67,6 +69,7 @@ void main() {
             body: DocumentActionsRow(
               detail: detail,
               certificate: certificate,
+              certificates: certificates,
               saveFile: saver.call,
             ),
           ),
@@ -171,6 +174,124 @@ void main() {
       expect(find.byType(DocumentViewer), findsOneWidget);
       expect(find.text('Verification code'), findsNothing,
           reason: '`verifyCode={certificate?.verify_code}` — `:653`');
+    });
+  });
+
+  // ── Review I-1, 2026-10-22 — the two pairs are EXCLUSIVE ──────────────────
+  //
+  // Task 6 mounted the server-PDF pair *beneath* the legacy faux-PDF pair,
+  // both bound to `history.viewDocument` / `history.downloadDocument`. A
+  // marriage certificate therefore drew three identical *View document*
+  // buttons and three identical *Download document* buttons, and the legacy
+  // one saved a PDF the app had PAINTED — a file the app's own
+  // `POST /verify/document-hash` check then reports as "not an issued
+  // document, or it was changed". § Overview makes the server's file the
+  // single source of truth, so when one exists it is the only one offered.
+
+  group('I-1 — the legacy faux-PDF pair vs. the server PDF', () {
+    IssuedCertificate marriage() => certFixture(
+          certificateNo: 'LA-MAR-2026-000652',
+        ).copyWith(
+          documentType: 'MAR',
+          files: const <CertificateFile>[
+            CertificateFile(layout: 'card', url: '/f/card', sha256: ''),
+            CertificateFile(layout: 'booklet', url: '/f/booklet', sha256: ''),
+          ],
+        );
+
+    testWidgets('a certificate with two stored files renders EXACTLY two View '
+        'and two Download buttons, layout-labelled, and NO legacy pair',
+        (WidgetTester tester) async {
+      await pumpRow(tester, certificate: marriage());
+
+      expect(find.textContaining('View document'), findsNWidgets(2));
+      expect(find.textContaining('Download document'), findsNWidgets(2));
+      expect(find.text('View document · Card'), findsOneWidget);
+      expect(find.text('View document · Booklet'), findsOneWidget);
+      expect(find.text('Download document · Card'), findsOneWidget);
+      expect(find.text('Download document · Booklet'), findsOneWidget);
+
+      // The legacy pair is the unqualified label. Its absence is the fix.
+      expect(find.text('View document'), findsNothing,
+          reason: 'the painter\'s pair must not sit beside the server\'s under '
+              'the same words — a citizen could not tell them apart, and the '
+              'painted PDF fails the app\'s own hash check');
+      expect(find.text('Download document'), findsNothing);
+    });
+
+    testWidgets('tapping Download never reaches the PAINTER when a server '
+        'file exists', (WidgetTester tester) async {
+      final _RecordingSaver saver =
+          await pumpRow(tester, certificate: marriage());
+
+      // The painter's sink is `saveFile`; the server path uses
+      // `CertificateFileActions`' own injected `savePdf`, which this harness
+      // does not supply. So an empty recorder here IS the assertion: nothing
+      // the app drew was offered for saving.
+      expect(saver.fileNames, isEmpty);
+      expect(find.byType(CertificateFileActions), findsOneWidget);
+    });
+
+    testWidgets('a certificate with NO stored file renders exactly the legacy '
+        'pair, unchanged — the only document that case has',
+        (WidgetTester tester) async {
+      final _RecordingSaver saver = await pumpRow(
+        tester,
+        certificate: certFixture(),
+      );
+
+      expect(find.text('View document'), findsOneWidget);
+      expect(find.text('Download document'), findsOneWidget);
+      expect(find.byType(CertificateFileActions), findsNothing);
+
+      await _tapAndDrain(tester, find.text('Download document'));
+      expect(saver.fileNames, <String>['LCC-2026-000123.pdf'],
+          reason: 'byte-identical to what B5 shipped');
+    });
+
+    testWidgets('a NULL certificate renders exactly the legacy pair',
+        (WidgetTester tester) async {
+      await pumpRow(tester);
+
+      expect(find.text('View document'), findsOneWidget);
+      expect(find.text('Download document'), findsOneWidget);
+      expect(find.byType(CertificateFileActions), findsNothing);
+    });
+
+    testWidgets('I-2 — three divorce rows render three labelled pairs and no '
+        'legacy pair', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      final List<IssuedCertificate> rows = <IssuedCertificate>[
+        certFixture(id: 'joint', certificateNo: 'LA-DIV-2026-000094')
+            .copyWith(
+          documentType: 'DIV',
+          files: const <CertificateFile>[
+            CertificateFile(layout: 'card', url: '/f/j', sha256: ''),
+          ],
+        ),
+        certFixture(id: 'a', certificateNo: 'LA-DIV-2026-000094-A').copyWith(
+          documentType: 'DIV',
+          copy: 'A',
+          files: const <CertificateFile>[
+            CertificateFile(layout: 'booklet', url: '/f/a', sha256: ''),
+          ],
+        ),
+        certFixture(id: 'b', certificateNo: 'LA-DIV-2026-000094-B').copyWith(
+          documentType: 'DIV',
+          copy: 'B',
+          files: const <CertificateFile>[
+            CertificateFile(layout: 'booklet', url: '/f/b', sha256: ''),
+          ],
+        ),
+      ];
+
+      await pumpRow(tester, certificate: rows.first, certificates: rows);
+
+      expect(find.textContaining('View document'), findsNWidgets(3));
+      expect(find.text('DIV · Joint card'), findsOneWidget);
+      expect(find.text("DIV · Husband's booklet"), findsOneWidget);
+      expect(find.text("DIV · Wife's booklet"), findsOneWidget);
+      expect(find.text('View document'), findsNothing);
     });
   });
 }

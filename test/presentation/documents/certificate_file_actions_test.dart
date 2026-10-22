@@ -1,6 +1,17 @@
 /// `CertificateFileActions` — the per-`files[]` *View* / *Download* pair the
-/// 2026-10 guide's File paragraph requires beside the legacy faux-PDF row
-/// (`renderDocumentPdf`), which stays untouched for rows without `files[]`.
+/// 2026-10 guide's File paragraph requires. For rows **without** `files[]` the
+/// legacy faux-PDF row (`renderDocumentPdf`) is what renders instead, and
+/// `document_actions_row_test.dart` owns that half of the switch.
+///
+/// **Review I-1 / I-2, 2026-10-22.** Two things changed here and both are
+/// asserted below:
+///
+/// * every button carries its **layout** — *View document · Card* — because
+///   two buttons reading the same four words is not a choice a citizen can
+///   make;
+/// * the widget takes **every certificate row of the case**, not one, because
+///   a divorce issues three (joint card, booklet A, booklet B) and the single
+///   `certFromList` match hid two of them.
 ///
 /// Everything platform-reaching is injected: the fetch answers a scripted
 /// `Either<Failure, CertificateFileDownload>`, the sinks record. No platform
@@ -68,6 +79,7 @@ void main() {
     WidgetTester tester, {
     required ScriptedFetch fetch,
     IssuedCertificate? certificate,
+    List<IssuedCertificate> certificates = const <IssuedCertificate>[],
     Locale locale = const Locale('en'),
   }) async {
     tester.view.devicePixelRatio = 1.0;
@@ -86,6 +98,7 @@ void main() {
           home: Scaffold(
             body: CertificateFileActions(
               certificate: certificate ?? certFixture(),
+              certificates: certificates,
               fetchStoredFile: fetch,
               openPdf: sinks.open,
               savePdf: sinks.save,
@@ -119,15 +132,48 @@ void main() {
       ));
 
   group('the per-layout buttons', () {
-    testWidgets('two files render two View and two Download buttons',
+    testWidgets('two files render two View and two Download buttons, each '
+        'LABELLED BY ITS LAYOUT (review I-1)',
         (WidgetTester tester) async {
       await pumpActions(tester,
           certificate: twoFiles(),
           fetch: ({required id, required layout, inline = false}) async =>
               okFile());
 
-      expect(find.text('View document'), findsNWidgets(2));
-      expect(find.text('Download document'), findsNWidgets(2));
+      expect(find.textContaining('View document'), findsNWidgets(2));
+      expect(find.textContaining('Download document'), findsNWidgets(2));
+
+      // The point of I-1: the two pairs are DISTINGUISHABLE. An unqualified
+      // 'View document' is the bug, so it must not be on screen at all.
+      expect(find.text('View document · Card'), findsOneWidget);
+      expect(find.text('View document · Booklet'), findsOneWidget);
+      expect(find.text('Download document · Card'), findsOneWidget);
+      expect(find.text('Download document · Booklet'), findsOneWidget);
+      expect(find.text('View document'), findsNothing);
+      expect(find.text('Download document'), findsNothing);
+
+      // A single row needs no `document_type`/`copy` heading — there is
+      // nothing to tell it apart from (review I-2's "renders as before").
+      expect(find.text('MAR'), findsNothing);
+      expect(find.text('MAR · Joint card'), findsNothing);
+    });
+
+    testWidgets('an UNKNOWN layout is labelled with the server\'s own word',
+        (WidgetTester tester) async {
+      await pumpActions(tester,
+          certificate: certFixture().copyWith(
+            files: <CertificateFile>[
+              const CertificateFile(
+                  layout: 'poster', url: '/f/poster', sha256: kAbcSha),
+            ],
+          ),
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      // `layout` is an open set (§ Certificate model's table grows by row), so
+      // a value this build has not been told about is shown verbatim rather
+      // than mislabelled as Card.
+      expect(find.text('View document · poster'), findsOneWidget);
     });
 
     testWidgets('hasStoredFile == false renders nothing at all',
@@ -137,8 +183,8 @@ void main() {
           fetch: ({required id, required layout, inline = false}) async =>
               okFile());
 
-      expect(find.text('View document'), findsNothing);
-      expect(find.text('Download document'), findsNothing);
+      expect(find.textContaining('View document'), findsNothing);
+      expect(find.textContaining('Download document'), findsNothing);
     });
 
     testWidgets('a null certificate renders nothing',
@@ -148,8 +194,112 @@ void main() {
           fetch: ({required id, required layout, inline = false}) async =>
               okFile());
 
-      expect(find.text('View document'), findsNothing);
-      expect(find.text('Download document'), findsNothing);
+      expect(find.textContaining('View document'), findsNothing);
+      expect(find.textContaining('Download document'), findsNothing);
+    });
+  });
+
+  // ── Review I-2 — a divorce's THREE documents ──────────────────────────────
+
+  group('I-2 — every certificate row of the application renders', () {
+    /// The spec's § Divorce arrangement: *"one application yields three
+    /// certificates: the joint card and booklets A (husband) and B (wife)"* —
+    /// same `application_id`, one `copy` each, one file each.
+    List<IssuedCertificate> divorceRows() => <IssuedCertificate>[
+          certFixture().copyWith(
+            id: 'div-joint',
+            certificateNo: 'LA-DIV-2026-000094',
+            documentType: 'DIV',
+            copy: '',
+            files: <CertificateFile>[
+              const CertificateFile(
+                  layout: 'card', url: '/f/joint', sha256: kAbcSha),
+            ],
+          ),
+          certFixture().copyWith(
+            id: 'div-a',
+            certificateNo: 'LA-DIV-2026-000094-A',
+            documentType: 'DIV',
+            copy: 'A',
+            files: <CertificateFile>[
+              const CertificateFile(
+                  layout: 'booklet', url: '/f/a', sha256: kAbcSha),
+            ],
+          ),
+          certFixture().copyWith(
+            id: 'div-b',
+            certificateNo: 'LA-DIV-2026-000094-B',
+            documentType: 'DIV',
+            copy: 'B',
+            files: <CertificateFile>[
+              const CertificateFile(
+                  layout: 'booklet', url: '/f/b', sha256: kAbcSha),
+            ],
+          ),
+        ];
+
+    testWidgets('three rows render three pairs, each headed by its '
+        'document_type and copy', (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: divorceRows(),
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      expect(find.textContaining('View document'), findsNWidgets(3));
+      expect(find.textContaining('Download document'), findsNWidgets(3));
+
+      // The labels the spec names: `""` joint card, `A` husband's booklet,
+      // `B` wife's booklet.
+      expect(find.text('DIV · Joint card'), findsOneWidget);
+      expect(find.text("DIV · Husband's booklet"), findsOneWidget);
+      expect(find.text("DIV · Wife's booklet"), findsOneWidget);
+    });
+
+    testWidgets('the tapped row\'s OWN id and layout reach the fetch — the '
+        'wife\'s booklet is downloadable, which is the defect I-2 names',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      final List<String> ids = <String>[];
+      final List<String> layouts = <String>[];
+      final _RecordingSinks sinks = await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: divorceRows(),
+          fetch: ({required id, required layout, inline = false}) async {
+            ids.add(id);
+            layouts.add(layout);
+            return okFile(fileName: null);
+          });
+
+      // Booklet B's pair is the third block; find it through its heading's
+      // sibling rather than by index, so the assertion survives a layout
+      // change.
+      final Finder downloads =
+          find.textContaining('Download document · Booklet');
+      expect(downloads, findsNWidgets(2));
+      await _tapAndDrain(tester, downloads.last);
+
+      expect(ids, <String>['div-b'],
+          reason: 'the LAST booklet block is booklet B — not the first row');
+      expect(layouts, <String>['booklet']);
+      expect(sinks.saved, <String>['LA-DIV-2026-000094-B-booklet.pdf'],
+          reason: 'the fallback filename is built from THAT row\'s number');
+    });
+
+    testWidgets('a row with no stored file is skipped, not drawn empty',
+        (WidgetTester tester) async {
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: <IssuedCertificate>[
+            divorceRows().first,
+            divorceRows()[1].copyWith(files: const <CertificateFile>[]),
+          ],
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      expect(find.textContaining('View document'), findsNWidgets(1));
+      expect(find.text("DIV · Husband's booklet"), findsNothing);
     });
   });
 
@@ -166,7 +316,7 @@ void main() {
             return okFile();
           });
 
-      await _tapAndDrain(tester, find.text('View document').first);
+      await _tapAndDrain(tester, find.text('View document · Card'));
 
       expect(layouts, <String>['card'],
           reason: 'the tapped file is fetched by its own layout');
@@ -185,7 +335,7 @@ void main() {
           fetch: ({required id, required layout, inline = false}) async =>
               okFile());
 
-      await _tapAndDrain(tester, find.text('Download document').first);
+      await _tapAndDrain(tester, find.text('Download document · Card'));
 
       expect(sinks.saved, <String>['LA-MAR-2026-000652-card.pdf']);
       expect(sinks.opened, isEmpty,
@@ -199,7 +349,7 @@ void main() {
           fetch: ({required id, required layout, inline = false}) async =>
               okFile(fileName: null));
 
-      await _tapAndDrain(tester, find.text('Download document').first);
+      await _tapAndDrain(tester, find.text('Download document · Card'));
 
       expect(sinks.saved, <String>['CERT-0001-card.pdf']);
     });
@@ -212,7 +362,7 @@ void main() {
               okFile(sha256Header:
                   'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'));
 
-      await _tapAndDrain(tester, find.text('Download document').first);
+      await _tapAndDrain(tester, find.text('Download document · Card'));
 
       expect(sinks.saved, isEmpty, reason: 'the gate runs before any sink');
       expect(sinks.opened, isEmpty);
@@ -227,7 +377,7 @@ void main() {
           fetch: ({required id, required layout, inline = false}) async =>
               okFile(sha256Header: ''));
 
-      await _tapAndDrain(tester, find.text('Download document').first);
+      await _tapAndDrain(tester, find.text('Download document · Card'));
 
       expect(sinks.saved, hasLength(1));
     });
@@ -240,7 +390,7 @@ void main() {
               Left<Failure, CertificateFileDownload>(
                   const Failure('certificate file not found')));
 
-      await _tapAndDrain(tester, find.text('Download document').first);
+      await _tapAndDrain(tester, find.text('Download document · Card'));
 
       expect(sinks.saved, isEmpty);
       expect(sinks.opened, isEmpty);
@@ -260,7 +410,7 @@ void main() {
                 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'),
       );
 
-      await _tapAndDrain(tester, find.text('ດາວໂຫຼດເອກະສານ').first);
+      await _tapAndDrain(tester, find.text('ດາວໂຫຼດເອກະສານ · ບັດ'));
 
       expect(find.text('ກວດສອບຄວາມຖືກຕ້ອງຂອງໄຟລ໌ບໍ່ສຳເລັດ'), findsOneWidget);
     });

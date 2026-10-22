@@ -100,6 +100,19 @@ abstract class IssuedCertificate with _$IssuedCertificate {
     // `service` (the bilingual object) is mapped onto [serviceName]
     // new-first, `service_name` falling back; see `certificate_wire.dart`.
 
+    /// `document_type` — the certificate type's three-letter code (`RES`,
+    /// `BIR`, `DEA`, `MAR`, `DIV`, `FBK`), as the spec's § Certificate model
+    /// table lists them. A plain `String` for the `status` reason: the table
+    /// grows by row and an enum would fail a type it was never told about.
+    ///
+    /// **Added 2026-10-22 (review I-2).** It was the one list-item key
+    /// `issuedCertificateFrom` did not read, and the spec's implementation
+    /// checklist asks for exactly it: *"Certificates list … grouped by
+    /// `application_id`; label by `document_type` and `copy`"*. Without it a
+    /// divorce's three rows could only be told apart by [copy], which does not
+    /// say what kind of document the copy is of.
+    @Default('') String documentType,
+
     /// Which copy of a multi-document issue this row is — `"A"`/`"B"` on the
     /// divorce booklet rows, `""` on every single-document row. Kept a plain
     /// `String` for the same reason `status` is: the set belongs to the

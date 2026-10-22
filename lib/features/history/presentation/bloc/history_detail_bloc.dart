@@ -66,7 +66,6 @@ import 'package:equatable/equatable.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../../../core/usecase/usecase.dart';
 import '../../../application/domain/application_failures.dart';
 import '../../../application/domain/entities/application_detail.dart';
 import '../../../application/domain/entities/case_event.dart';
@@ -240,17 +239,31 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
       emit(state.copyWith(certificateStatus: RegionStatus.loading));
     }
 
+    // `?application_id=…` — review I-2, 2026-10-22. The spec's § Divorce is
+    // explicit: *"one application yields three certificates … List them with
+    // `GET /me/certificates?application_id=…`"*. Filtering server-side also
+    // means the three rows arrive even when the citizen's unfiltered first
+    // page would not have held them.
     final Either<Failure, List<IssuedCertificate>> listResult =
-        await getCertificates(NoParams());
+        await getCertificates(
+      GetCertificatesParams(applicationId: state.applicationId),
+    );
 
     if (mine != _certificateGeneration || emit.isDone) return;
 
-    final IssuedCertificate? fromList = listResult.fold(
-      (Failure _) => null,
+    // **ALL matching rows, not the first.** `matchIssuedCertificate` below is
+    // kept verbatim as the *singular* answer — `certFromList`'s precedence and
+    // the single-fetch skip are unchanged (`B5-AC-38`, `B5-AC-41`) — and
+    // `matchIssuedCertificates` is the list the actions row renders a block
+    // per. A divorce issues three documents for one application and the first
+    // match hid two of them, including the spouse's own booklet.
+    final List<IssuedCertificate> matches = listResult.fold(
+      (Failure _) => const <IssuedCertificate>[],
       (List<IssuedCertificate> list) =>
-          matchIssuedCertificate(list, state.applicationId, detail),
+          matchIssuedCertificates(list, state.applicationId, detail),
     );
-    emit(state.withCertificateList(listResult, fromList));
+    final IssuedCertificate? fromList = matches.isEmpty ? null : matches.first;
+    emit(state.withCertificateList(listResult, fromList, matches));
 
     // `!certFromList` — the list already answered, so the single fetch is
     // skipped entirely (`B5-AC-41`).
@@ -300,17 +313,43 @@ IssuedCertificate? matchIssuedCertificate(
   String applicationId,
   ApplicationDetail detail,
 ) {
+  final List<IssuedCertificate> all =
+      matchIssuedCertificates(list, applicationId, detail);
+  return all.isEmpty ? null : all.first;
+}
+
+/// **Every** certificate of this case, in list order — review I-2, 2026-10-22.
+///
+/// [matchIssuedCertificate] is `Array.prototype.find` and answers the one row
+/// the source's `certFromList` picks; this is the same predicate under
+/// `Array.prototype.filter`, and it is what the document actions render.
+///
+/// The spec, § Divorce: *"one application yields three certificates: the joint
+/// card and booklets A (husband) and B (wife). List them with `GET
+/// /me/certificates?application_id=…` and label each by `copy`."* With only the
+/// singular match the history detail page kept whichever row the server
+/// happened to order first and the citizen's own booklet was invisible and
+/// undownloadable — the defect review I-2 names.
+///
+/// **The disjunction is per element, exactly as in the singular form.** A row
+/// qualifies on any one of the three clauses; the clause order inside an
+/// element is preserved so the two functions can never disagree about *which*
+/// rows belong to the case, only about how many of them are returned.
+List<IssuedCertificate> matchIssuedCertificates(
+  List<IssuedCertificate> list,
+  String applicationId,
+  ApplicationDetail detail,
+) {
   final String? certificateId = detail.row.certificateId;
   final String referenceNo = detail.row.referenceNo;
 
-  for (final IssuedCertificate c in list) {
-    if (c.applicationId == applicationId) return c;
-    if (certificateId != null &&
-        certificateId.isNotEmpty &&
-        c.id == certificateId) {
-      return c;
-    }
-    if (referenceNo.isNotEmpty && c.referenceNo == referenceNo) return c;
-  }
-  return null;
+  return <IssuedCertificate>[
+    for (final IssuedCertificate c in list)
+      if (c.applicationId == applicationId ||
+          (certificateId != null &&
+              certificateId.isNotEmpty &&
+              c.id == certificateId) ||
+          (referenceNo.isNotEmpty && c.referenceNo == referenceNo))
+        c,
+  ];
 }

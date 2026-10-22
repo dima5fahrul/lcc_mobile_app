@@ -581,13 +581,32 @@ class AppRoutes {
               // resolved here too, from the `context` this builder already has,
               // so `IssuedCertificateCard` stays pumpable without an
               // `EasyLocalization` ancestor.
+              // **Review I-2, 2026-10-22 — the row reads the whole matched
+              // set, not just `certFromList`.** A divorce issues three
+              // certificates for one application and the seam's second
+              // parameter can carry only one of them, so the list is read off
+              // `HistoryDetailBloc`'s state through a `Builder` rather than by
+              // widening the seam's pinned signature
+              // (`history_detail_seams_test.dart` asserts that signature
+              // verbatim, and it is still exactly right about *why* the seam
+              // is a builder). `HistoryDetailPage` calls this inside its own
+              // `BlocBuilder`, so the BLoC is an ancestor of `actionsContext`
+              // — a provider read, not a locator read, and this is the
+              // composition root either way. The same `Builder` shape
+              // `certificatePanel` below already uses.
               documentActions: (
                 ApplicationDetail detail,
                 IssuedCertificate? certificate,
               ) =>
-                  DocumentActionsRow(
-                detail: detail,
-                certificate: certificate,
+                  Builder(
+                builder: (BuildContext actionsContext) => DocumentActionsRow(
+                  detail: detail,
+                  certificate: certificate,
+                  certificates: actionsContext
+                      .watch<HistoryDetailBloc>()
+                      .state
+                      .certificates,
+                ),
               ),
               certificatePanel: (
                 ApplicationDetail detail,

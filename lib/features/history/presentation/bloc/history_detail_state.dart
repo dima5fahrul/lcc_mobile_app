@@ -51,6 +51,22 @@ abstract class HistoryDetailState with _$HistoryDetailState {
     /// resolves, and permanently null when neither has a match.
     IssuedCertificate? certificate,
 
+    /// **Every** certificate of this application, in the server's list order —
+    /// review I-2, 2026-10-22, and the spec's implementation checklist
+    /// (*"grouped by `application_id`; label by `document_type` and `copy`"*).
+    ///
+    /// A divorce issues three rows for one application (joint card, booklet A,
+    /// booklet B) and [certificate] can only ever name one of them, so the
+    /// document actions read this list instead. Empty until the list query
+    /// answers; a single-document application holds exactly one entry and the
+    /// surface renders what it always did.
+    ///
+    /// Carried **beside** [certificate] rather than replacing it: `:160`'s
+    /// `certFromList ?? certOneQuery.data` precedence, the single-fetch skip
+    /// (`B5-AC-41`) and `showsCertificatePanel` are all about the one row the
+    /// source picks, and none of them changes.
+    @Default(<IssuedCertificate>[]) List<IssuedCertificate> certificates,
+
     /// The backend's own sentence when the certificate slice fails. Carried on
     /// its **own** field so a certificate outage cannot be mistaken for a case
     /// outage: the source runs three independent `useQuery`s and the detail and
@@ -177,6 +193,7 @@ abstract class HistoryDetailState with _$HistoryDetailState {
   HistoryDetailState withCertificateList(
     Either<Failure, List<IssuedCertificate>> response,
     IssuedCertificate? matched,
+    List<IssuedCertificate> allMatched,
   ) =>
       response.fold(
         (Failure failure) => copyWith(
@@ -190,6 +207,9 @@ abstract class HistoryDetailState with _$HistoryDetailState {
           // *not* an erasure: the single fetch may still answer below, and if
           // it does not, null is the correct rendered state.
           certificate: matched ?? certificate,
+          // Same disposition one list up: an answer with no match does not
+          // throw away rows a previous answer found.
+          certificates: allMatched.isEmpty ? certificates : allMatched,
         ),
       );
 
@@ -205,6 +225,11 @@ abstract class HistoryDetailState with _$HistoryDetailState {
         (IssuedCertificate loaded) => copyWith(
           certificateError: '',
           certificate: loaded,
+          // This branch is reached only when the list found nothing
+          // (`B5-AC-41`), so the one row it answered IS the whole set — the
+          // actions row would otherwise render no file for a case whose
+          // certificate arrived by the single fetch.
+          certificates: <IssuedCertificate>[loaded],
         ),
       );
 

@@ -150,9 +150,18 @@ class FakeDocumentsRepository implements DocumentsRepository {
     if (!_listGate.isCompleted) _listGate.complete();
   }
 
+  /// The `application_id` filter each call carried — review I-2, 2026-10-22.
+  /// Recorded rather than ignored so a test can assert the BLoC asks the
+  /// endpoint for *one application's* certificates, which is the behaviour the
+  /// three divorce documents depend on.
+  final List<String?> listFilters = <String?>[];
+
   @override
-  Future<Either<Failure, List<IssuedCertificate>>> getCertificates() async {
+  Future<Either<Failure, List<IssuedCertificate>>> getCertificates({
+    String? applicationId,
+  }) async {
     listCalls++;
+    listFilters.add(applicationId);
     if (latency > Duration.zero) await Future<void>.delayed(latency);
     if (gateList) await _listGate.future;
     return listAnswer;

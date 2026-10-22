@@ -53,6 +53,7 @@ class DocumentActionsRow extends StatelessWidget {
     super.key,
     required this.detail,
     required this.certificate,
+    this.certificates = const <IssuedCertificate>[],
     this.saveFile = saveDocumentFile,
   });
 
@@ -64,9 +65,39 @@ class DocumentActionsRow extends StatelessWidget {
   /// and permanently null when neither source has one.
   final IssuedCertificate? certificate;
 
+  /// **Every** certificate of this application, in the server's list order —
+  /// review I-2, 2026-10-22. A divorce issues three (joint card, booklet A,
+  /// booklet B) and [certificate] can name only one of them.
+  ///
+  /// Defaults to empty and falls back to `[certificate]` in [_rows], so a
+  /// caller that knows about one certificate only — every pre-I-2 call site,
+  /// and both widget tests — behaves exactly as it did.
+  final List<IssuedCertificate> certificates;
+
   /// Threaded through to the viewer and used by *Download* directly, so a
   /// widget test can drive a completed and a cancelled save (`B5-AC-83`).
   final DocumentSaver saveFile;
+
+  /// The rows whose server PDFs this widget offers.
+  ///
+  /// [certificates] when the caller supplied it; otherwise the singular
+  /// [certificate], as a one-row list, which is the pre-I-2 behaviour exactly.
+  List<IssuedCertificate> get _rows {
+    if (certificates.isNotEmpty) return certificates;
+    final IssuedCertificate? one = certificate;
+    return one == null ? const <IssuedCertificate>[] : <IssuedCertificate>[one];
+  }
+
+  /// Whether the server holds a PDF for **any** row of this case.
+  ///
+  /// The gate that suppresses the legacy faux-PDF pair — review I-1. The spec
+  /// is unambiguous about which file is authoritative (§ Overview: *"The app
+  /// never draws a certificate itself; it shows or downloads the server's
+  /// file, so the file's SHA-256 always matches what verification reports"*),
+  /// so when a server file exists the painter's rendering must not be offered
+  /// beside it under the same two labels.
+  bool get _hasServerFile =>
+      _rows.any((IssuedCertificate c) => c.hasStoredFile);
 
   /// `${serviceName} · ${detail.reference_no}` — `:246`.
   String _title(Lang lang) =>
@@ -93,57 +124,70 @@ class DocumentActionsRow extends StatelessWidget {
     // viewer call (fields do not promote).
     final IssuedCertificate? cert = certificate;
 
-    // The v2 mount — Task 6: when the certificate carries `files[]`, the
-    // server-PDF pair renders beneath the legacy faux-PDF pair. Legacy rows
-    // (no `files[]`) render nothing here and the row above is byte-identical
-    // to what B5 shipped; `history_detail_page.dart` is untouched because the
-    // certificate is already in scope at this seam.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
+    // ── The two mounts, and they are now EXCLUSIVE ────────────────────────
+    //
+    // **Review I-1, 2026-10-22.** Task 6 mounted the server-PDF pair *beneath*
+    // the legacy faux-PDF pair, both reading the same two i18n keys. A
+    // marriage certificate (card + booklet) therefore rendered **three**
+    // identically-labelled *View document* buttons and three *Download
+    // document* buttons, and the first of each was the painter's own drawing
+    // of the case. A citizen who tapped the legacy *Download* got an
+    // app-painted PDF; running the app's own *Check a PDF file* flow on it
+    // answered `not-found`, i.e. the app told them a file it had just produced
+    // was "not an issued document, or it was changed".
+    //
+    // So: when the server holds a file for any row of this case, that file is
+    // the only one offered (§ Overview makes the server's PDF the single
+    // source of truth), and the legacy pair is gone. A legacy certificate — no
+    // `files[]`, the file endpoint answers 404 — keeps the painter pair,
+    // byte-identical to what B5 shipped, because it is the only document that
+    // case has.
+    if (_hasServerFile) {
+      return CertificateFileActions(
+        certificate: certificate,
+        certificates: _rows,
+      );
+    }
+
+    return Wrap(
+      spacing: AppSpacing.gap8,
+      runSpacing: AppSpacing.gap8,
       children: <Widget>[
-        Wrap(
-          spacing: AppSpacing.gap8,
-          runSpacing: AppSpacing.gap8,
-          children: <Widget>[
-            // `bg-[#344EAD] text-white font-semibold` — `:381-388`. When a
-            // certificate is in scope, the viewer's verification strip is
-            // mounted through `CertificateQrPanel` (I-1): the v2 list item
-            // may carry no `qr_payload`, and the panel conditionally fetches
-            // the endpoint's payload instead of silently rendering nothing.
-            _PrimaryButton(
-              label: '$_historyNs.viewDocument'.tr(context: context),
-              glyph: 'Eye',
-              onTap: () => cert == null
-                  ? showDocumentViewer(
-                      context,
-                      title: _title(lang),
-                      spec: spec,
-                      downloadName: _downloadName,
-                      saveFile: saveFile,
-                    )
-                  : showDocumentViewerWithCertificateQr(
-                      context,
-                      title: _title(lang),
-                      spec: spec,
-                      downloadName: _downloadName,
-                      certificate: cert,
-                      saveFile: saveFile,
-                    ),
-            ),
-            // `border border-gray-200 text-gray-700 font-medium` — `:389-395`. The
-            // same chrome `history_detail_hero.dart`'s `_SecondaryButton` draws for
-            // *Refresh* and *Contact officer*; that one is private to B7b's widget
-            // file and G-L7 puts it out of reach, so the shape is restated here and
-            // `document_actions_row_test.dart` pins the tokens against it.
-            _SecondaryButton(
-              label: '$_historyNs.downloadDocument'.tr(context: context),
-              glyph: 'Download',
-              onTap: () => _download(lang),
-            ),
-          ],
+        // `bg-[#344EAD] text-white font-semibold` — `:381-388`. When a
+        // certificate is in scope, the viewer's verification strip is
+        // mounted through `CertificateQrPanel`: the v2 list item may carry
+        // no `qr_payload`, and the panel conditionally fetches the
+        // endpoint's payload instead of silently rendering nothing.
+        _PrimaryButton(
+          label: '$_historyNs.viewDocument'.tr(context: context),
+          glyph: 'Eye',
+          onTap: () => cert == null
+              ? showDocumentViewer(
+                  context,
+                  title: _title(lang),
+                  spec: spec,
+                  downloadName: _downloadName,
+                  saveFile: saveFile,
+                )
+              : showDocumentViewerWithCertificateQr(
+                  context,
+                  title: _title(lang),
+                  spec: spec,
+                  downloadName: _downloadName,
+                  certificate: cert,
+                  saveFile: saveFile,
+                ),
         ),
-        CertificateFileActions(certificate: certificate),
+        // `border border-gray-200 text-gray-700 font-medium` — `:389-395`. The
+        // same chrome `history_detail_hero.dart`'s `_SecondaryButton` draws for
+        // *Refresh* and *Contact officer*; that one is private to B7b's widget
+        // file and G-L7 puts it out of reach, so the shape is restated here and
+        // `document_actions_row_test.dart` pins the tokens against it.
+        _SecondaryButton(
+          label: '$_historyNs.downloadDocument'.tr(context: context),
+          glyph: 'Download',
+          onTap: () => _download(lang),
+        ),
       ],
     );
   }
@@ -268,12 +312,30 @@ class _SecondaryButton extends StatelessWidget {
 ///
 /// ## The gate is `hasStoredFile`, and the legacy path stays
 ///
-/// Legacy rows send no `files[]`; for them this renders nothing and the
-/// faux-PDF pair above keeps working exactly as B5 shipped it
-/// (`renderDocumentPdf`/`DocSpec` untouched). A v2 row gets BOTH: the legacy
-/// pair (the painter's rendering of the case) and this pair (the server's own
-/// PDF), because the two answer different questions and neither subsumes the
-/// other.
+/// Legacy rows send no `files[]`; for them this renders nothing and
+/// [DocumentActionsRow] falls back to the faux-PDF pair, exactly as B5 shipped
+/// it (`renderDocumentPdf`/`DocSpec` untouched).
+///
+/// **Review I-1, 2026-10-22 — a v2 row no longer gets both.** It used to, on
+/// the reasoning that the painter's drawing of the case and the server's PDF
+/// "answer different questions". They do not answer different questions to a
+/// citizen looking at two buttons with the same words on them, and the
+/// painter's file fails the app's own document-hash check (§ Checking a PDF on
+/// the device). The server's file is the only one offered when it exists; see
+/// [DocumentActionsRow.build].
+///
+/// ## Every button says WHICH document it is
+///
+/// One pair per `files[]` entry was already right; what was missing was any
+/// way to tell the pairs apart. Each button now carries its layout —
+/// *View document · Card*, *View document · Booklet* — from the
+/// `verify.fileCheck.layout*` keys that already exist in both locales for the
+/// PDF-check screen's own layout line. And when a case has more than one
+/// certificate **row** (a divorce: joint card, booklet A, booklet B), each
+/// row's block is headed by its `document_type` and `copy`, which is the
+/// spec's own labelling instruction (§ Divorce, and the implementation
+/// checklist's first item). A single-row case renders no heading, because
+/// there is nothing to distinguish it from.
 ///
 /// ## Every edge is injected, with the production default in the domain file
 ///
@@ -295,6 +357,7 @@ class CertificateFileActions extends StatefulWidget {
   const CertificateFileActions({
     super.key,
     required this.certificate,
+    this.certificates = const <IssuedCertificate>[],
     this.fetchStoredFile = fetchStoredCertificateFile,
     this.openPdf = openPdfBytes,
     this.savePdf = savePdfBytes,
@@ -302,9 +365,20 @@ class CertificateFileActions extends StatefulWidget {
 
   final IssuedCertificate? certificate;
 
+  /// Every certificate row of the case — review I-2. Empty means "just
+  /// [certificate]", which is every pre-I-2 call site and both widget tests.
+  final List<IssuedCertificate> certificates;
+
   final CertificateFileFetcher fetchStoredFile;
   final CertificatePdfOpener openPdf;
   final CertificatePdfSaver savePdf;
+
+  /// The rows this widget renders, in the server's list order.
+  List<IssuedCertificate> get rows {
+    if (certificates.isNotEmpty) return certificates;
+    final IssuedCertificate? one = certificate;
+    return one == null ? const <IssuedCertificate>[] : <IssuedCertificate>[one];
+  }
 
   @override
   State<CertificateFileActions> createState() => CertificateFileActionsState();
@@ -314,6 +388,7 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
   bool _busy = false;
 
   Future<void> _run({
+    required IssuedCertificate certificate,
     required CertificateFile file,
     required bool inline,
   }) async {
@@ -328,7 +403,7 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
     try {
       final Either<Failure, CertificateFileDownload> result =
           await widget.fetchStoredFile(
-        id: widget.certificate!.id,
+        id: certificate.id,
         layout: file.layout,
         inline: inline,
       );
@@ -357,7 +432,7 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
       final String fileName = (download.fileName != null &&
               download.fileName!.isNotEmpty)
           ? download.fileName!
-          : '${widget.certificate!.certificateNo}-${file.layout}.pdf';
+          : '${certificate.certificateNo}-${file.layout}.pdf';
 
       if (inline) {
         await widget.openPdf(download.bytes, fileName);
@@ -369,37 +444,113 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
     }
   }
 
+  /// `card` → *Card*, `booklet` → *Booklet*, anything else → the server's own
+  /// word.
+  ///
+  /// The two keys are `verify.fileCheck.layoutCard` / `layoutBooklet`, already
+  /// in both locales for `verify_file_check_page.dart`'s layout line — the
+  /// same fact ("which of this certificate's files this is") read on a
+  /// different screen, so the same words. The `layout` set is open (§
+  /// Certificate model's table grows by row), hence the verbatim fallback
+  /// rather than a `default:` label that would mislabel a new layout.
+  String _layoutLabel(BuildContext context, String layout) {
+    switch (layout) {
+      case 'card':
+        return 'verify.fileCheck.layoutCard'.tr(context: context);
+      case 'booklet':
+        return 'verify.fileCheck.layoutBooklet'.tr(context: context);
+      default:
+        return layout;
+    }
+  }
+
+  /// `document_type` + `copy`, as the spec labels a divorce's three documents:
+  /// *"`""` joint card, `A` husband's booklet, `B` wife's booklet"*
+  /// (§ Divorce).
+  ///
+  /// Empty when there is nothing to say — no `document_type` and no `copy`, as
+  /// on every legacy row — and the caller then renders no heading at all
+  /// rather than an empty line.
+  String _rowLabel(BuildContext context, IssuedCertificate certificate) {
+    final List<String> parts = <String>[
+      if (certificate.documentType.isNotEmpty) certificate.documentType,
+      switch (certificate.copy) {
+        'A' => 'verify.copy.a'.tr(context: context),
+        'B' => 'verify.copy.b'.tr(context: context),
+        // `''` is the joint card, but ONLY when there is a sibling row to be
+        // joint with — a single-row case never reaches this method.
+        '' => 'verify.copy.joint'.tr(context: context),
+        // The open set again: a copy marker this build has not been told
+        // about is shown as the server wrote it.
+        final String other => other,
+      },
+    ];
+    return parts.join(' · ');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final IssuedCertificate? cert = widget.certificate;
-    if (cert == null || !cert.hasStoredFile) return const SizedBox.shrink();
+    final List<IssuedCertificate> rows = widget.rows
+        .where((IssuedCertificate c) => c.hasStoredFile)
+        .toList(growable: false);
+    if (rows.isEmpty) return const SizedBox.shrink();
+
+    // One heading per row only when there is more than one row to tell apart
+    // (review I-2). A single-document application renders exactly what it did
+    // before this change.
+    final bool heading = rows.length > 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (int i = 0; i < cert.files.length; i++) ...<Widget>[
-          if (i > 0) const SizedBox(height: AppSpacing.gap8),
-          Wrap(
-            spacing: AppSpacing.gap8,
-            runSpacing: AppSpacing.gap8,
-            children: <Widget>[
-              _PrimaryButton(
-                // The history namespace's own pair — the same copy the
-                // legacy row renders, now bound to the server PDF.
-                label: '$_historyNs.viewDocument'.tr(context: context),
-                glyph: 'Eye',
-                onTap: () =>
-                    _run(file: cert.files[i], inline: true),
+        for (int r = 0; r < rows.length; r++) ...<Widget>[
+          if (r > 0) const SizedBox(height: AppSpacing.gap12),
+          if (heading) ...<Widget>[
+            Text(
+              _rowLabel(context, rows[r]),
+              style: const TextStyle(
+                fontSize: AppTypography.size12,
+                fontWeight: AppTypography.semiBold,
+                color: AppColors.gray500,
               ),
-              _SecondaryButton(
-                label: '$_historyNs.downloadDocument'.tr(context: context),
-                glyph: 'Download',
-                onTap: () =>
-                    _run(file: cert.files[i], inline: false),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: AppSpacing.gap4),
+          ],
+          for (int i = 0; i < rows[r].files.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(height: AppSpacing.gap8),
+            Wrap(
+              spacing: AppSpacing.gap8,
+              runSpacing: AppSpacing.gap8,
+              children: <Widget>[
+                _PrimaryButton(
+                  // The history namespace's own pair, qualified by which of
+                  // this row's files it opens — review I-1. Without the
+                  // layout a marriage row drew two buttons a citizen could
+                  // not choose between.
+                  label: '${'$_historyNs.viewDocument'.tr(context: context)}'
+                      ' · ${_layoutLabel(context, rows[r].files[i].layout)}',
+                  glyph: 'Eye',
+                  onTap: () => _run(
+                    certificate: rows[r],
+                    file: rows[r].files[i],
+                    inline: true,
+                  ),
+                ),
+                _SecondaryButton(
+                  label:
+                      '${'$_historyNs.downloadDocument'.tr(context: context)}'
+                      ' · ${_layoutLabel(context, rows[r].files[i].layout)}',
+                  glyph: 'Download',
+                  onTap: () => _run(
+                    certificate: rows[r],
+                    file: rows[r].files[i],
+                    inline: false,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ],
     );

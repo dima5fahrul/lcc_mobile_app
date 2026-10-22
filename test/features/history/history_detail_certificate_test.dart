@@ -453,6 +453,151 @@ void main() {
           reason: 'no detail means no isIssued, so nothing to chase');
     });
   });
+
+  // ── Review I-2, 2026-10-22 — ALL matching rows, and the filter ────────────
+  //
+  // § Divorce: *"one application yields three certificates: the joint card and
+  // booklets A (husband) and B (wife). List them with `GET
+  // /me/certificates?application_id=…` and label each by `copy`."* The BLoC
+  // kept only `certFromList`, so two of the three — including the citizen's
+  // own booklet — were invisible and undownloadable.
+
+  group('I-2 — a divorce\'s three certificates', () {
+    List<IssuedCertificate> three() => <IssuedCertificate>[
+          certFixture(
+              id: 'div-joint',
+              certificateNo: 'LA-DIV-2026-000094',
+              applicationId: 'app-1'),
+          certFixture(
+              id: 'div-a',
+              certificateNo: 'LA-DIV-2026-000094-A',
+              applicationId: 'app-1'),
+          certFixture(
+              id: 'div-b',
+              certificateNo: 'LA-DIV-2026-000094-B',
+              applicationId: 'app-1'),
+        ];
+
+    test('the list request carries ?application_id=<this case>', () async {
+      docs.listAnswer =
+          Right<Failure, List<IssuedCertificate>>(three());
+      await started(detail: issuedCase());
+
+      expect(docs.listFilters, <String?>['app-1'],
+          reason: 'the endpoint is asked for ONE application\'s certificates, '
+              'which is what makes all three arrive');
+    });
+
+    test('ALL three land in state.certificates, in the server\'s order',
+        () async {
+      docs.listAnswer =
+          Right<Failure, List<IssuedCertificate>>(three());
+      final HistoryDetailBloc bloc = await started(detail: issuedCase());
+
+      expect(
+        bloc.state.certificates.map((IssuedCertificate c) => c.id).toList(),
+        <String>['div-joint', 'div-a', 'div-b'],
+      );
+    });
+
+    test('state.certificate is still the FIRST of them — `certFromList`\'s '
+        'precedence is unchanged', () async {
+      docs.listAnswer =
+          Right<Failure, List<IssuedCertificate>>(three());
+      final HistoryDetailBloc bloc = await started(detail: issuedCase());
+
+      expect(bloc.state.certificate?.id, 'div-joint');
+      expect(docs.oneCalls, isEmpty,
+          reason: 'B5-AC-41 — a list hit still skips the single fetch');
+    });
+
+    test('a row belonging to ANOTHER application is not collected', () async {
+      docs.listAnswer = Right<Failure, List<IssuedCertificate>>(
+        <IssuedCertificate>[
+          ...three(),
+          certFixture(id: 'other', applicationId: 'app-999'),
+        ],
+      );
+      final HistoryDetailBloc bloc = await started(detail: issuedCase());
+
+      expect(bloc.state.certificates, hasLength(3),
+          reason: 'the plural form is the SAME predicate as the singular — a '
+              'filter, not an unconditional copy of the list');
+    });
+
+    test('a single-document application holds exactly one entry', () async {
+      docs.listAnswer = Right<Failure, List<IssuedCertificate>>(
+        <IssuedCertificate>[certApplicationMatch],
+      );
+      final HistoryDetailBloc bloc = await started(detail: issuedCase());
+
+      expect(bloc.state.certificates, hasLength(1));
+      expect(bloc.state.certificate?.id, 'cert-app');
+    });
+
+    test('no list match but a single fetch answers → that one row IS the set',
+        () async {
+      docs.listAnswer =
+          Right<Failure, List<IssuedCertificate>>(const <IssuedCertificate>[]);
+      docs.oneAnswer = Right<Failure, IssuedCertificate>(
+        certFixture(id: 'cert-77'),
+      );
+      final HistoryDetailBloc bloc =
+          await started(detail: issuedCase(certificateId: 'cert-77'));
+
+      expect(bloc.state.certificate?.id, 'cert-77');
+      expect(
+        bloc.state.certificates.map((IssuedCertificate c) => c.id).toList(),
+        <String>['cert-77'],
+        reason: 'otherwise a case whose certificate arrived by the single '
+            'fetch would offer no document at all',
+      );
+    });
+
+    test('a FAILED refetch keeps the rows already on screen', () async {
+      docs.listAnswer =
+          Right<Failure, List<IssuedCertificate>>(three());
+      final HistoryDetailBloc bloc = await started(detail: issuedCase());
+      expect(bloc.state.certificates, hasLength(3));
+
+      docs.listAnswer = Left<Failure, List<IssuedCertificate>>(
+        const Failure('registry unreachable'),
+      );
+      bloc.add(const HistoryDetailRefreshed());
+      await pumpEventQueue();
+
+      expect(bloc.state.certificates, hasLength(3),
+          reason: 'the same disposition `withTimeline` and `certificate` take');
+      expect(bloc.state.certificateError, 'registry unreachable');
+    });
+  });
+
+  group('I-2 — matchIssuedCertificates, the plural predicate', () {
+    test('it agrees with the singular form about which row comes first', () {
+      final ApplicationDetail detail = issuedCase().copyWith(
+        row: issuedCase().row.copyWith(referenceNo: 'REF-0001'),
+      );
+      final List<IssuedCertificate> list = <IssuedCertificate>[
+        certReferenceMatch,
+        certApplicationMatch,
+      ];
+
+      expect(
+        matchIssuedCertificates(list, 'app-1', detail).first.id,
+        matchIssuedCertificate(list, 'app-1', detail)!.id,
+      );
+    });
+
+    test('no match gives the empty list, and the singular gives null', () {
+      final List<IssuedCertificate> list = <IssuedCertificate>[
+        certFixture(id: 'x', applicationId: 'somebody-else'),
+      ];
+      final ApplicationDetail detail = issuedCase();
+
+      expect(matchIssuedCertificates(list, 'app-1', detail), isEmpty);
+      expect(matchIssuedCertificate(list, 'app-1', detail), isNull);
+    });
+  });
 }
 
 /// Records the moment the list call arrives, so `B5-AC-36` can assert ordering
@@ -463,8 +608,10 @@ class _OrderingDocuments extends FakeDocumentsRepository {
   final List<String> order;
 
   @override
-  Future<Either<Failure, List<IssuedCertificate>>> getCertificates() {
+  Future<Either<Failure, List<IssuedCertificate>>> getCertificates({
+    String? applicationId,
+  }) {
     order.add('certificates');
-    return super.getCertificates();
+    return super.getCertificates(applicationId: applicationId);
   }
 }

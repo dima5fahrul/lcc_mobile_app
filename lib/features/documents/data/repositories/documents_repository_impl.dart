@@ -49,8 +49,10 @@ class DocumentsRepositoryImpl implements DocumentsRepository {
   }
 
   @override
-  Future<Either<Failure, List<IssuedCertificate>>> getCertificates() =>
-      _guard(remote.getCertificates);
+  Future<Either<Failure, List<IssuedCertificate>>> getCertificates({
+    String? applicationId,
+  }) =>
+      _guard(() => remote.getCertificates(applicationId: applicationId));
 
   @override
   Future<Either<Failure, IssuedCertificate>> getCertificate(String id) =>

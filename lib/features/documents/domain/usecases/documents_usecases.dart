@@ -17,17 +17,44 @@ import '../entities/certificate_qr.dart';
 import '../entities/issued_certificate.dart';
 import '../repositories/documents_repository.dart';
 
-/// `me.certificates()` — the list. Takes no parameters: the source's call
-/// (`:149`) passes only the abort signal.
+/// `me.certificates()` — the list.
+///
+/// **Takes an optional `application_id` since 2026-10-22 (review I-2).** The
+/// source's call (`:149`) passed only the abort signal, and the parameter type
+/// stays [NoParams]-compatible for it: `GetCertificatesParams()` with no
+/// argument sends no query at all, which is byte-identical to the unfiltered
+/// request. The filter exists because the spec's § Divorce says so — *"one
+/// application yields three certificates … List them with `GET
+/// /me/certificates?application_id=…`"* — and § Citizen endpoints, List
+/// declares `application_id` among the endpoint's optional query parameters.
 class GetCertificates
-    implements UseCase<List<IssuedCertificate>, NoParams> {
+    implements UseCase<List<IssuedCertificate>, GetCertificatesParams> {
   const GetCertificates({required this.repository});
 
   final DocumentsRepository repository;
 
   @override
-  Future<Either<Failure, List<IssuedCertificate>>> call(NoParams params) =>
-      repository.getCertificates();
+  Future<Either<Failure, List<IssuedCertificate>>> call(
+    GetCertificatesParams params,
+  ) =>
+      repository.getCertificates(applicationId: params.applicationId);
+}
+
+/// [GetCertificates]' parameters — one optional filter, nothing else.
+///
+/// A dedicated params type rather than `NoParams` so the filter is expressible
+/// at all, and **nullable rather than defaulted to `''`** so "no filter" and
+/// "filter on the empty string" cannot be confused: the datasource sends the
+/// query key only when this is a non-empty string.
+class GetCertificatesParams extends Equatable {
+  const GetCertificatesParams({this.applicationId});
+
+  /// `?application_id=…` — all certificates of one application, which for a
+  /// divorce is the joint card plus booklets A and B.
+  final String? applicationId;
+
+  @override
+  List<Object?> get props => <Object?>[applicationId];
 }
 
 class GetCertificateParams extends Equatable {

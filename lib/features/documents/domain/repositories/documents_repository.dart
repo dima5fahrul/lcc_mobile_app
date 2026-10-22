@@ -20,7 +20,14 @@ import '../entities/issued_certificate.dart';
 abstract class DocumentsRepository {
   /// `me.certificates()` — `endpoints.ts:131`, consumed at
   /// `HistoryDetailPage.tsx:149`. A **plain array**, not paged.
-  Future<Either<Failure, List<IssuedCertificate>>> getCertificates();
+  ///
+  /// [applicationId] is the spec's `?application_id=…` filter (§ Citizen
+  /// endpoints, List): *"all certificates of one application, e.g. the three
+  /// divorce documents"*. Null or empty sends no query key, which is the
+  /// unfiltered request the web client made.
+  Future<Either<Failure, List<IssuedCertificate>>> getCertificates({
+    String? applicationId,
+  });
 
   /// `me.certificate(id)` — `endpoints.ts:132`, consumed at `:157`.
   Future<Either<Failure, IssuedCertificate>> getCertificate(String id);
