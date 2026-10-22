@@ -37,3 +37,16 @@ const String kVerifyShortResultPath = '/v/:code';
 /// page; Task 4 mounts the route so the result page's gate button can be
 /// wired now).
 const String kVerifyFileCheckPath = '/verify/file-check';
+
+/// The query-param key carrying the `verify_code` being viewed into
+/// `/verify/file-check` — `app_routes.dart`'s `kFromQueryParam`
+/// encode-on-write/decode-on-read pairing, on a one-write-one-read scale:
+/// `VerifyResultPage`'s button writes it with `Uri.encodeComponent`, this
+/// route's own builder reads it back with `state.uri.queryParameters`
+/// (which decodes it), and `VerifyFileCheckPage` takes the decoded string as
+/// a plain constructor argument, never resolving a router itself. A query
+/// param rather than a path segment because `/verify/file-check` is declared
+/// as a path LITERAL sibling of `/verify/:code` (see this file's own doc) —
+/// adding a second path segment would turn it back into a parameterised
+/// route and reopen the exact collision this file exists to avoid.
+const String kVerifyFileCheckCodeParam = 'code';

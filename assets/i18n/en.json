@@ -1345,6 +1345,21 @@
     "integrityFailed": "Integrity check failed",
     "checking": "Checking…",
     "checkPdf": "Check a PDF file",
+    "notCertificateQr": "This QR code is not a certificate code",
+    "fileCheck": {
+      "body": "Choose a PDF file from this device. The file stays on your phone — only its fingerprint is sent.",
+      "pick": "Choose a file",
+      "matchTitle": "This file matches the issued document.",
+      "layoutLabel": "Layout",
+      "layoutCard": "Card",
+      "layoutBooklet": "Booklet",
+      "differentTitle": "This is a genuine certificate, but a different one",
+      "differentBody": "This file belongs to certificate {no}, not the one you were viewing.",
+      "notIssuedTitle": "Not an issued document",
+      "notIssuedBody": "This file is not an issued document, or it was changed.",
+      "statusWinsIntro": "This file matches certificate {no}, but it must not be accepted:",
+      "errorTitle": "Could not check this file"
+    },
     "status": {
       "issued": "Valid",
       "expired": "Expired",

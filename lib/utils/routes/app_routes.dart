@@ -185,7 +185,9 @@ import '../../features/service/presentation/pages/service_page.dart';
 import '../../features/verify/di/verify_injection.dart';
 import '../../features/verify/presentation/bloc/verify_bloc.dart';
 import '../../features/verify/presentation/pages/verify_code_entry_page.dart';
+import '../../features/verify/presentation/pages/verify_file_check_page.dart';
 import '../../features/verify/presentation/pages/verify_result_page.dart';
+import '../../features/verify/verify_routes.dart' show kVerifyFileCheckCodeParam;
 import '../../features/wallet/di/wallet_injection.dart';
 import '../../features/wallet/presentation/bloc/wallet_bloc.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
@@ -833,14 +835,22 @@ class AppRoutes {
             child: const VerifyResultPage(),
           ),
         ),
-        // `/verify/file-check` — Task 7's on-device PDF check. A placeholder
-        // page: Task 4's job is to give the result page's gate button a real
-        // destination to navigate to, not to build the checker.
+        // `/verify/file-check` — Task 7's on-device PDF check. No bloc here:
+        // `VerifyFileCheckPage` resolves its own use case through a
+        // domain-layer production default (`verifyDocumentHashByHash`,
+        // `verify_document_hash_io.dart`) the same G-L5-respecting way
+        // `DocumentViewer` resolves `fetchStoredCertificateFile` — the page
+        // stays locator-blind and this builder has nothing to own or close.
+        // `kVerifyFileCheckCodeParam` carries the code `VerifyResultPage`'s
+        // button was viewing; `state.uri.queryParameters` decodes it exactly
+        // once, matching `kFromQueryParam`'s pairing above.
         GoRoute(
           path: 'file-check',
           name: AppNameRoutes.verifyFileCheck,
-          builder: (_, __) =>
-              const _PlaceholderPage(title: 'Check a PDF file'),
+          builder: (_, GoRouterState state) => VerifyFileCheckPage(
+            viewedVerifyCode:
+                state.uri.queryParameters[kVerifyFileCheckCodeParam] ?? '',
+          ),
         ),
       ],
     ),

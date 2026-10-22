@@ -61,6 +61,7 @@ import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../utils/routes/app_name_routes.dart';
 import '../../domain/entities/verification_result.dart';
+import '../../verify_routes.dart' show kVerifyFileCheckCodeParam;
 import '../bloc/verify_bloc.dart';
 // `formatDate` is the app's shared date formatter, re-exported through
 // `home_formatting.dart`, which is domain-layer and therefore importable from
@@ -126,12 +127,20 @@ class _ResultBody extends StatelessWidget {
           SizedBox(height: AppSpacing.gap16),
           _ChecksCard(result: result),
           // The PDF-check offer: gated on record_hash != 'missing' (§ Checking
-          // a PDF on the device). Task 7 implements the page; the button and
-          // its gate are live now.
+          // a PDF on the device). Task 7's page is the destination; the
+          // viewed certificate's `verify_code` rides along as a query param
+          // (`kVerifyFileCheckCodeParam`) so the next page can tell a match
+          // from a different-certificate answer — "Compare by verify_code,
+          // not by document_hash" is a comparison the destination page makes,
+          // and it needs this code to make it.
           if (result.checks.recordHash.status != 'missing') ...<Widget>[
             SizedBox(height: AppSpacing.gap16),
             FilledButton.tonalIcon(
-              onPressed: () => context.go(AppNameRoutes.verifyFileCheck),
+              onPressed: () => context.go(
+                '${AppNameRoutes.verifyFileCheck}'
+                '?$kVerifyFileCheckCodeParam='
+                '${Uri.encodeComponent(result.verifyCode)}',
+              ),
               icon: const LucideIcon(name: 'FileCheck2'),
               label: Text('verify.checkPdf'.tr(context: context)),
             ),
