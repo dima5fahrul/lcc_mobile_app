@@ -21,6 +21,8 @@ import 'package:lcc_mobile_app/features/account/presentation/widgets/password_fo
 import 'package:lcc_mobile_app/features/account/presentation/widgets/profile_editor.dart';
 import 'package:lcc_mobile_app/features/account/presentation/widgets/settings_card.dart';
 import 'package:lcc_mobile_app/features/auth/presentation/pages/auth_page.dart';
+import 'package:lcc_mobile_app/features/verify/di/verify_feature_injection.dart';
+import 'package:lcc_mobile_app/features/verify/presentation/pages/verify_code_entry_page.dart';
 import 'package:lcc_mobile_app/utils/routes/app_name_routes.dart';
 
 import '../../../helpers/app_test_harness.dart';
@@ -394,5 +396,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('LaoGov v2.1.0'), findsOneWidget);
     expect(find.text('Ministry of Interior, Lao PDR'), findsOneWidget);
+  });
+
+  // ── C-1 (whole-branch review, 2026-10-22) — `/verify` is REACHABLE ────────
+  //
+  // The verification slice shipped with three public routes and **zero
+  // navigation call sites**: nothing in `lib/` outside `features/verify/`
+  // itself ever pushed one, and neither platform declares an App Link /
+  // Universal Link for `/v/*`, so the scanner, the five result screens and the
+  // PDF check were dead code in a shipped build. This is the affordance that
+  // ends that, and the assertion is navigation — not merely that a button
+  // exists, which a label-only test would also pass for a dead control.
+
+  testWidgets('C-1 — the documents section offers "Verify a certificate", and '
+      'tapping it lands on the public /verify entry page',
+      (WidgetTester tester) async {
+    await onAccount(tester);
+    // The route builder resolves `VerifyBloc` out of this container; the
+    // harness does not register it (see that import's own doc), so the test
+    // that navigates there registers it, exactly as `verify_routes_test.dart`
+    // does.
+    await VerifyFeatureInjection.init();
+
+    expect(locationOf(tester), AppNameRoutes.account);
+
+    final Finder action = find.text('Verify a certificate');
+    expect(action, findsOneWidget,
+        reason: 'the only in-app way into the verification slice');
+    expect(
+      find.text('Check any certificate by its code or QR code.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(locationOf(tester), AppNameRoutes.verify);
+    expect(find.byType(VerifyCodeEntryPage), findsOneWidget,
+        reason: 'the real /verify route built the real page — the button is '
+            'wired, not decorative');
   });
 }

@@ -321,22 +321,108 @@ class _ProfileErrorBanner extends StatelessWidget {
   }
 }
 
-/// `:392-490`.
+/// `:392-490`, plus the e-certificates verification entry below it.
 class _DocumentsSection extends StatelessWidget {
   const _DocumentsSection();
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AccountDocumentsBloc, AccountDocumentsState>(
-      builder: (BuildContext context, AccountDocumentsState state) =>
-          DocumentsCard(
-        loading: state.isLoading,
-        failed: state.hasFailed,
-        errorMessage: state.errorMessage,
-        documents: state.items,
-        onRetry: () => context
-            .read<AccountDocumentsBloc>()
-            .add(const AccountDocumentsRetried()),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        BlocBuilder<AccountDocumentsBloc, AccountDocumentsState>(
+          builder: (BuildContext context, AccountDocumentsState state) =>
+              DocumentsCard(
+            loading: state.isLoading,
+            failed: state.hasFailed,
+            errorMessage: state.errorMessage,
+            documents: state.items,
+            onRetry: () => context
+                .read<AccountDocumentsBloc>()
+                .add(const AccountDocumentsRetried()),
+          ),
+        ),
+        const _VerifyEntryAction(),
+      ],
+    );
+  }
+}
+
+/// The **only in-app way into the verification slice** —
+/// MOBILE-API-E-CERTIFICATES.md § QR codes and deep links, and the 2026-10-22
+/// whole-branch review's C-1.
+///
+/// The destination is named only as [AppNameRoutes.verify], never as a path
+/// literal: `documents_scope_test.dart`'s `B5-AC-8` bounds every verification
+/// path literal in `lib/` to the verify feature, the endpoint file and the
+/// three composition roots, and that guard greps comments too. This file is
+/// none of those.
+///
+/// ## Why this exists at all
+///
+/// The verification slice (scanner, typed-code entry, five result screens,
+/// the on-device PDF check) was built against three public routes —
+/// [AppNameRoutes.verify], [AppNameRoutes.verifyResult] and
+/// [AppNameRoutes.verifyShortResult] — on the assumption that a citizen
+/// arrives by following a certificate's QR. That assumption needs two files
+/// the portal host has not published yet (`assetlinks.json` and the Apple
+/// app-site association, recorded as an out-of-code follow-up in
+/// `docs/superpowers/plans/2026-10-21-e-certificates-api.md`), and until they
+/// exist a `https://<portal-host>/v/<code>` link opens the **web** page, never
+/// this app. With no in-app entry point the whole slice was unreachable in a
+/// shipped build — about 1,100 production lines and 54 i18n keys that no
+/// citizen could get to. One button fixes that, and it keeps working after the
+/// deep links land.
+///
+/// ## Why it is HERE and not on Home
+///
+/// Home is the app's most heavily fidelity-gated surface: `tier1_home_test.dart`
+/// compares each of its regions against a versioned oracle **node for node, in
+/// order**, and reports extra nodes as failures. Verification is not in that
+/// oracle — it is new product, not a port of `HomePage.tsx` — so a Home
+/// affordance would either redden Tier 1 or have to dodge it. `features/account`
+/// has no structural oracle at all (its two fidelity files are Tier 0 payload
+/// equality), and "my documents" is where a citizen already comes to look at
+/// their certificates, which is the same subject. The control is
+/// [AccountButton] in its existing `secondary` chrome — the same primitive the
+/// card's own *Try again* renders — so nothing new is invented.
+///
+/// **Not inside `documents_card.dart`:** `B5-AC-15`/`B5-AC-16` greps that file
+/// for `View` / `Download` / `onPressed: null` and requires its FU-2 deferral
+/// to stay exactly as B8 wrote it. This is a section-level action, not the
+/// per-document pair that deferral is about, so it sits beside the card.
+class _VerifyEntryAction extends StatelessWidget {
+  const _VerifyEntryAction();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.gap12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.gap4,
+              bottom: AppSpacing.gap8,
+            ),
+            child: Text(
+              'verify.openActionHint'.tr(context: context),
+              style: const TextStyle(
+                color: AppColors.gray500,
+                fontSize: AppTypography.size12,
+              ),
+            ),
+          ),
+          AccountButton(
+            label: 'verify.openAction'.tr(context: context),
+            secondary: true,
+            // The verification entry is **public** — not in
+            // `AppRoutes._protectedPaths` — so this is a plain `go`, with no
+            // auth gate to cross.
+            onPressed: () => context.go(AppNameRoutes.verify),
+          ),
+        ],
       ),
     );
   }

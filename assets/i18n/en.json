@@ -1342,11 +1342,20 @@
     "spousePhotoLabel": "Photo (3×4)"
   },
   "verify": {
+    "openAction": "Verify a certificate",
+    "openActionHint": "Check any certificate by its code or QR code.",
+    "copy": {
+      "joint": "Joint card",
+      "a": "Husband's booklet",
+      "b": "Wife's booklet"
+    },
     "integrityFailed": "Integrity check failed",
     "checking": "Checking…",
     "checkPdf": "Check a PDF file",
     "notCertificateQr": "This QR code is not a certificate code",
     "fileCheck": {
+      "foundTitle": "This file belongs to an issued certificate",
+      "foundBody": "Certificate {no} — {status}",
       "body": "Choose a PDF file from this device. The file stays on your phone — only its fingerprint is sent.",
       "pick": "Choose a file",
       "matchTitle": "This file matches the issued document.",
