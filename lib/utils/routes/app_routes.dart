@@ -803,9 +803,14 @@ class AppRoutes {
     //
     // `/verify` is declared with two children rather than as three siblings
     // because `/verify/file-check` has to sit beside `/verify/:code` as a
-    // literal, not a match of it (go_router prefers the exact segment over
-    // the parameter — see `verify_routes.dart`'s own doc). `/v/:code` has no
-    // such sibling and stays a separate top-level route.
+    // literal. go_router matches a route's children in LIST ORDER and stops
+    // at the first hit — it has no literal-vs-parameter preference of its
+    // own (`match.dart`'s `_matchByNavigatorKeyForGoRoute`) — so `file-check`
+    // MUST be declared before `:code` below, or `:code`'s pattern (any single
+    // segment) captures it first and the file-check route is never reached;
+    // see the load-bearing-order note on those two `GoRoute`s and
+    // `verify_routes.dart`'s own doc. `/v/:code` has no such sibling and
+    // stays a separate top-level route.
     //
     // `create:` (not `.value`) carries the lifetime on every branch —
     // `verifyInjection` registers `VerifyBloc` with `registerFactory`: one
