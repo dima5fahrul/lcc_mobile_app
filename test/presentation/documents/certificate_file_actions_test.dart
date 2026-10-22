@@ -287,6 +287,27 @@ void main() {
           reason: 'the fallback filename is built from THAT row\'s number');
     });
 
+    testWidgets('a LEGACY row in a multi-row case gets no heading — the app '
+        'does not invent "Joint card" for a row that named neither key',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 1600);
+      await pumpActions(tester,
+          certificate: divorceRows().first,
+          certificates: <IssuedCertificate>[
+            // `document_type: ''` and `copy: ''` — what a pre-v2 row sends.
+            divorceRows().first.copyWith(documentType: '', copy: ''),
+            divorceRows()[2],
+          ],
+          fetch: ({required id, required layout, inline = false}) async =>
+              okFile());
+
+      expect(find.textContaining('View document'), findsNWidgets(2));
+      expect(find.text('Joint card'), findsNothing);
+      expect(find.text('DIV · Joint card'), findsNothing);
+      // The row that DID name itself still gets its heading.
+      expect(find.text("DIV · Wife's booklet"), findsOneWidget);
+    });
+
     testWidgets('a row with no stored file is skipped, not drawn empty',
         (WidgetTester tester) async {
       await pumpActions(tester,

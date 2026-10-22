@@ -468,17 +468,21 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
   /// *"`""` joint card, `A` husband's booklet, `B` wife's booklet"*
   /// (§ Divorce).
   ///
-  /// Empty when there is nothing to say — no `document_type` and no `copy`, as
-  /// on every legacy row — and the caller then renders no heading at all
-  /// rather than an empty line.
+  /// **Empty when the row says nothing about itself** — a legacy row sends
+  /// neither key, and "Joint card" for a row that never claimed to be one
+  /// would be the app inventing a fact. The caller renders no heading at all
+  /// for an empty label rather than an empty line.
   String _rowLabel(BuildContext context, IssuedCertificate certificate) {
+    if (certificate.documentType.isEmpty && certificate.copy.isEmpty) {
+      return '';
+    }
     final List<String> parts = <String>[
       if (certificate.documentType.isNotEmpty) certificate.documentType,
       switch (certificate.copy) {
         'A' => 'verify.copy.a'.tr(context: context),
         'B' => 'verify.copy.b'.tr(context: context),
-        // `''` is the joint card, but ONLY when there is a sibling row to be
-        // joint with — a single-row case never reaches this method.
+        // `''` is the joint card, and it is only reached here when the row DID
+        // name a `document_type` — i.e. the server told us what this is.
         '' => 'verify.copy.joint'.tr(context: context),
         // The open set again: a copy marker this build has not been told
         // about is shown as the server wrote it.
@@ -497,7 +501,9 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
 
     // One heading per row only when there is more than one row to tell apart
     // (review I-2). A single-document application renders exactly what it did
-    // before this change.
+    // before this change. `_rowLabel` can still answer `''` for a row that
+    // names neither `document_type` nor `copy`, and that row gets no heading
+    // either — see its doc.
     final bool heading = rows.length > 1;
 
     return Column(
@@ -506,7 +512,7 @@ class CertificateFileActionsState extends State<CertificateFileActions> {
       children: <Widget>[
         for (int r = 0; r < rows.length; r++) ...<Widget>[
           if (r > 0) const SizedBox(height: AppSpacing.gap12),
-          if (heading) ...<Widget>[
+          if (heading && _rowLabel(context, rows[r]).isNotEmpty) ...<Widget>[
             Text(
               _rowLabel(context, rows[r]),
               style: const TextStyle(
