@@ -111,18 +111,24 @@ class DocumentsRemoteDatasourceImpl implements DocumentsRemoteDatasource {
   /// * **A plain array.** `api.get<Certificate[]>` in the old web client, which
   ///   is where this datasource's original `data is! List` assumption came
   ///   from.
-  /// * **An object wrapping the rows.** The 2026-10 guide
-  ///   (MOBILE-API-E-CERTIFICATES.md § Citizen endpoints, **List**) calls the
-  ///   endpoint a *"Paginated list of certificate items"* and says `meta`
-  ///   *"holds `page`, `per_page`, `total`, `total_pages`, `has_next`,
-  ///   `has_prev`"* — a paginated envelope whose `data` is commonly an object,
-  ///   not a bare array.
+  /// * **An object wrapping the rows.** The guide's own envelope
+  ///   (MOBILE-API-E-CERTIFICATES.md § Overview) puts `data` and `meta` as
+  ///   **siblings** — `{ "success": …, "data": { }, "meta": { }, … }`, with
+  ///   `meta` appearing "only on paginated lists" — so for this endpoint the
+  ///   guide's own shape has `data` itself *be* the bare array, with `meta`
+  ///   beside it. That sibling shape is what the code reads first; it is the
+  ///   wrapped-object branch below that is **unconfirmed**, not the
+  ///   documented one.
   ///
-  /// The cost of guessing wrong in one direction is silent and total: a
-  /// wrapped body read by an array-only parser yields the **empty list**, so
-  /// every certificate disappears with no error anywhere — no exception, no
-  /// `Failure`, just the card's "not available yet" note on an account that
-  /// has certificates. Accepting both shapes costs one `Map` lookup.
+  /// The wrapped branch exists purely as insurance: no token for this
+  /// endpoint has ever been available to this programme, so nothing here has
+  /// been checked against a real server, and a paginated backend may still
+  /// nest the rows under `data` despite what the guide says. If it does, a
+  /// parser that only ever reads the bare-array shape returns the **empty
+  /// list** silently — no exception, no `Failure`, just the card's "not
+  /// available yet" note on an account that has certificates, every
+  /// certificate gone with no error anywhere. Accepting both shapes costs one
+  /// `Map` lookup.
   ///
   /// ## The lenient disposition is unchanged (`B5-AC-30`)
   ///

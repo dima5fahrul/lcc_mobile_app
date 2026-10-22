@@ -47,7 +47,7 @@ String locationOf(WidgetTester tester) =>
 /// The width is deliberately not a phone's. `LoginForm`'s *Forgot password?* /
 /// *Don't have an account?* line is a `Row` with
 /// `mainAxisAlignment: spaceBetween` and no flex on either child
-/// (`login_form.dart:321-340`), so it overflows horizontally below roughly
+/// (`login_form.dart:346-365`), so it overflows horizontally below roughly
 /// 570 logical pixels — measured here at 390 px: *"A RenderFlex overflowed by
 /// 177 pixels on the right"*, from a `Row` of exactly that shape. That is
 /// **pre-existing** (this file's subject is a vertical `Column` appended below
@@ -55,6 +55,10 @@ String locationOf(WidgetTester tester) =>
 /// around silently, and the width is kept at the framework default so the
 /// overflow does not fail a test that is about navigation.
 const Size kSurface = Size(800, 2400);
+
+/// A real phone width, for the one case below that pins the new door at
+/// phone size rather than at [kSurface]'s framework default.
+const Size kPhoneSurface = Size(390, 2400);
 
 void main() {
   tearDown(resetHarness);
@@ -160,5 +164,64 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(locationOf(tester), AppNameRoutes.verify);
+  });
+
+  testWidgets(
+      'at a real phone width, the door still navigates, and the door '
+      'itself does not overflow', (WidgetTester tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = kPhoneSurface;
+    addTearDown(tester.view.reset);
+
+    final AppHarness harness = await bootHarness();
+    await pumpAssembledApp(tester, harness);
+    await VerifyFeatureInjection.init();
+
+    routerOf(tester).go(AppNameRoutes.account);
+    await tester.pumpAndSettle();
+
+    // The pre-existing `LoginForm` *Forgot password?* / *Don't have an
+    // account?* `Row` (`login_form.dart:346-365`, `mainAxisAlignment:
+    // spaceBetween`, no flex on either child) overflows horizontally below
+    // roughly 570 logical pixels, which a 390px-wide pump crosses — that is
+    // what `kSurface`'s doc comment above records, and why the other cases
+    // in this file stay off a phone width. `git blame` dates that Row to
+    // 2026-08-12, two months before this round's work, so it is swallowed
+    // here rather than fixed: this test's subject is the new door below it,
+    // not that pre-existing, out-of-scope overflow.
+    expect(tester.takeException(), isNotNull);
+
+    expect(locationOf(tester), '/signin?from=%2Faccount');
+    expect(find.byType(AuthPage), findsOneWidget);
+
+    final Finder action = find.text('Verify a certificate');
+    final Finder hint = find.text('Check any certificate by its code or QR code.');
+    expect(action, findsOneWidget,
+        reason: 'the door a signed-OUT citizen can actually reach');
+    expect(hint, findsOneWidget);
+
+    await tester.ensureVisible(action);
+    await tester.pumpAndSettle();
+
+    // The new door is the thing under test here, not the pre-existing Row
+    // above: both of its rects sit fully inside the 390px-wide phone
+    // surface, so this assertion is what would fail if the new control ever
+    // started overflowing itself.
+    final Rect actionRect = tester.getRect(action);
+    final Rect hintRect = tester.getRect(hint);
+    expect(actionRect.left, greaterThanOrEqualTo(0));
+    expect(actionRect.right, lessThanOrEqualTo(kPhoneSurface.width));
+    expect(hintRect.left, greaterThanOrEqualTo(0));
+    expect(hintRect.right, lessThanOrEqualTo(kPhoneSurface.width));
+
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(locationOf(tester), AppNameRoutes.verify,
+        reason: 'the REAL router moved at phone width too — the control is '
+            'wired, not decorative');
+    expect(find.byType(VerifyCodeEntryPage), findsOneWidget,
+        reason: 'and the real route built the real page');
+    expect(find.byType(AuthPage), findsNothing);
   });
 }
