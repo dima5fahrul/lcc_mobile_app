@@ -256,8 +256,9 @@ void main() {
       );
     });
 
-    test('B5-AC-8 — /verify hits live ONLY in the verify feature and the '
-        'endpoint file (**rewritten 2026-10-21**)', () {
+    test('B5-AC-8 — /verify hits live ONLY in the verify feature, the '
+        'endpoint file, and its composition roots (**rewritten '
+        '2026-10-22**)', () {
       // **Superseded adjudication.** The original criterion — "every `/verify`
       // hit is either B-auth's `verify-otp` or the rendered footer copy" — was
       // adjudicated against the web-client fidelity programme (specs.md
@@ -268,12 +269,24 @@ void main() {
       // as real anonymous citizen endpoints (§ Public verification endpoints),
       // and public verification — scan or type a code, get a result — is the
       // product requirement. The guard's spirit is kept, not dropped: no
-      // scattering. **New assertion (dated 2026-10-21, the guide supersedes):**
-      // `/verify` hits are allowed ONLY under `lib/features/verify/` (the
-      // feature that owns the calls) and `lib/core/constant/api_endpoint.dart`
-      // (the endpoint constants) — a bounded-prefix assertion that fails
-      // closed: any hit anywhere else must be re-adjudicated, not waved
-      // through.
+      // scattering.
+      //
+      // **Re-rewritten 2026-10-22, Task 4.** The 2026-10-21 rewrite bounded
+      // hits to `lib/features/verify/` + the endpoint file — correct for a
+      // page-less feature with no composition root wired. Task 4 wires the
+      // feature into the two files that name every feature by construction:
+      // `DependencyInjection.init()` (`lib/core/di/dependency_injection.dart`)
+      // and the global `GoRouter` table (`lib/utils/routes/app_routes.dart`,
+      // plus `app_name_routes.dart`'s alias constants — see
+      // `verify_routes.dart`'s own doc on why the path *literals* stay in the
+      // feature and these three files only ever import them). Every other
+      // feature's DI line and route block already names its own feature
+      // inside these same three files — B12's six certificate routes,
+      // Account's three BLoCs, History's detail factory — so this is not a
+      // new kind of coupling, it is the existing one, and the three files
+      // join the allowed set rather than the guard staying unsatisfiable by
+      // construction for any feature that ever gets a page. A hit anywhere
+      // else still fails closed.
       final List<String> hits = _grepLib(r'/verify');
 
       const String kExecutorProse =
@@ -291,16 +304,22 @@ void main() {
       );
 
       // The bounded-prefix claim: every remaining hit sits under the verify
-      // feature or the endpoint file. The auth hits (`authVerifyOtp`'s
-      // `/auth/citizen/verify-otp`, six files) and the footer copy
-      // (`lib/presentation/documents/`) PRE-DATE this rewrite and are now
-      // outside the allowed prefixes — they are enumerated as measured
-      // grandfathered sets so the assertion is readable, not implicit, and
-      // each set can only shrink. A NEW hit outside the two prefixes fails.
+      // feature, the endpoint file, or one of its three composition roots.
+      // The auth hits (`authVerifyOtp`'s `/auth/citizen/verify-otp`, five
+      // files) and the footer copy (`lib/presentation/documents/`) PRE-DATE
+      // both rewrites and are now outside the allowed prefixes — they are
+      // enumerated as measured grandfathered sets so the assertion is
+      // readable, not implicit, and each set can only shrink. A NEW hit
+      // outside the allowed prefixes fails.
       final List<String> grandfathered = hits
           .where((String h) =>
               !h.startsWith('lib/features/verify/') &&
               !h.startsWith('lib/core/constant/api_endpoint.dart') &&
+              // Task 4's three composition roots — see the rewrite note
+              // above for why these, and only these, three join the set.
+              !h.startsWith('lib/core/di/dependency_injection.dart') &&
+              !h.startsWith('lib/utils/routes/app_routes.dart') &&
+              !h.startsWith('lib/utils/routes/app_name_routes.dart') &&
               // The executor's prose hit, excluded above on its own bounded
               // assertion — it is not a *file* that mentions `/verify` in
               // code, and excluding it here keeps this set code-only, exactly
@@ -351,6 +370,17 @@ void main() {
         isTrue,
         reason: 'the verify slice consumes them',
       );
+      // The three composition roots really do each carry a hit — the
+      // non-vacuity half of the 2026-10-22 rewrite specifically.
+      for (final String root in <String>[
+        'lib/core/di/dependency_injection.dart',
+        'lib/utils/routes/app_routes.dart',
+        'lib/utils/routes/app_name_routes.dart',
+      ]) {
+        expect(hits.any((String h) => h.startsWith(root)), isTrue,
+            reason: '$root wires the verify feature in — a grep suite that '
+                'cannot find what is there is evidence for nothing');
+      }
     });
 
     test('B5-AC-9 — no verifyHash; verificationResult and documentHash '

@@ -179,6 +179,13 @@ import '../../features/notifications/presentation/widgets/notification_bell.dart
 import '../../features/service/di/service_injection.dart';
 import '../../features/service/presentation/bloc/service_bloc.dart';
 import '../../features/service/presentation/pages/service_page.dart';
+// Task 4 — the public verification slice. `verify_injection.dart` (not the
+// feature-init file) is all a route builder needs: the container is already
+// wired into `DependencyInjection.init()`.
+import '../../features/verify/di/verify_injection.dart';
+import '../../features/verify/presentation/bloc/verify_bloc.dart';
+import '../../features/verify/presentation/pages/verify_code_entry_page.dart';
+import '../../features/verify/presentation/pages/verify_result_page.dart';
 import '../../features/wallet/di/wallet_injection.dart';
 import '../../features/wallet/presentation/bloc/wallet_bloc.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
@@ -783,6 +790,73 @@ class AppRoutes {
         ),
       ],
     ),
+    // ══ Task 4 — public verification ════════════════════════════════════════
+    //
+    // Three paths, the guide's § QR codes and deep links shapes verbatim, all
+    // PUBLIC: "Two endpoints work without login" (§ Public verification
+    // endpoints), so none of the three joins `_protectedPaths` — a
+    // signed-out citizen verifying a certificate is the guide's own first use
+    // case. All full-frame, outside the `ShellRoute`, like `/signin`, `/help`
+    // and `/news` above: a verification result is not a tab.
+    //
+    // `/verify` is declared with two children rather than as three siblings
+    // because `/verify/file-check` has to sit beside `/verify/:code` as a
+    // literal, not a match of it (go_router prefers the exact segment over
+    // the parameter — see `verify_routes.dart`'s own doc). `/v/:code` has no
+    // such sibling and stays a separate top-level route.
+    //
+    // `create:` (not `.value`) carries the lifetime on every branch —
+    // `verifyInjection` registers `VerifyBloc` with `registerFactory`: one
+    // verification's answer, possibly another citizen's certificate, must
+    // not survive the visit that fetched it (see
+    // `verify_feature_injection.dart`).
+    GoRoute(
+      path: AppNameRoutes.verify,
+      name: AppNameRoutes.verify,
+      builder: (_, __) => BlocProvider<VerifyBloc>(
+        create: (_) => verifyInjection<VerifyBloc>(),
+        child: const VerifyCodeEntryPage(),
+      ),
+      routes: <RouteBase>[
+        // `/verify/:code` — the older deep-link form
+        // (`https://<api-host>/verify/<code>`). The mount fetch —
+        // `..add(VerifySubmitted(code))` — is this route's own, the same
+        // `..add(const HomeStarted())` shape every other page-on-mount route
+        // in this table uses, so the result page stays a pure function of
+        // its bloc.
+        GoRoute(
+          path: ':code',
+          name: AppNameRoutes.verifyResult,
+          builder: (_, GoRouterState state) => BlocProvider<VerifyBloc>(
+            create: (_) => verifyInjection<VerifyBloc>()
+              ..add(VerifySubmitted(state.pathParameters['code'] ?? '')),
+            child: const VerifyResultPage(),
+          ),
+        ),
+        // `/verify/file-check` — Task 7's on-device PDF check. A placeholder
+        // page: Task 4's job is to give the result page's gate button a real
+        // destination to navigate to, not to build the checker.
+        GoRoute(
+          path: 'file-check',
+          name: AppNameRoutes.verifyFileCheck,
+          builder: (_, __) =>
+              const _PlaceholderPage(title: 'Check a PDF file'),
+        ),
+      ],
+    ),
+    // `/v/:code` — the portal's current deep-link form
+    // (`https://<portal-host>/v/<code>`). A top-level sibling of `/verify`,
+    // not a child of it — the path has no `/verify` prefix to nest under.
+    GoRoute(
+      path: AppNameRoutes.verifyShortResult,
+      name: AppNameRoutes.verifyShortResult,
+      builder: (_, GoRouterState state) => BlocProvider<VerifyBloc>(
+        create: (_) => verifyInjection<VerifyBloc>()
+          ..add(VerifySubmitted(state.pathParameters['code'] ?? '')),
+        child: const VerifyResultPage(),
+      ),
+    ),
+
     // ══ B12 — the six certificate sub-routes ═══════════════════════════════
     //
     // Six landed pages that no citizen could open. F1's Resident, F2's Birth

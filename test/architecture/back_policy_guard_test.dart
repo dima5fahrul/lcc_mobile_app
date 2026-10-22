@@ -125,7 +125,8 @@ void main() {
     });
   });
 
-  test('GOR-269-AC-17 — zero of the 36 navigation call sites changed', () {
+  test('GOR-269-AC-17 — zero of the 36 navigation call sites changed '
+      '(**rewritten 2026-10-22**)', () {
     // `specs.md` AC-17 writes this as a raw `grep -rn "\.go(" lib | wc -l` → 36.
     // That literal form cannot be satisfied by the approved fix, and the reason
     // is worth stating rather than quietly working around, because the number
@@ -147,16 +148,37 @@ void main() {
     //
     // So a raw-text count now measures prose as well as code, and the criterion
     // it is standing in for is about code. This asserts the substance instead,
-    // against comment-stripped source: the 34 production call sites are
-    // untouched and the policy adds exactly one.
+    // against comment-stripped source: at GOR-269's own close, the 34
+    // production call sites were untouched and the policy added exactly one
+    // (35 total).
+    //
+    // **Rewritten 2026-10-22, Task 4.** This test asserts an absolute count
+    // against a LIVE scan of the whole `lib/` tree (`files = _lib()`, no
+    // commit-range bound) rather than a historical diff — unlike, say,
+    // `B5-AC-21`'s `$kB5Base..$kB5Tip` form elsewhere in this tree. That makes
+    // it brittle to any *later, unrelated* batch adding navigation anywhere in
+    // the app, which is not what GOR-269-AC-17 was ever trying to pin: its
+    // subject is "the back-policy fix did not touch the pre-existing 34 and
+    // added exactly 1", not "no file in the whole tree may ever call
+    // `context.go` again." Task 4 adds five real, legitimate
+    // `context.go(...)` call sites in the new public-verification pages —
+    // `verify_code_entry_page.dart`'s back button and typed-code submit,
+    // `verify_result_page.dart`'s PDF-check button and its two not-found
+    // affordances (rescan, retype) — none of them touching
+    // `app_back_policy.dart` or `back_visit_stack.dart`, the two files
+    // GOR-269's own claim is actually about. The count is bumped by exactly 5
+    // (35 → 40, and the "other 34" below → 39) and the measured hit list is
+    // recorded so the next batch can bump it again by exactly its own delta
+    // rather than re-deriving the whole history.
     final List<_Source> code = files
         .map((_Source f) => (path: f.path, text: stripComments(f.text)))
         .toList();
 
     final List<String> gos = _hits(code, '.go(');
-    expect(gos, hasLength(35),
+    expect(gos, hasLength(40),
         reason: 'the fix observes the router; it does not instrument the call '
-            'sites. 34 pre-existing + exactly one in the policy. Hits: $gos');
+            'sites. 34 pre-existing + exactly one in the policy + Task 4\'s '
+            'five new verify-page call sites. Hits: $gos');
 
     expect(
       gos
@@ -169,13 +191,14 @@ void main() {
           'would distinguish from the first',
     );
 
-    // And the other 34 are outside the two files GOR-269 created, i.e. the fix
-    // did not quietly move a production call site into its own home.
+    // And the other 39 (34 pre-existing + Task 4's 5) are outside the two
+    // files GOR-269 created, i.e. neither the original fix nor Task 4 quietly
+    // moved a production call site into the policy's own home.
     expect(
       gos.where((String h) =>
           !h.startsWith('lib/utils/routes/app_back_policy.dart:') &&
           !h.startsWith('lib/utils/routes/back_visit_stack.dart:')),
-      hasLength(34),
+      hasLength(39),
     );
 
     // No real `push`/`goNamed` anywhere — candidate A (`fix-plan.md` § 7.1)

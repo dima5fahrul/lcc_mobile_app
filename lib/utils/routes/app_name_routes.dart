@@ -26,6 +26,8 @@
 /// `GoRouter` config ([AppRoutes]) and call sites that need a path or name.
 library;
 
+import '../../features/verify/verify_routes.dart';
+
 class AppNameRoutes {
   AppNameRoutes._();
 
@@ -91,6 +93,30 @@ class AppNameRoutes {
 
   /// `routes.ts:26`. F4's (`FamilyBookPage`).
   static const String familyBook = '/service/family-book';
+
+  // ── Verify (Task 4, public verification) ────────────────────────────────
+  //
+  // The literals themselves live in `lib/features/verify/verify_routes.dart`,
+  // not here — `documents_scope_test.dart`'s B5-AC-8 guard bounds every
+  // `/verify` literal to the verify feature and `api_endpoint.dart`, and a
+  // route path IS a `/verify` literal. These are aliases so every other call
+  // site keeps using `AppNameRoutes.*`, exactly like every constant above.
+
+  /// The typed entry page — TextField + Scan button (Task 5 wires the
+  /// camera). Public: the endpoints are anonymous, so this is never in
+  /// [AppRoutes]'s protected set.
+  static const String verify = kVerifyEntryPath;
+
+  /// `/verify/:code` — the result page by code, the older deep-link form.
+  static const String verifyResult = kVerifyResultPath;
+
+  /// `/v/:code` — the result page by code, the portal's current form.
+  static const String verifyShortResult = kVerifyShortResultPath;
+
+  /// `/verify/file-check` — Task 7's on-device PDF check. Task 4 mounts the
+  /// route (a placeholder page) so the result page's gate button has a real
+  /// destination now.
+  static const String verifyFileCheck = kVerifyFileCheckPath;
 
   // ── Debug-only route (boilerplate parity) ───────────────────────────────
   /// Only mounted in debug builds — see the `if (kDebugMode)` guard in

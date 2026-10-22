@@ -153,6 +153,13 @@ import 'package:lcc_mobile_app/features/wallet/domain/usecases/list_pending_bill
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/pay_application.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/usecases/wallet_usecases.dart';
 import 'package:lcc_mobile_app/features/wallet/presentation/bloc/wallet_bloc.dart';
+// Task 4. No registration here — the verify container is populated only by
+// `VerifyFeatureInjection.init()`, which the call sites that need it
+// (`test/utils/routes/verify_routes_test.dart`) invoke themselves, the same
+// call-site-local pattern `certificate_routes_test.dart` uses for
+// `stubCertificateEndpoints`. [resetHarness] still has to reach it below —
+// that function's own doc explains why.
+import 'package:lcc_mobile_app/features/verify/di/verify_injection.dart';
 
 // B12 — the recorded oracle, so `stubCertificateEndpoints` answers `/services`
 // with the same 43 rows `recordedServices()` parses. One recording, two readers.
@@ -1185,6 +1192,16 @@ Future<void> resetHarness() async {
   // container the previous test left populated, and 43 tests fail with
   // `Type ApiClient is already registered inside GetIt`. Recorded scope
   // deviation on the same grounds the nine before it were.
+  //
+  // Task 4. TWELFTH occurrence of the exact same omission, and the first
+  // found with the fix already on record above to point at: `verifyInjection`
+  // is never registered BY this harness (see the import's own doc), but
+  // `verify_routes_test.dart` calls `VerifyFeatureInjection.init()` itself in
+  // more than one test in the same file, and without this line the second
+  // one fails `VerifyDatasourceInjection.inject` with `Type ApiClient is
+  // already registered inside GetIt` — the previous test's registration
+  // never came down.
+  await verifyInjection.reset();
 }
 
 /// Wraps [child] in a headless-safe `EasyLocalization` — see hazard 2.

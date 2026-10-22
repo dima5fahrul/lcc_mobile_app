@@ -10,7 +10,9 @@
 /// * an unknown code answers **200** `status: "not-found"` and is a **Right**
 ///   — the guide: "An unknown code or hash is not an HTTP error" (§ Errors);
 /// * 429 `TOO_MANY_REQUESTS` (30/min per IP) folds to a `Failure` whose
-///   message the bloc maps (§ Errors: "Please wait a minute");
+///   message the bloc maps (§ Errors: "Please wait a minute") — **the typed
+///   `TooManyRequestsFailure` leaf as of 2026-10-21**, so the bloc can route
+///   the branch on the Left's type;
 /// * `document-hash` POSTs exactly `{"hash": "<64 hex>"}` and — being public —
 ///   goes out with **no `Authorization` header** even when a token is held;
 /// * the `checks` sub-objects parse their open sets verbatim
@@ -32,6 +34,7 @@ import 'package:lcc_mobile_app/features/verify/data/datasources/verify_remote_da
 import 'package:lcc_mobile_app/features/verify/data/repositories/verify_repository_impl.dart';
 import 'package:lcc_mobile_app/features/verify/domain/entities/verification_result.dart';
 import 'package:lcc_mobile_app/features/verify/domain/repositories/verify_repository.dart';
+import 'package:lcc_mobile_app/features/verify/domain/verify_failures.dart';
 
 import '../../../helpers/core_test_helper.dart';
 
@@ -184,7 +187,9 @@ void main() {
       );
     });
 
-    test('429 TOO_MANY_REQUESTS is a Left whose message the bloc will map',
+    test('429 TOO_MANY_REQUESTS folds to the typed leaf the bloc routes on '
+        '(**updated 2026-10-21** — the plain-Failure claim held while the '
+        'fold had no consumer; Task 4\'s five-state contract consumes it)',
         () async {
       final r = rig(
         <String, dynamic>{
@@ -203,8 +208,12 @@ void main() {
         (Failure f) {
           expect(f.message,
               'Too many verification attempts. Please wait a minute.');
-          expect(f.runtimeType, Failure,
-              reason: 'the plain Failure, like the documents slice');
+          expect(f, isA<TooManyRequestsFailure>(),
+              reason: 'the typed leaf (verify_failures.dart, the '
+                  'application_failures.dart pattern) — Equatable compares '
+                  'runtimeType before props, so the bloc can route the 429 '
+                  'branch to its own screen on the Left\'s type alone. Every '
+                  'other non-2xx stays the plain Failure.');
         },
         (VerificationResult _) => fail('expected a Left'),
       );

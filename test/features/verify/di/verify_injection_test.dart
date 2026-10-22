@@ -7,9 +7,10 @@
 /// `Type ApiClient is already registered inside GetIt`, which names the wrong
 /// culprit — `di_teardown_completeness_test.dart` enforces the reset.
 ///
-/// Task 3 does NOT wire `VerifyFeatureInjection.init()` into
-/// `DependencyInjection.init()` (Task 4 does), so this file inits the verify
-/// container explicitly beside the root.
+/// **Task 4 wired `VerifyFeatureInjection.init()` into
+/// `DependencyInjection.init()`**, so the explicit verify init this file
+/// carried while Task 3's slice was page-less is gone — the root init now
+/// registers the bloc factory too, and the resolution group below asserts it.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -36,12 +37,13 @@ import 'package:lcc_mobile_app/features/verify/di/verify_feature_injection.dart'
 import 'package:lcc_mobile_app/features/verify/di/verify_injection.dart';
 import 'package:lcc_mobile_app/features/verify/domain/repositories/verify_repository.dart';
 import 'package:lcc_mobile_app/features/verify/domain/usecases/verify_usecases.dart';
+import 'package:lcc_mobile_app/features/verify/presentation/bloc/verify_bloc.dart';
 import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 
 void main() {
   setUp(() async {
+    // Task 4: the root init now wires verify itself — no explicit second init.
     await const DependencyInjection().init();
-    await VerifyFeatureInjection.init();
   });
 
   tearDown(() async {
@@ -73,6 +75,8 @@ void main() {
     expect(verifyInjection<VerifyRepository>(), isA<VerifyRepositoryImpl>());
     expect(verifyInjection<VerifyByCode>(), isA<VerifyByCode>());
     expect(verifyInjection<VerifyDocumentHash>(), isA<VerifyDocumentHash>());
+    // Task 4's bloc factory, registered through the same root init.
+    expect(verifyInjection<VerifyBloc>(), isA<VerifyBloc>());
   });
 
   test('DI-3 — the ROOT ApiClient is re-exported, not a second one built', () {
@@ -95,5 +99,6 @@ void main() {
     await verifyInjection.reset();
     await VerifyFeatureInjection.init();
     expect(verifyInjection<VerifyByCode>(), isA<VerifyByCode>());
+    expect(verifyInjection<VerifyBloc>(), isA<VerifyBloc>());
   });
 }

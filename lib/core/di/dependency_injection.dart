@@ -49,6 +49,7 @@ import '../../features/session/di/session_injection.dart';
 import '../../features/session/domain/repositories/session_repository.dart';
 import '../../features/session/domain/usecases/get_profile.dart';
 import '../../features/session/domain/usecases/update_profile.dart';
+import '../../features/verify/di/verify_feature_injection.dart';
 import '../../features/wallet/di/wallet_feature_injection.dart';
 import '../network/api_client.dart';
 import '../network/dio_network_client.dart';
@@ -375,6 +376,24 @@ class DependencyInjection {
     //     `ApiClient` for the Auth/Refresh interceptor chain, satisfied by
     //     re-exporting the same client rather than by ordering against step 3.
     await DocumentsFeatureInjection.init();
+
+    // 19. Verify — the public verification slice (DI-6, Task 4). One line, as
+    //     the rule requires.
+    //
+    //     Ordering: after step 2 for the shared `ApiClient` — both endpoints
+    //     are ANONYMOUS (`anonymous: true` on each call), but the envelope
+    //     unwrapping and error mapping they need live inside the root client,
+    //     so it is step 2's *instance* that is re-exported, exactly as the
+    //     service catalogue and news. No cross-container closure: nothing here
+    //     resolves out of another feature's container, and nothing resolves
+    //     this one — appending is the change that cannot break the eighteen
+    //     above.
+    //
+    //     It registers a **BLoC factory** (per-visit lifetime, like AuthBloc):
+    //     one verification's answer — possibly another citizen's certificate —
+    //     must not survive the visit that fetched it.
+    await VerifyFeatureInjection.init();
+
     // 18. Family book (DI-6, F4). One line — **and the fourth that is
     //     deliberately not alphabetical.**
     //

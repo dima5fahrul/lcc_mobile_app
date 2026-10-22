@@ -1342,6 +1342,58 @@
     "spousePhotoLabel": "Photo (3×4)"
   },
   "verify": {
-    "integrityFailed": "Integrity check failed"
+    "integrityFailed": "Integrity check failed",
+    "checking": "Checking…",
+    "checkPdf": "Check a PDF file",
+    "status": {
+      "issued": "Valid",
+      "expired": "Expired",
+      "revoked": "Revoked — do not accept",
+      "superseded": "Replaced — do not accept",
+      "notFound": "Not found"
+    },
+    "detail": {
+      "service": "Certificate type",
+      "certificateNo": "Certificate number",
+      "holder": "Holder",
+      "issuedAt": "Issued",
+      "validUntil": "Valid until",
+      "issuingOffice": "Issuing office",
+      "revokedAt": "Revoked on",
+      "revokeReason": "Reason",
+      "replacedBy": "Replaced by"
+    },
+    "checks": {
+      "title": "Checks",
+      "signatureRecorded": "An officer's signature is on file",
+      "signatureMissing": "No officer signature on file",
+      "ca": "Certificate authority (CA)",
+      "format": "Signature format",
+      "timestamp": "Timestamp",
+      "hashMatch": "The server's stored file matches the issued fingerprint",
+      "hashMismatch": "The server's stored copy does not match",
+      "hashMissing": "No stored file fingerprint (older certificate)",
+      "hashMismatchWarn": "The server's stored copy could not be confirmed",
+      "notRevoked": "Not revoked",
+      "revoked": "Revoked",
+      "superseded": "Superseded"
+    },
+    "notFound": {
+      "body": "We could not find a certificate for this code. It may be mistyped, or the QR code may be damaged.",
+      "rescan": "Scan the QR code again",
+      "retype": "Type the code instead"
+    },
+    "tooManyRequests": {
+      "title": "Too many checks",
+      "body": "Please wait a minute, then try again."
+    },
+    "entry": {
+      "title": "Verify a certificate",
+      "body": "Enter the verification code printed on the certificate, or scan its QR code.",
+      "hint": "e.g. RES-7Q4K-19XD",
+      "submit": "Check",
+      "scan": "Scan QR code",
+      "invalid": "That doesn't look like a certificate code. Check it and try again."
+    }
   }
 }
