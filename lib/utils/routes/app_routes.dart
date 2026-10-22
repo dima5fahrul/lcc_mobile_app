@@ -837,7 +837,7 @@ class AppRoutes {
         ),
         // `/verify/file-check` — Task 7's on-device PDF check. No bloc here:
         // `VerifyFileCheckPage` resolves its own use case through a
-        // domain-layer production default (`verifyDocumentHashByHash`,
+        // domain-layer production default (the hash-check fetcher in
         // `verify_document_hash_io.dart`) the same G-L5-respecting way
         // `DocumentViewer` resolves `fetchStoredCertificateFile` — the page
         // stays locator-blind and this builder has nothing to own or close.
