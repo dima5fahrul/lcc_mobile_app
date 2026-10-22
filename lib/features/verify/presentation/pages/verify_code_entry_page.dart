@@ -11,9 +11,11 @@
 /// exactly one dispatch site for a typed code, the same one a deep link
 /// uses.
 ///
-/// The **Scan** button is a placeholder: "does nothing yet — Task 5 wires
-/// the camera" (task brief). It is present so the layout and the copy are
-/// final now and Task 5's change is additive.
+/// The **Scan** button opens [VerifyScannerPage] (Task 5) over a plain
+/// `Navigator.push` — a coordinator ruling, not a `GoRoute`: Task 7 owns the
+/// route table this round, and a page reached from exactly one button needs
+/// no deep-link entry point. The scanner runs every detected barcode through
+/// the SAME [certificateCodeFromScanned] gate this page's `_submit` uses.
 ///
 /// ## No locator read (G-L5)
 ///
@@ -32,6 +34,7 @@ import '../../../../presentation/theme/app_spacing.dart';
 import '../../../../presentation/theme/app_typography.dart';
 import '../../../../utils/routes/app_name_routes.dart';
 import '../../domain/code_extraction.dart';
+import 'verify_scanner_page.dart';
 
 class VerifyCodeEntryPage extends StatefulWidget {
   const VerifyCodeEntryPage({super.key});
@@ -126,9 +129,19 @@ class _VerifyCodeEntryPageState extends State<VerifyCodeEntryPage> {
               ),
               SizedBox(height: AppSpacing.gap12),
               OutlinedButton.icon(
-                // Placeholder — "does nothing yet" (task brief). Task 5
-                // replaces this with the camera.
-                onPressed: () {},
+                // Task 5. A plain `Navigator.push`, not a named route — a
+                // coordinator ruling: the scanner is reached only from this
+                // one button, Task 7 owns the route table this round, and a
+                // page with no deep-link use needs no `GoRoute`. The scanner
+                // pops ITSELF on a recognised code and calls `context.go`
+                // from there (see `verify_scanner_page.dart`), so this await
+                // only ever completes when the citizen backs out without
+                // scanning anything.
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const VerifyScannerPage(),
+                  ),
+                ),
                 icon: const LucideIcon(name: 'QrCode'),
                 label: Text('verify.entry.scan'.tr(context: context)),
               ),

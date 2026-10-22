@@ -4,6 +4,12 @@
          manifest, so without this entry here the release APK has no INTERNET
          permission and every network call fails (V-7, ADR-0002). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- The e-certificates guide's QR scanner (Task 5, `VerifyScannerPage`,
+         `mobile_scanner`) opens the camera to read a certificate's printed QR.
+         Android refuses to start a camera session without this permission
+         declared, and the system prompt is shown the first time it is
+         requested. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
         android:label="Lao Citizen"
         android:name="${applicationName}"

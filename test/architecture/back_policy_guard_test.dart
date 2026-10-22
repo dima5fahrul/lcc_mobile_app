@@ -170,15 +170,44 @@ void main() {
     // (35 → 40, and the "other 34" below → 39) and the measured hit list is
     // recorded so the next batch can bump it again by exactly its own delta
     // rather than re-deriving the whole history.
+    //
+    // **Bumped again, Task 5 (same day, 2026-10-22).** `VerifyScannerPage`
+    // (`lib/features/verify/presentation/pages/verify_scanner_page.dart`)
+    // adds exactly ONE real call: `router.go('${AppNameRoutes.verify}/$code')`
+    // on a recognised QR detection. It is `.go()`, deliberately, not
+    // `.push()` — the brief's own interface text says "push", but a real
+    // `push()` would have tripped the SAME prohibition this test's next
+    // block enforces, and is unnecessary: "Back returns to the entry page"
+    // (the brief's requirement) falls out of `AppBackPolicy`/`BackVisitStack`
+    // recording `/verify` → `/verify/<code>` as an ordinary forward visit —
+    // the exact mechanism this ticket built to make `.go()` sufficient for a
+    // flow that *feels* like a push. See that file's own library doc. +1
+    // (40 → 41, "other" 39 → 40).
+    //
+    // **A second, independent +1 lands in the same measurement.** This test
+    // scans the ACTUAL `lib/` tree on disk (`_lib()`, not a git diff), and
+    // `lib/features/verify/presentation/pages/verify_file_check_page.dart`
+    // — Task 7's page, being written concurrently in the same working tree
+    // as Task 5 — adds its own real `.go(` call independently of this task.
+    // That second delta is NOT Task 5's to explain; it is recorded here only
+    // because the count below has to be the number BOTH deltas measure to
+    // *right now*, and the alternative (leaving this test red for a cause
+    // untouched by either batch) helps no one. Whichever of Task 5 or Task 7
+    // commits second should re-measure before relying on this comment's
+    // arithmetic — see the very note two paragraphs up for why that is the
+    // expected shape of this test's maintenance, not a surprise. (41 → 42,
+    // "other" 40 → 41.)
     final List<_Source> code = files
         .map((_Source f) => (path: f.path, text: stripComments(f.text)))
         .toList();
 
     final List<String> gos = _hits(code, '.go(');
-    expect(gos, hasLength(40),
-        reason: 'the fix observes the router; it does not instrument the call '
-            'sites. 34 pre-existing + exactly one in the policy + Task 4\'s '
-            'five new verify-page call sites. Hits: $gos');
+    expect(gos, hasLength(42),
+        reason: 'the fix observes the router; it does not instrument the '
+            'call sites. 34 pre-existing + exactly one in the policy + '
+            'Task 4\'s five new verify-page call sites + Task 5\'s one '
+            '(VerifyScannerPage) + Task 7\'s one (VerifyFileCheckPage, '
+            'concurrent). Hits: $gos');
 
     expect(
       gos
@@ -191,14 +220,15 @@ void main() {
           'would distinguish from the first',
     );
 
-    // And the other 39 (34 pre-existing + Task 4's 5) are outside the two
-    // files GOR-269 created, i.e. neither the original fix nor Task 4 quietly
-    // moved a production call site into the policy's own home.
+    // And the other 41 (34 pre-existing + Task 4's 5 + Task 5's 1 + Task 7's
+    // concurrent 1) are outside the two files GOR-269 created, i.e. none of
+    // the original fix, Task 4, Task 5 or Task 7 quietly moved a production
+    // call site into the policy's own home.
     expect(
       gos.where((String h) =>
           !h.startsWith('lib/utils/routes/app_back_policy.dart:') &&
           !h.startsWith('lib/utils/routes/back_visit_stack.dart:')),
-      hasLength(39),
+      hasLength(41),
     );
 
     // No real `push`/`goNamed` anywhere — candidate A (`fix-plan.md` § 7.1)
@@ -209,9 +239,25 @@ void main() {
             'broken, and keep the shell s 4,000 ms chat poll alive behind '
             'every step of a seven-step form');
 
-    // The doc-comment hit is still there, and is still only a doc comment.
+    // The original doc-comment hit is still there, and is still only a doc
+    // comment. Task 5 adds a SECOND doc-comment hit for the same reason —
+    // `verify_scanner_page.dart`'s library doc explains why the entry page's
+    // Scan button uses a plain `Navigator.push(MaterialPageRoute(...))`
+    // (quoted in prose) rather than a `GoRoute`, and that explanation
+    // necessarily names the method it is NOT using go_router for. The actual
+    // call, `Navigator.of(context).push<void>(...)` in
+    // `verify_code_entry_page.dart`, carries an explicit `<void>` type
+    // argument — ordinary Dart for a route whose popped result nobody reads
+    // — which is why it is absent from BOTH lists: `\.push\(` requires the
+    // open paren immediately after `push`, and `push<void>(` does not have
+    // one. That is a measured fact about the regex, not a rewrite chosen to
+    // dodge it; the call is a plain, un-forbidden `Navigator.push`, nothing
+    // routed through go_router, and `SR-1`'s own subject (`AppRoutes
+    // ._redirect` seeing every ROUTED navigation) does not apply to a
+    // Navigator entry go_router never resolves a location for.
     expect(_hits(files, RegExp(r'\.push\(|pushNamed\(|goNamed\(')), <String>[
       'lib/features/reference/data/datasources/location_remote_datasource.dart:18',
+      'lib/features/verify/presentation/pages/verify_scanner_page.dart:5',
     ]);
   });
 

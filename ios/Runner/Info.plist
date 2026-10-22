@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- The e-certificates guide's QR scanner (Task 5, `VerifyScannerPage`,
+	     `mobile_scanner`) opens the camera to read a certificate's printed QR.
+	     iOS refuses to start the camera at all without this string, which is
+	     shown once, the first time the Scan button is used. -->
+	<key>NSCameraUsageDescription</key>
+	<string>Lao Citizen uses the camera to scan a certificate's QR code for verification.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

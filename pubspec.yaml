@@ -84,6 +84,16 @@ dependencies:
   # `certificate_pdf_io.dart`. Task 7's on-device hash check reuses it.
   crypto: ^3.0.0
 
+  # QR scanner — the guide's § QR codes and deep links names the camera path
+  # ("a citizen scans the certificate's printed QR") as the other half of
+  # verification alongside the typed-code entry page (Task 4). Nothing already
+  # in the tree opens a camera preview; `mobile_scanner` is the one new
+  # dependency Task 5 adds, consumed only by `VerifyScannerPage` and gated by
+  # the SAME `certificateCodeFromScanned` parser the typed path uses, so a
+  # non-certificate QR (rule 3) never reaches the API through this camera path
+  # either.
+  mobile_scanner: ^7.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
