@@ -52,6 +52,7 @@ import 'package:lcc_mobile_app/features/reference/domain/repositories/reference_
 import 'package:lcc_mobile_app/features/reference/domain/usecases/get_lookup_options.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
+import 'package:lcc_mobile_app/features/verify/di/verify_injection.dart';
 import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/entities/payment_result.dart';
 import 'package:lcc_mobile_app/features/wallet/domain/repositories/wallet_repository.dart';
@@ -107,6 +108,13 @@ void main() {
       await certificatesInjection.reset();
       await documentsInjection.reset();
       await familyBookInjection.reset();
+      // Task 4. `DependencyInjection.init()` now reaches `verifyInjection`
+      // too (step 19); this hand-rolled tearDown is the twelfth-documented
+      // occurrence of the harness's own blind spot — a container
+      // `setUp`'s `init()` populates that nothing here resets makes the
+      // *next* test fail with `Type ApiClient is already registered inside
+      // GetIt`, which names the wrong culprit.
+      await verifyInjection.reset();
       // B5's. **Eleventh** occurrence of the same omission, and the first that
       // `di_teardown_completeness_test.dart` could NOT catch: that guard names
       // three files (`kDiTestFiles`) and this is not one of them, so the
@@ -222,6 +230,13 @@ void main() {
       await certificatesInjection.reset();
       await documentsInjection.reset();
       await familyBookInjection.reset();
+      // Task 4. `DependencyInjection.init()` now reaches `verifyInjection`
+      // too (step 19); this hand-rolled tearDown is the twelfth-documented
+      // occurrence of the harness's own blind spot — a container
+      // `setUp`'s `init()` populates that nothing here resets makes the
+      // *next* test fail with `Type ApiClient is already registered inside
+      // GetIt`, which names the wrong culprit.
+      await verifyInjection.reset();
     });
 
     BirthFormCubit birth({Lang lang = Lang.en}) =>
@@ -362,6 +377,13 @@ void main() {
       await certificatesInjection.reset();
       await documentsInjection.reset();
       await familyBookInjection.reset();
+      // Task 4. `DependencyInjection.init()` now reaches `verifyInjection`
+      // too (step 19); this hand-rolled tearDown is the twelfth-documented
+      // occurrence of the harness's own blind spot — a container
+      // `setUp`'s `init()` populates that nothing here resets makes the
+      // *next* test fail with `Type ApiClient is already registered inside
+      // GetIt`, which names the wrong culprit.
+      await verifyInjection.reset();
     });
 
     MarriageFormCubit marriage({Lang lang = Lang.en}) =>

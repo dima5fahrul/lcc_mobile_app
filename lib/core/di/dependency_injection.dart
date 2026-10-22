@@ -394,7 +394,7 @@ class DependencyInjection {
     //     must not survive the visit that fetched it.
     await VerifyFeatureInjection.init();
 
-    // 18. Family book (DI-6, F4). One line — **and the fourth that is
+    // 20. Family book (DI-6, F4). One line — **and the fourth that is
     //     deliberately not alphabetical.**
     //
     //     Ordering: **after step 6 (Service), and that one is a hard
@@ -405,7 +405,7 @@ class DependencyInjection {
     //     sanctioned cross-container form (`ssd.md` § 5.1). Alphabetically
     //     `family_book` sorts between `chat` (step 11) and `help` (step 9),
     //     which is ahead of nothing it needs — but appending is what steps 6
-    //     and 16 argue for and what cannot break the seventeen above, and the
+    //     and 16 argue for and what cannot break the nineteen above, and the
     //     deviation is stated here as steps 11, 12 and 17 state theirs.
     //
     //     It is **not** gated on step 14 (Application). F4 consumes that

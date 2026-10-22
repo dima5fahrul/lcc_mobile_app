@@ -77,21 +77,15 @@ class VerifyBloc extends Bloc<VerifyEvent, VerifyState> {
     final Either<Failure, VerificationResult> answer =
         await verifyByCode(event.code);
 
-    if (answer.isRight()) {
-      emit(
-        VerifyState.result(
-          answer.getOrElse(() => throw StateError('unreachable: isRight')),
-        ),
-      );
-      return;
-    }
-
-    final Failure failure =
-        answer.fold((Failure f) => f, (VerificationResult _) => throw StateError('unreachable: isLeft'));
-    if (failure is TooManyRequestsFailure) {
-      emit(const VerifyState.tooManyRequests());
-      return;
-    }
-    emit(VerifyState.failure(failure.message));
+    answer.fold(
+      (Failure failure) {
+        if (failure is TooManyRequestsFailure) {
+          emit(const VerifyState.tooManyRequests());
+        } else {
+          emit(VerifyState.failure(failure.message));
+        }
+      },
+      (VerificationResult result) => emit(VerifyState.result(result)),
+    );
   }
 }

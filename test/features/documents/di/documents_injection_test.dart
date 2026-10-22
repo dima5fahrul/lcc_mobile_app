@@ -42,6 +42,7 @@ import 'package:lcc_mobile_app/features/notifications/di/notifications_injection
 import 'package:lcc_mobile_app/features/reference/di/reference_injection.dart';
 import 'package:lcc_mobile_app/features/service/di/service_injection.dart';
 import 'package:lcc_mobile_app/features/session/di/session_injection.dart';
+import 'package:lcc_mobile_app/features/verify/di/verify_injection.dart';
 import 'package:lcc_mobile_app/features/wallet/di/wallet_injection.dart';
 
 void main() {
@@ -65,6 +66,13 @@ void main() {
     await certificatesInjection.reset();
     await documentsInjection.reset();
     await familyBookInjection.reset();
+    // Task 4. `DependencyInjection.init()` now reaches `verifyInjection` too
+    // (step 19); this hand-rolled tearDown is the twelfth-documented
+    // occurrence of the harness's own blind spot — a container
+    // `setUp`'s `init()` populates that nothing here resets makes the
+    // *next* test fail with `Type ApiClient is already registered inside
+    // GetIt`, which names the wrong culprit.
+    await verifyInjection.reset();
   });
 
   group('DI-6 — one line in init() populates the whole slice', () {
