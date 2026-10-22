@@ -30,6 +30,21 @@ void main() {
           'en'), '22 Oct 2026');
     });
 
+    test('the property the implementation rests on: an offset-bearing string '
+        'parses to a DateTime that is ALREADY UTC', () {
+      // `layering_test.dart`'s ADR-0005 O-4 forbids `toUtc()` anywhere in
+      // `lib/**`, so the shift is `parsed.add(7h)` on the assumption that
+      // `DateTime.parse` has already normalised. That assumption is pinned
+      // here rather than trusted: if it ever stopped holding, these three
+      // would go red and the `!isUtc` guard in the implementation would start
+      // returning values verbatim instead of shifting them wrongly.
+      expect(DateTime.parse('2026-10-22T00:30:00+07:00').isUtc, isTrue);
+      expect(DateTime.parse('2026-10-21T17:30:00Z').isUtc, isTrue);
+      expect(DateTime.parse('2026-10-21T20:00:00-04:00').isUtc, isTrue);
+      // The complement, which is why the regex gate exists at all.
+      expect(DateTime.parse('2026-09-30T10:42:18').isUtc, isFalse);
+    });
+
     test('23:30+07:00 does not roll FORWARD either', () {
       expect(vientianeCalendarDate('2026-10-22T23:30:00+07:00'), '2026-10-22');
     });

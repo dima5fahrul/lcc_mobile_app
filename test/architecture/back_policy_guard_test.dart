@@ -197,17 +197,34 @@ void main() {
     // arithmetic — see the very note two paragraphs up for why that is the
     // expected shape of this test's maintenance, not a surprise. (41 → 42,
     // "other" 40 → 41.)
+    //
+    // **Bumped a third time, 2026-10-22, whole-branch review C-1.** Exactly
+    // ONE more real call: `_VerifyEntryAction` in
+    // `lib/features/account/presentation/pages/account_page.dart` —
+    // `context.go(AppNameRoutes.verify)` — which is the fix for C-1, *the
+    // entire verification slice was unreachable in a shipped build*. Tasks 4,
+    // 5 and 7 built three public routes, five result screens, a scanner and a
+    // PDF check, and **nothing in `lib/` outside `features/verify/` ever
+    // navigated to any of them**; neither platform declares an App Link for
+    // `/v/*` either, so a QR could not open the app. This guard counting one
+    // higher is the measurable sign that roughly 1,100 production lines
+    // stopped being dead code. It touches neither `app_back_policy.dart` nor
+    // `back_visit_stack.dart` — the two files GOR-269's claim is actually
+    // about — and Back from `/verify` falls out of `BackVisitStack` recording
+    // an ordinary forward visit, exactly as `VerifyScannerPage`'s own `.go()`
+    // does. (42 → 43, "other" 41 → 42.)
     final List<_Source> code = files
         .map((_Source f) => (path: f.path, text: stripComments(f.text)))
         .toList();
 
     final List<String> gos = _hits(code, '.go(');
-    expect(gos, hasLength(42),
+    expect(gos, hasLength(43),
         reason: 'the fix observes the router; it does not instrument the '
             'call sites. 34 pre-existing + exactly one in the policy + '
             'Task 4\'s five new verify-page call sites + Task 5\'s one '
             '(VerifyScannerPage) + Task 7\'s one (VerifyFileCheckPage, '
-            'concurrent). Hits: $gos');
+            'concurrent) + C-1\'s one (the account page\'s verification '
+            'entry, the slice\'s only in-app door). Hits: $gos');
 
     expect(
       gos
@@ -220,15 +237,15 @@ void main() {
           'would distinguish from the first',
     );
 
-    // And the other 41 (34 pre-existing + Task 4's 5 + Task 5's 1 + Task 7's
-    // concurrent 1) are outside the two files GOR-269 created, i.e. none of
-    // the original fix, Task 4, Task 5 or Task 7 quietly moved a production
-    // call site into the policy's own home.
+    // And the other 42 (34 pre-existing + Task 4's 5 + Task 5's 1 + Task 7's
+    // concurrent 1 + C-1's 1) are outside the two files GOR-269 created, i.e.
+    // none of the original fix, Task 4, Task 5, Task 7 or C-1 quietly moved a
+    // production call site into the policy's own home.
     expect(
       gos.where((String h) =>
           !h.startsWith('lib/utils/routes/app_back_policy.dart:') &&
           !h.startsWith('lib/utils/routes/back_visit_stack.dart:')),
-      hasLength(41),
+      hasLength(42),
     );
 
     // No real `push`/`pushNamed`/`goNamed` anywhere OUTSIDE one sanctioned,
@@ -271,8 +288,18 @@ void main() {
     // which is exactly why `VerifyScannerPage` itself reaches the result
     // route with `.go()` and not a second `push` — see that file's own
     // library doc, and the `.go(` block above.
+    //
+    // **The line number moved on 2026-10-22 (review M-1), 140 → 143.** The
+    // exception is keyed by `file:line`, so *any* edit above the push in that
+    // file reddens this — here, the three-line comment explaining why
+    // `_submit` now wraps its code in `Uri.encodeComponent`. Nothing about
+    // the sanctioned site itself changed. The `file:line` key is deliberate
+    // (an exception for a whole file would let a second, unsanctioned push
+    // hide behind the first), so this bump is the expected maintenance cost
+    // of that precision, not a weakening of the guard: the assertion is still
+    // "exactly one real push in all of `lib/`, at exactly this site".
     const String kSanctionedScannerPush =
-        'lib/features/verify/presentation/pages/verify_code_entry_page.dart:140';
+        'lib/features/verify/presentation/pages/verify_code_entry_page.dart:143';
 
     expect(_hits(code, realPushPattern), <String>[kSanctionedScannerPush],
         reason: 'a real push() would fix nine routes, leave the four tabs '

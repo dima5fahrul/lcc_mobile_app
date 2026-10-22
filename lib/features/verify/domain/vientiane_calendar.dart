@@ -54,8 +54,19 @@ String vientianeCalendarDate(String value) {
 
   final DateTime? parsed = DateTime.tryParse(value);
   if (parsed == null) return value;
+  // **No `toUtc()`, and not for style:** `layering_test.dart`'s ADR-0005 O-4
+  // forbids the call anywhere in `lib/**`, because the web dates every
+  // submission with `new Date().toISOString()` and that UTC read is the one
+  // defect this port deliberately diverges from. It is also unnecessary here:
+  // `DateTime.parse` of a string carrying `Z` or an offset returns a DateTime
+  // that **is already UTC** (`isUtc == true`), and `_kOffset` above is what
+  // guarantees we only reach this line for such a string. The `isUtc` check
+  // is the belt: if that documented property ever stopped holding, this
+  // returns the value verbatim rather than shifting by a device-local
+  // interpretation.
+  if (!parsed.isUtc) return value;
 
-  final DateTime vientiane = parsed.toUtc().add(const Duration(hours: 7));
+  final DateTime vientiane = parsed.add(const Duration(hours: 7));
   final String month = vientiane.month.toString().padLeft(2, '0');
   final String day = vientiane.day.toString().padLeft(2, '0');
   return '${vientiane.year.toString().padLeft(4, '0')}-$month-$day';
