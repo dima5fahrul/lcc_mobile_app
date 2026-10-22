@@ -35,7 +35,7 @@ void main() {
       // `layering_test.dart`'s ADR-0005 O-4 forbids `toUtc()` anywhere in
       // `lib/**`, so the shift is `parsed.add(7h)` on the assumption that
       // `DateTime.parse` has already normalised. That assumption is pinned
-      // here rather than trusted: if it ever stopped holding, these three
+      // here rather than trusted: if it ever stopped holding, the first three
       // would go red and the `!isUtc` guard in the implementation would start
       // returning values verbatim instead of shifting them wrongly.
       expect(DateTime.parse('2026-10-22T00:30:00+07:00').isUtc, isTrue);
