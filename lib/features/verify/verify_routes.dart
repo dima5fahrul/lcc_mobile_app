@@ -15,8 +15,15 @@
 /// * `/v/:code` — the portal's current form
 ///   (`https://<portal-host>/v/<code>`). Task 7's PDF-check page joins them
 ///   as `/verify/file-check` — a *literal sibling* of `:code`'s parent, not a
-///   match of it: go_router prefers the exact segment over the parameter, and
-///   `file-check` is not a certificate-code shape, so the two cannot collide.
+///   match of it. **Corrected 2026-10-22, fix round 2:** go_router does NOT
+///   automatically prefer a literal segment over a parameterised sibling —
+///   its matcher walks a route's children in LIST ORDER and stops at the
+///   first match (`match.dart`'s `_matchByNavigatorKeyForGoRoute`). The two
+///   cannot collide only because `app_routes.dart` declares `file-check`
+///   BEFORE `:code` in `/verify`'s `routes:` list; that order is itself
+///   load-bearing and is asserted end-to-end by
+///   `test/utils/routes/verify_routes_test.dart`, which drives the real
+///   table rather than a hand-built stub router.
 ///
 /// All three are **public**: the endpoints are anonymous ("Two endpoints
 /// work without login", § Public verification endpoints), so none may join

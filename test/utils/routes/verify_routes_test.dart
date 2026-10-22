@@ -27,7 +27,10 @@ import 'package:lcc_mobile_app/core/constant/api_endpoint.dart';
 import 'package:lcc_mobile_app/core/session/bloc/session_bloc.dart';
 import 'package:lcc_mobile_app/features/verify/di/verify_feature_injection.dart';
 import 'package:lcc_mobile_app/features/verify/presentation/pages/verify_code_entry_page.dart';
+import 'package:lcc_mobile_app/features/verify/presentation/pages/verify_file_check_page.dart';
 import 'package:lcc_mobile_app/features/verify/presentation/pages/verify_result_page.dart';
+import 'package:lcc_mobile_app/features/verify/verify_routes.dart'
+    show kVerifyFileCheckCodeParam;
 import 'package:lcc_mobile_app/utils/routes/app_name_routes.dart';
 
 import '../../helpers/app_test_harness.dart';
@@ -143,6 +146,40 @@ void main() {
         reason: 'no redirect to /signin?from=… — a signed-out citizen can '
             'verify a certificate');
     expect(find.byType(VerifyCodeEntryPage), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+  });
+
+  testWidgets(
+      '/verify/file-check?code=… builds the real page, with the query '
+      'param decoded into viewedVerifyCode — Task 7\'s route swap, end to '
+      'end through the actual GoRoute builder (not a hand-built stub route)',
+      (WidgetTester tester) async {
+    final AppHarness harness = await bootHarness();
+    await VerifyFeatureInjection.init();
+    await pumpAssembledApp(tester, harness);
+
+    // `kFromQueryParam`'s own encode-on-write convention
+    // (`verify_result_page.dart`'s button): the code can itself contain
+    // characters a raw concatenation would mangle, so this round-trips
+    // through `Uri.encodeComponent` exactly as the button does, and the
+    // route builder's `state.uri.queryParameters` read is what is under
+    // test — not a bypass of it.
+    routerOf(tester).go(
+      '${AppNameRoutes.verifyFileCheck}'
+      '?$kVerifyFileCheckCodeParam='
+      '${Uri.encodeComponent('RES-7Q4K-19XD')}',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(VerifyFileCheckPage), findsOneWidget);
+    expect(
+      tester
+          .widget<VerifyFileCheckPage>(find.byType(VerifyFileCheckPage))
+          .viewedVerifyCode,
+      'RES-7Q4K-19XD',
+      reason: 'the real builder in app_routes.dart decoded the query param — '
+          'no widget test harness substituted its own route for this one',
+    );
     expect(find.byType(NavigationBar), findsNothing);
   });
 }

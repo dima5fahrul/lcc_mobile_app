@@ -820,21 +820,6 @@ class AppRoutes {
         child: const VerifyCodeEntryPage(),
       ),
       routes: <RouteBase>[
-        // `/verify/:code` — the older deep-link form
-        // (`https://<api-host>/verify/<code>`). The mount fetch —
-        // `..add(VerifySubmitted(code))` — is this route's own, the same
-        // `..add(const HomeStarted())` shape every other page-on-mount route
-        // in this table uses, so the result page stays a pure function of
-        // its bloc.
-        GoRoute(
-          path: ':code',
-          name: AppNameRoutes.verifyResult,
-          builder: (_, GoRouterState state) => BlocProvider<VerifyBloc>(
-            create: (_) => verifyInjection<VerifyBloc>()
-              ..add(VerifySubmitted(state.pathParameters['code'] ?? '')),
-            child: const VerifyResultPage(),
-          ),
-        ),
         // `/verify/file-check` — Task 7's on-device PDF check. No bloc here:
         // `VerifyFileCheckPage` resolves its own use case through a
         // domain-layer production default (the hash-check fetcher in
@@ -844,12 +829,39 @@ class AppRoutes {
         // `kVerifyFileCheckCodeParam` carries the code `VerifyResultPage`'s
         // button was viewing; `state.uri.queryParameters` decodes it exactly
         // once, matching `kFromQueryParam`'s pairing above.
+        //
+        // **Declared BEFORE `:code` below, and that order is load-bearing.**
+        // go_router's matcher (`match.dart`'s `_matchByNavigatorKeyForGoRoute`)
+        // walks a route's `routes:` in LIST ORDER and stops at the first
+        // match — it does not prefer a literal segment over a parameterised
+        // sibling on its own. `:code`'s pattern matches any single segment,
+        // so with the old order (`:code` first) `/verify/file-check` was
+        // matched as `/verify/:code` with `code == 'file-check'` and this
+        // route was never reached at all — caught by
+        // `test/utils/routes/verify_routes_test.dart`'s end-to-end case,
+        // which drives the real table rather than a hand-built stub router.
         GoRoute(
           path: 'file-check',
           name: AppNameRoutes.verifyFileCheck,
           builder: (_, GoRouterState state) => VerifyFileCheckPage(
             viewedVerifyCode:
                 state.uri.queryParameters[kVerifyFileCheckCodeParam] ?? '',
+          ),
+        ),
+        // `/verify/:code` — the older deep-link form
+        // (`https://<api-host>/verify/<code>`). The mount fetch —
+        // `..add(VerifySubmitted(code))` — is this route's own, the same
+        // `..add(const HomeStarted())` shape every other page-on-mount route
+        // in this table uses, so the result page stays a pure function of
+        // its bloc. Declared AFTER `file-check` above — see that route's own
+        // note on why the order is load-bearing.
+        GoRoute(
+          path: ':code',
+          name: AppNameRoutes.verifyResult,
+          builder: (_, GoRouterState state) => BlocProvider<VerifyBloc>(
+            create: (_) => verifyInjection<VerifyBloc>()
+              ..add(VerifySubmitted(state.pathParameters['code'] ?? '')),
+            child: const VerifyResultPage(),
           ),
         ),
       ],
