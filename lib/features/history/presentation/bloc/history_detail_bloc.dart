@@ -242,8 +242,25 @@ class HistoryDetailBloc extends Bloc<HistoryDetailEvent, HistoryDetailState> {
     // `?application_id=…` — review I-2, 2026-10-22. The spec's § Divorce is
     // explicit: *"one application yields three certificates … List them with
     // `GET /me/certificates?application_id=…`"*. Filtering server-side also
-    // means the three rows arrive even when the citizen's unfiltered first
-    // page would not have held them.
+    // closes a real hole: `GET /me/certificates` is **paginated** (§ Citizen
+    // endpoints, List) and this datasource reads page 1 only, so a citizen
+    // with many certificates could have this case's rows on page 2 and never
+    // see them at all.
+    //
+    // **The trade-off, stated rather than discovered later.** The server now
+    // returns only rows of THIS application, so clauses 2 and 3 of
+    // [matchIssuedCertificates] (`c.id == detail.certificate_id`,
+    // `c.referenceNo == detail.reference_no`) can no longer fire for a row
+    // whose own `application_id` differs or is absent. Clause 2's case is
+    // still covered — the single fetch below asks for `detail.certificate_id`
+    // directly. What is not covered is a v1-shaped row that matches only by
+    // `reference_no`, carries no `application_id`, AND belongs to a case with
+    // no `certificate_id`; that one renders the card's "not available yet"
+    // note, which is the same thing it rendered whenever nothing matched. The
+    // predicate is left intact rather than pruned to the one clause the
+    // filter makes reachable, because the clauses are the source's
+    // (`:150-156`) and a second request to close a narrow v1 hole would cost
+    // every case an extra round trip.
     final Either<Failure, List<IssuedCertificate>> listResult =
         await getCertificates(
       GetCertificatesParams(applicationId: state.applicationId),
